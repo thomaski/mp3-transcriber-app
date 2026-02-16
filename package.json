@@ -1,0 +1,40 @@
+{
+  "name": "mp3-transcriber-app",
+  "version": "1.0.0",
+  "description": "Full-Stack-Webapp für MP3-Transkription und -Zusammenfassung mit React und Node.js",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "nodemon server/index.js",
+    "client": "cd client && npm start",
+    "build": "cd client && npm run build",
+    "start": "node server/index.js",
+    "install-all": "npm install && cd client && npm install",
+    "start-server": "npm run dev",
+    "force-stop": "powershell -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force\"",
+    "stop": "npm run force-stop"
+  },
+  "keywords": [
+    "transcription",
+    "mp3",
+    "whisper",
+    "llama",
+    "react",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "socket.io": "^4.6.1",
+    "axios": "^1.6.7",
+    "multer": "^1.4.5-lts.1",
+    "dotenv": "^16.4.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3",
+    "concurrently": "^8.2.2"
+  }
+}
