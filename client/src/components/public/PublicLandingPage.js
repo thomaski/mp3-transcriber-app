@@ -79,8 +79,8 @@ function PublicLandingPage() {
           localStorage.clear();
           sessionStorage.clear();
           
-          // Store token in localStorage (like normal login)
-          localStorage.setItem('token', result.token);
+          // Store token in localStorage (WICHTIG: Key muss 'authToken' sein, nicht 'token'!)
+          localStorage.setItem('authToken', result.token);
           
           // Store user data in localStorage
           localStorage.setItem('user', JSON.stringify(result.user));
@@ -88,7 +88,7 @@ function PublicLandingPage() {
           // Mark as public access session
           sessionStorage.setItem('isPublicAccess', 'true');
           
-          console.log('[PublicLandingPage] Hard redirect to /transcribe');
+          console.log('[PublicLandingPage] Token stored, redirecting to /transcribe');
           // Use hard redirect to ensure fresh page load with new token
           window.location.href = '/transcribe';
         } else if (result.type === 'mp3') {

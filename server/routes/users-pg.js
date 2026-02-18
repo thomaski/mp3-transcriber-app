@@ -510,8 +510,22 @@ router.delete('/:userId', requireAdmin, async (req, res) => {
  * GET /api/users/:userId/transcriptions
  * Get all transcriptions for a user
  */
-router.get('/:userId/transcriptions', requireAdmin, async (req, res) => {
+router.get('/:userId/transcriptions', async (req, res) => {
+  console.log('[users-pg] GET /:userId/transcriptions called');
+  console.log('[users-pg] Requested userId:', req.params.userId);
+  console.log('[users-pg] Request user:', req.user);
+  
+  // Check: User can only access their own transcriptions, unless admin
+  if (req.user.userId !== req.params.userId && !req.user.isAdmin) {
+    console.warn('[users-pg] ❌ Access denied: User', req.user.userId, 'tried to access transcriptions of', req.params.userId);
+    return res.status(403).json({
+      success: false,
+      error: 'Zugriff verweigert. Sie können nur Ihre eigenen Transkriptionen sehen.'
+    });
+  }
+  
   try {
+    console.log('[users-pg] Fetching transcriptions for user:', req.params.userId);
     const transcriptions = await query(
       `SELECT 
         t.id,
@@ -529,6 +543,7 @@ router.get('/:userId/transcriptions', requireAdmin, async (req, res) => {
       [req.params.userId]
     );
     
+    console.log('[users-pg] Found transcriptions:', transcriptions.length);
     res.json({
       success: true,
       transcriptions
