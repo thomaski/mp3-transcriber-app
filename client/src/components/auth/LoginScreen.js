@@ -43,8 +43,8 @@ function LoginScreen() {
     const result = await login(username, password);
 
     if (result.success) {
-      // Redirect to transcribe page or previous page
-      const from = location.state?.from?.pathname || '/transcribe';
+      // Redirect to dashboard or previous page
+      const from = location.state?.from?.pathname || '/dashboard';
       navigate(from, { replace: true });
     } else {
       setErrorMessage(result.error);

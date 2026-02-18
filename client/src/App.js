@@ -14,6 +14,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 // Main Components
 import Dashboard from './components/Dashboard';
 import TranscribeScreen from './components/TranscribeScreen';
+import MyTranscriptions from './components/MyTranscriptions';
 
 // Admin Components
 import UserManagement from './components/admin/UserManagement';
@@ -43,6 +44,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/transcribe" element={<TranscribeScreen />} />
             <Route path="/transcribe/:transcriptionId" element={<TranscribeScreen />} />
+            <Route path="/my-transcriptions" element={<MyTranscriptions />} />
           </Route>
           
           {/* Admin-only Routes */}

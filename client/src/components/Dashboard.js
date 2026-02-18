@@ -81,7 +81,13 @@ function Dashboard() {
           </div>
 
           {/* Meine Transkriptionen */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div 
+            onClick={() => {
+              console.log('[Dashboard] Navigating to my transcriptions for user:', user?.id);
+              navigate(`/my-transcriptions`);
+            }}
+            className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition"
+          >
             <div className="text-4xl mb-3">📁</div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">
               Meine Transkriptionen
@@ -89,8 +95,8 @@ function Dashboard() {
             <p className="text-gray-600 text-sm">
               Alle meine MP3-Transkriptionen ansehen
             </p>
-            <div className="mt-4 text-gray-400">
-              (Coming soon)
+            <div className="mt-4 text-blue-600 font-semibold">
+              → Zu meinen Transkriptionen
             </div>
           </div>
 

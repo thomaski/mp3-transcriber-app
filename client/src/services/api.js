@@ -19,6 +19,7 @@ const api = axios.create({
 
 // Upload file
 export const uploadFile = async (file) => {
+  console.log('[api.js] uploadFile called:', file?.name, file?.size);
   const formData = new FormData();
   formData.append('file', file);
   
@@ -29,8 +30,10 @@ export const uploadFile = async (file) => {
       }
     });
     
+    console.log('[api.js] uploadFile response:', response.data);
     return response.data;
   } catch (error) {
+    console.error('[api.js] ❌ uploadFile error:', error);
     throw new Error(error.response?.data?.error || 'Upload fehlgeschlagen');
   }
 };
