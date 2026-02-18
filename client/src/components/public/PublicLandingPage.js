@@ -106,15 +106,17 @@ function PublicLandingPage() {
           sessionStorage.setItem('isPublicAccess', 'true');
           console.log('[PublicLandingPage] ✅ Public access marked! Verify:', sessionStorage.getItem('isPublicAccess'));
           
+          // WICHTIG: Warte kurz, damit localStorage sicher gespeichert ist
+          console.log('[PublicLandingPage] ⏳ Waiting 500ms for storage to settle...');
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
           console.log('[PublicLandingPage] 🚀🚀🚀 ALL DATA STORED - NOW REDIRECTING TO /transcribe 🚀🚀🚀');
           console.log('[PublicLandingPage] Current URL:', window.location.href);
           console.log('[PublicLandingPage] Target URL:', window.location.origin + '/transcribe');
           
           // Use hard redirect to ensure fresh page load with new token
-          setTimeout(() => {
-            console.log('[PublicLandingPage] ⏱️ Executing redirect NOW...');
-            window.location.href = '/transcribe';
-          }, 100); // Small delay to ensure logs are visible
+          console.log('[PublicLandingPage] ⏱️ Executing redirect NOW...');
+          window.location.href = '/transcribe';
         } else if (result.type === 'mp3') {
           console.log('[PublicLandingPage] 🎵 MP3 ACCESS - Navigating to MP3 view');
           // Navigate to MP3 view
