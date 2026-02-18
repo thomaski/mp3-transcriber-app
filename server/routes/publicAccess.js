@@ -266,11 +266,11 @@ router.post('/verify/:id', async (req, res) => {
       type: responseType,
       token: token,
       user: {
-        id: fullUser.id, // ADD THIS!
-        userId: fullUser.id,
+        id: fullUser.id,
+        userId: fullUser.id, // Keep for backward compatibility
         username: fullUser.username,
-        firstName: fullUser.first_name,
-        lastName: fullUser.last_name,
+        first_name: fullUser.first_name, // WICHTIG: snake_case wie in auth.js!
+        last_name: fullUser.last_name,   // WICHTIG: snake_case wie in auth.js!
         isAdmin: false, // Public access is never admin
         publicAccess: true
       }
