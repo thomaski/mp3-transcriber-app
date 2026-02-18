@@ -74,6 +74,11 @@ function PublicLandingPage() {
         if (result.type === 'user' && result.token && result.user) {
           console.log('[PublicLandingPage] Storing public access token and user data');
           
+          // IMPORTANT: Clear all old auth data first!
+          console.log('[PublicLandingPage] Clearing old auth data');
+          localStorage.clear();
+          sessionStorage.clear();
+          
           // Store token in localStorage (like normal login)
           localStorage.setItem('token', result.token);
           
@@ -83,9 +88,9 @@ function PublicLandingPage() {
           // Mark as public access session
           sessionStorage.setItem('isPublicAccess', 'true');
           
-          console.log('[PublicLandingPage] Redirecting to /transcribe');
-          // Redirect to transcribe page (will be authenticated now)
-          navigate('/transcribe', { replace: true });
+          console.log('[PublicLandingPage] Hard redirect to /transcribe');
+          // Use hard redirect to ensure fresh page load with new token
+          window.location.href = '/transcribe';
         } else if (result.type === 'mp3') {
           // Navigate to MP3 view
           navigate(`/public/mp3/${id}?pw=${encodeURIComponent(password)}`);
