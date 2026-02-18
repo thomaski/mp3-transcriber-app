@@ -23,7 +23,7 @@ function LoginScreen() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      const from = location.state?.from?.pathname || '/dashboard';
+      const from = location.state?.from?.pathname || '/transcribe';
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, navigate, location]);
@@ -43,8 +43,8 @@ function LoginScreen() {
     const result = await login(username, password);
 
     if (result.success) {
-      // Redirect to dashboard or previous page
-      const from = location.state?.from?.pathname || '/dashboard';
+      // Redirect to transcribe page or previous page
+      const from = location.state?.from?.pathname || '/transcribe';
       navigate(from, { replace: true });
     } else {
       setErrorMessage(result.error);
