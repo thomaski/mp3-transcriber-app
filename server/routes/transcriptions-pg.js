@@ -31,11 +31,16 @@ const upload = multer({
  * Get all transcriptions (admin) or user's own transcriptions
  */
 router.get('/', authenticateJWT, async (req, res) => {
+  console.log('[transcriptions-pg] 📋 GET /api/transcriptions called');
+  console.log('[transcriptions-pg] User:', req.user.userId);
+  console.log('[transcriptions-pg] Is Admin:', req.user.isAdmin);
+  
   try {
     let transcriptions;
     
     if (req.user.isAdmin) {
       // Admin: Alle Transkriptionen (ohne mp3_data für Performance)
+      console.log('[transcriptions-pg] Loading ALL transcriptions (admin)');
       transcriptions = await query(
         `SELECT 
           t.id,
@@ -57,6 +62,7 @@ router.get('/', authenticateJWT, async (req, res) => {
       );
     } else {
       // User: Nur eigene Transkriptionen
+      console.log('[transcriptions-pg] Loading user transcriptions for:', req.user.userId);
       transcriptions = await query(
         `SELECT 
           t.id,
@@ -75,12 +81,15 @@ router.get('/', authenticateJWT, async (req, res) => {
       );
     }
     
+    console.log('[transcriptions-pg] ✅ Found transcriptions:', transcriptions.length);
+    
     res.json({
       success: true,
       transcriptions
     });
   } catch (error) {
-    console.error('Get transcriptions error:', error);
+    console.error('[transcriptions-pg] ❌ Get transcriptions error:', error);
+    console.error('[transcriptions-pg] Error stack:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Abrufen der Transkriptionen.'

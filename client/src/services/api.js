@@ -40,32 +40,50 @@ export const uploadFile = async (file) => {
 
 // Get file
 export const getFile = async (filename) => {
+  console.log('[api.js] 📂 getFile called:', filename);
+  
   try {
+    console.log('[api.js] Sending GET request to /files/' + filename);
     const response = await api.get(`/files/${filename}`);
+    console.log('[api.js] ✅ getFile response:', response.data);
     return response.data;
   } catch (error) {
+    console.error('[api.js] ❌ getFile error:', error);
+    console.error('[api.js] Error response:', error.response?.data);
     throw new Error(error.response?.data?.error || 'Datei nicht gefunden');
   }
 };
 
 // Delete file
 export const deleteFile = async (filename) => {
+  console.log('[api.js] 🗑️ deleteFile called:', filename);
+  
   try {
+    console.log('[api.js] Sending DELETE request to /files/' + filename);
     const response = await api.delete(`/files/${filename}`);
+    console.log('[api.js] ✅ deleteFile response:', response.data);
     return response.data;
   } catch (error) {
+    console.error('[api.js] ❌ deleteFile error:', error);
+    console.error('[api.js] Error response:', error.response?.data);
     throw new Error(error.response?.data?.error || 'Löschen fehlgeschlagen');
   }
 };
 
 // Load local file
 export const loadLocalFile = async (filePath, type = 'mp3') => {
+  console.log('[api.js] 📁 loadLocalFile called');
+  console.log('[api.js] File path:', filePath);
+  console.log('[api.js] File type:', type);
+  
   try {
     // Für MP3: Verwende Stream-URL vom Backend
     if (type === 'mp3') {
       const backendUrl = process.env.REACT_APP_BACKEND_URL || window.location.origin;
       const streamUrl = `${backendUrl}/api/files/stream?path=${encodeURIComponent(filePath)}`;
       const filename = filePath.split(/[\\/]/).pop();
+      
+      console.log('[api.js] MP3 type - creating stream URL:', streamUrl);
       
       return {
         success: true,
@@ -79,9 +97,12 @@ export const loadLocalFile = async (filePath, type = 'mp3') => {
     
     // Für TXT: Lade Inhalt vom Backend
     if (type === 'txt') {
+      console.log('[api.js] TXT type - loading content from backend...');
       const response = await api.get('/files/load-local', {
         params: { path: filePath, type: 'txt' }
       });
+      
+      console.log('[api.js] ✅ TXT content loaded, length:', response.data.content?.length || 0);
       
       return {
         success: true,
@@ -91,9 +112,12 @@ export const loadLocalFile = async (filePath, type = 'mp3') => {
     }
     
     // Fallback für andere Typen
+    console.log('[api.js] Other type - loading from backend...');
     const response = await api.get('/files/load-local', {
       params: { path: filePath, type: type }
     });
+    
+    console.log('[api.js] ✅ File loaded successfully');
     
     return {
       success: true,
@@ -101,7 +125,8 @@ export const loadLocalFile = async (filePath, type = 'mp3') => {
       path: filePath
     };
   } catch (error) {
-    console.error('❌ loadLocalFile Error:', error);
+    console.error('[api.js] ❌ loadLocalFile Error:', error);
+    console.error('[api.js] Error response:', error.response?.data);
     return {
       success: false,
       error: error.response?.data?.error || error.message || `Fehler beim Laden der lokalen ${type}-Datei`,
@@ -116,35 +141,55 @@ export const loadLocalFile = async (filePath, type = 'mp3') => {
 
 // List local files (MP3 or TXT)
 export const listLocalFiles = async (fileType = 'mp3') => {
+  console.log('[api.js] 📋 listLocalFiles called, type:', fileType);
+  
   try {
+    console.log('[api.js] Sending GET request to /local-files/list');
     const response = await api.get('/local-files/list', {
       params: { type: fileType }
     });
+    console.log('[api.js] ✅ listLocalFiles response:', response.data.files?.length || 0, 'files');
     return response.data;
   } catch (error) {
+    console.error('[api.js] ❌ listLocalFiles error:', error);
+    console.error('[api.js] Error response:', error.response?.data);
     throw new Error(error.response?.data?.error || 'Fehler beim Laden der Dateiliste');
   }
 };
 
 // Get local directory info
 export const getLocalDirectoryInfo = async () => {
+  console.log('[api.js] 📂 getLocalDirectoryInfo called');
+  
   try {
+    console.log('[api.js] Sending GET request to /local-files/info');
     const response = await api.get('/local-files/info');
+    console.log('[api.js] ✅ getLocalDirectoryInfo response:', response.data);
     return response.data;
   } catch (error) {
+    console.error('[api.js] ❌ getLocalDirectoryInfo error:', error);
+    console.error('[api.js] Error response:', error.response?.data);
     throw new Error(error.response?.data?.error || 'Fehler beim Abrufen der Verzeichnis-Info');
   }
 };
 
 // Transcribe local MP3 with WSL2 Python
 export const transcribeLocal = async (filename, socketId) => {
+  console.log('[api.js] 🎤 transcribeLocal called');
+  console.log('[api.js] Filename:', filename);
+  console.log('[api.js] Socket ID:', socketId);
+  
   try {
+    console.log('[api.js] Sending POST request to /transcribe-local');
     const response = await api.post('/transcribe-local', {
       filename,
       socketId
     });
+    console.log('[api.js] ✅ transcribeLocal response:', response.data);
     return response.data;
   } catch (error) {
+    console.error('[api.js] ❌ transcribeLocal error:', error);
+    console.error('[api.js] Error response:', error.response?.data);
     throw new Error(error.response?.data?.error || 'Lokale Transkription fehlgeschlagen');
   }
 };
@@ -154,32 +199,50 @@ export const transcribeLocal = async (filename, socketId) => {
 // socketId: Socket-ID für Live-Updates
 // transcription: Direkte Transkription als String (optional, wenn filename angegeben)
 export const summarizeLocal = async (filename, socketId, transcription = null) => {
+  console.log('[api.js] 📝 summarizeLocal called');
+  console.log('[api.js] Filename:', filename);
+  console.log('[api.js] Socket ID:', socketId);
+  console.log('[api.js] Has transcription:', !!transcription);
+  
   try {
     const payload = { socketId };
     
     if (transcription) {
       // Direkte Transkription verwenden
       payload.transcription = transcription;
+      console.log('[api.js] Using direct transcription, length:', transcription.length);
     } else if (filename) {
       // Dateiname verwenden
       payload.filename = filename;
+      console.log('[api.js] Using filename:', filename);
     } else {
+      console.error('[api.js] ❌ Neither filename nor transcription provided!');
       throw new Error('Entweder filename oder transcription muss angegeben werden');
     }
     
+    console.log('[api.js] Sending POST request to /summarize-local');
     const response = await api.post('/summarize-local', payload);
+    console.log('[api.js] ✅ summarizeLocal response:', response.data);
     return response.data;
   } catch (error) {
+    console.error('[api.js] ❌ summarizeLocal error:', error);
+    console.error('[api.js] Error response:', error.response?.data);
     throw new Error(error.response?.data?.error || 'Lokale Zusammenfassung fehlgeschlagen');
   }
 };
 
 // Health check
 export const healthCheck = async () => {
+  console.log('[api.js] 🏥 healthCheck called');
+  
   try {
+    console.log('[api.js] Sending GET request to /health');
     const response = await api.get('/health');
+    console.log('[api.js] ✅ healthCheck response:', response.data);
     return response.data;
   } catch (error) {
+    console.error('[api.js] ❌ healthCheck error:', error);
+    console.error('[api.js] Error response:', error.response?.data);
     throw new Error('Server nicht erreichbar');
   }
 };
