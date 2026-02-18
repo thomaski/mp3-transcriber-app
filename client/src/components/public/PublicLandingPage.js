@@ -68,11 +68,24 @@ function PublicLandingPage() {
       console.log('[PublicLandingPage] verifyPassword response:', result);
 
       if (result.success) {
-        console.log('[PublicLandingPage] Password verified, redirecting to:', result.type);
-        // Redirect based on type
-        if (result.type === 'user') {
-          // Navigate to user MP3 list
-          navigate(`/public/user/${id}?pw=${encodeURIComponent(password)}`);
+        console.log('[PublicLandingPage] Password verified, result:', result);
+        
+        // For user access: store token and user data, then redirect to transcribe
+        if (result.type === 'user' && result.token && result.user) {
+          console.log('[PublicLandingPage] Storing public access token and user data');
+          
+          // Store token in localStorage (like normal login)
+          localStorage.setItem('token', result.token);
+          
+          // Store user data in localStorage
+          localStorage.setItem('user', JSON.stringify(result.user));
+          
+          // Mark as public access session
+          sessionStorage.setItem('isPublicAccess', 'true');
+          
+          console.log('[PublicLandingPage] Redirecting to /transcribe');
+          // Redirect to transcribe page (will be authenticated now)
+          navigate('/transcribe', { replace: true });
         } else if (result.type === 'mp3') {
           // Navigate to MP3 view
           navigate(`/public/mp3/${id}?pw=${encodeURIComponent(password)}`);

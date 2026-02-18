@@ -8,6 +8,7 @@ const express = require('express');
 const { query, queryOne, execute } = require('../db/database-pg');
 const { logAuditEvent } = require('../utils/logger');
 const { isUserIdPattern, isMp3IdPattern, isValidIdFormat } = require('../utils/generateShortId');
+const { generateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -219,6 +220,22 @@ router.post('/verify/:id', async (req, res) => {
     
     // Log successful verification
     console.log('[publicAccess] Password verified successfully for user:', userId);
+    
+    // Get full user data for token generation
+    const fullUser = await queryOne(
+      'SELECT id, username, first_name, last_name, is_admin FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    // Generate temporary JWT token (expires in 24 hours for public access)
+    const token = generateToken({
+      userId: fullUser.id,
+      username: fullUser.username,
+      isAdmin: false, // Public access is always non-admin
+      publicAccess: true, // Mark as public access session
+      expiresIn: '24h'
+    });
+    
     logAuditEvent({
       event_type: 'public_access_verified',
       user_id: userId,
@@ -228,12 +245,21 @@ router.post('/verify/:id', async (req, res) => {
       success: true
     });
     
-    // Return success
+    // Return success with token and user data
     const responseType = isUserIdPattern(id) ? 'user' : 'mp3';
-    console.log('[publicAccess] Sending success response, type:', responseType);
+    console.log('[publicAccess] Sending success response with token, type:', responseType);
     res.json({
       success: true,
-      type: responseType
+      type: responseType,
+      token: token,
+      user: {
+        userId: fullUser.id,
+        username: fullUser.username,
+        firstName: fullUser.first_name,
+        lastName: fullUser.last_name,
+        isAdmin: false, // Public access is never admin
+        publicAccess: true
+      }
     });
     
   } catch (error) {
