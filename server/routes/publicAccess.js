@@ -247,12 +247,26 @@ router.post('/verify/:id', async (req, res) => {
     
     // Return success with token and user data
     const responseType = isUserIdPattern(id) ? 'user' : 'mp3';
-    console.log('[publicAccess] Sending success response with token, type:', responseType);
-    res.json({
+    console.log('[publicAccess] ✅✅✅ PASSWORD VERIFIED SUCCESSFULLY ✅✅✅');
+    console.log('[publicAccess] Response type:', responseType);
+    console.log('[publicAccess] User ID:', fullUser.id);
+    console.log('[publicAccess] Token generated (first 20 chars):', token.substring(0, 20) + '...');
+    console.log('[publicAccess] Token length:', token.length);
+    console.log('[publicAccess] Full user object:', JSON.stringify({
+      userId: fullUser.id,
+      username: fullUser.username,
+      firstName: fullUser.first_name,
+      lastName: fullUser.last_name,
+      isAdmin: false,
+      publicAccess: true
+    }, null, 2));
+    
+    const responseData = {
       success: true,
       type: responseType,
       token: token,
       user: {
+        id: fullUser.id, // ADD THIS!
         userId: fullUser.id,
         username: fullUser.username,
         firstName: fullUser.first_name,
@@ -260,7 +274,12 @@ router.post('/verify/:id', async (req, res) => {
         isAdmin: false, // Public access is never admin
         publicAccess: true
       }
-    });
+    };
+    
+    console.log('[publicAccess] 🚀🚀🚀 SENDING RESPONSE 🚀🚀🚀');
+    console.log('[publicAccess] Response data:', JSON.stringify(responseData, null, 2));
+    
+    res.json(responseData);
     
   } catch (error) {
     console.error('[publicAccess] Verify password error:', error);

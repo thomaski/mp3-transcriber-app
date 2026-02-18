@@ -75,8 +75,30 @@ export async function getCurrentUser() {
  * @returns {Promise<Object>} Auth status
  */
 export async function checkAuth() {
-  const response = await apiClient.get('/auth/check');
-  return response.data;
+  console.log('[authService] 🔍🔍🔍 checkAuth called 🔍🔍🔍');
+  console.log('[authService] Checking for authToken in localStorage...');
+  
+  const token = localStorage.getItem('authToken');
+  console.log('[authService] authToken exists:', !!token);
+  
+  if (token) {
+    console.log('[authService] authToken preview (first 20 chars):', token.substring(0, 20) + '...');
+  } else {
+    console.log('[authService] ❌ No authToken found!');
+  }
+  
+  console.log('[authService] 📡 Sending GET request to /auth/check');
+  
+  try {
+    const response = await apiClient.get('/auth/check');
+    console.log('[authService] ✅ checkAuth response status:', response.status);
+    console.log('[authService] checkAuth response data:', JSON.stringify(response.data, null, 2));
+    return response.data;
+  } catch (error) {
+    console.error('[authService] ❌ checkAuth error:', error);
+    console.error('[authService] Error response:', error.response?.data);
+    throw error;
+  }
 }
 
 export default {

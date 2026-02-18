@@ -35,20 +35,44 @@ export const checkIdType = checkId; // Alias
  * Verify password for ID
  */
 export async function verifyPassword(id, password) {
-  console.log('[publicAccessService] verifyPassword called with ID:', id);
+  console.log('[publicAccessService] 🔐🔐🔐 verifyPassword called 🔐🔐🔐');
+  console.log('[publicAccessService] ID:', id);
+  console.log('[publicAccessService] Password:', password);
+  console.log('[publicAccessService] Password length:', password?.length);
+  
   try {
     const url = `${API_URL}/verify/${id}`;
-    console.log('[publicAccessService] POST request to:', url);
-    console.log('[publicAccessService] Password length:', password?.length);
+    console.log('[publicAccessService] 📡 Sending POST request to:', url);
+    console.log('[publicAccessService] Request body:', { password });
+    
     const response = await axios.post(url, { password });
-    console.log('[publicAccessService] verifyPassword response:', response.data);
+    
+    console.log('[publicAccessService] ✅✅✅ Response received ✅✅✅');
+    console.log('[publicAccessService] Response status:', response.status);
+    console.log('[publicAccessService] Response headers:', response.headers);
+    console.log('[publicAccessService] Response data:', JSON.stringify(response.data, null, 2));
+    console.log('[publicAccessService] Response.data.success:', response.data.success);
+    console.log('[publicAccessService] Response.data.type:', response.data.type);
+    console.log('[publicAccessService] Response.data.token:', response.data.token ? `EXISTS (${response.data.token.length} chars)` : 'MISSING');
+    console.log('[publicAccessService] Response.data.user:', response.data.user ? 'EXISTS' : 'MISSING');
+    
+    if (response.data.user) {
+      console.log('[publicAccessService] User details:', JSON.stringify(response.data.user, null, 2));
+    }
+    
     return response.data;
   } catch (error) {
-    console.error('[publicAccessService] verifyPassword error:', error);
+    console.error('[publicAccessService] ❌❌❌ verifyPassword ERROR ❌❌❌');
+    console.error('[publicAccessService] Error:', error);
+    console.error('[publicAccessService] Error message:', error.message);
+    
     if (error.response) {
-      console.error('[publicAccessService] Error response:', error.response.data);
+      console.error('[publicAccessService] Error response status:', error.response.status);
+      console.error('[publicAccessService] Error response data:', JSON.stringify(error.response.data, null, 2));
       throw error.response.data;
     }
+    
+    console.error('[publicAccessService] Network error or no response');
     throw error;
   }
 }

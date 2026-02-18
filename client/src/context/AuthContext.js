@@ -53,29 +53,50 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function checkAuthStatus() {
+    console.log('[AuthContext] 🔍🔍🔍 checkAuthStatus called 🔍🔍🔍');
+    
     try {
       // Wenn kein Token vorhanden, direkt abbrechen
       const token = localStorage.getItem('authToken');
-      if (!token) {
+      console.log('[AuthContext] Checking for authToken in localStorage...');
+      console.log('[AuthContext] authToken exists:', !!token);
+      
+      if (token) {
+        console.log('[AuthContext] authToken found (first 20 chars):', token.substring(0, 20) + '...');
+        console.log('[AuthContext] authToken length:', token.length);
+      } else {
+        console.log('[AuthContext] ❌ No authToken found in localStorage');
+        console.log('[AuthContext] LocalStorage contents:', JSON.stringify(localStorage));
         setUser(null);
         setLoading(false);
         return;
       }
       
+      console.log('[AuthContext] 📡 Calling checkAuth API...');
       const response = await checkAuth();
+      console.log('[AuthContext] checkAuth response:', JSON.stringify(response, null, 2));
+      console.log('[AuthContext] response.success:', response.success);
+      console.log('[AuthContext] response.authenticated:', response.authenticated);
+      
       if (response.success && response.authenticated) {
+        console.log('[AuthContext] ✅ User authenticated!');
+        console.log('[AuthContext] User data:', JSON.stringify(response.user, null, 2));
         setUser(response.user);
       } else {
         // Token ungültig → entfernen
+        console.warn('[AuthContext] ⚠️ Token invalid, removing...');
         localStorage.removeItem('authToken');
         setUser(null);
       }
     } catch (error) {
       // Bei Fehler: Token entfernen
-      console.error('Auth check error:', error);
+      console.error('[AuthContext] ❌ Auth check error:', error);
+      console.error('[AuthContext] Error message:', error.message);
+      console.error('[AuthContext] Error stack:', error.stack);
       localStorage.removeItem('authToken');
       setUser(null);
     } finally {
+      console.log('[AuthContext] checkAuthStatus complete, setting loading=false');
       setLoading(false);
     }
   }

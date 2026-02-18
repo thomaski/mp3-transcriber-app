@@ -68,32 +68,63 @@ function PublicLandingPage() {
       console.log('[PublicLandingPage] verifyPassword response:', result);
 
       if (result.success) {
-        console.log('[PublicLandingPage] Password verified, result:', result);
+        console.log('[PublicLandingPage] ✅✅✅ Password verified successfully! ✅✅✅');
+        console.log('[PublicLandingPage] Full result object:', JSON.stringify(result, null, 2));
+        console.log('[PublicLandingPage] Result type:', result.type);
+        console.log('[PublicLandingPage] Has token?', !!result.token);
+        console.log('[PublicLandingPage] Has user?', !!result.user);
         
         // For user access: store token and user data, then redirect to transcribe
         if (result.type === 'user' && result.token && result.user) {
-          console.log('[PublicLandingPage] Storing public access token and user data');
+          console.log('[PublicLandingPage] 🔐🔐🔐 USER ACCESS - Starting token storage 🔐🔐🔐');
+          console.log('[PublicLandingPage] Token preview (first 20 chars):', result.token.substring(0, 20) + '...');
+          console.log('[PublicLandingPage] User data:', JSON.stringify(result.user, null, 2));
           
           // IMPORTANT: Clear all old auth data first!
-          console.log('[PublicLandingPage] Clearing old auth data');
+          console.log('[PublicLandingPage] 🧹 Step 1: Clearing old auth data...');
+          console.log('[PublicLandingPage] LocalStorage BEFORE clear:', JSON.stringify(localStorage));
+          console.log('[PublicLandingPage] SessionStorage BEFORE clear:', JSON.stringify(sessionStorage));
+          
           localStorage.clear();
           sessionStorage.clear();
           
+          console.log('[PublicLandingPage] ✅ LocalStorage AFTER clear:', JSON.stringify(localStorage));
+          console.log('[PublicLandingPage] ✅ SessionStorage AFTER clear:', JSON.stringify(sessionStorage));
+          
           // Store token in localStorage (WICHTIG: Key muss 'authToken' sein, nicht 'token'!)
+          console.log('[PublicLandingPage] 💾 Step 2: Storing authToken...');
           localStorage.setItem('authToken', result.token);
+          console.log('[PublicLandingPage] ✅ authToken stored! Verify:', localStorage.getItem('authToken')?.substring(0, 20) + '...');
           
           // Store user data in localStorage
+          console.log('[PublicLandingPage] 💾 Step 3: Storing user data...');
           localStorage.setItem('user', JSON.stringify(result.user));
+          console.log('[PublicLandingPage] ✅ User stored! Verify:', localStorage.getItem('user'));
           
           // Mark as public access session
+          console.log('[PublicLandingPage] 💾 Step 4: Marking as public access...');
           sessionStorage.setItem('isPublicAccess', 'true');
+          console.log('[PublicLandingPage] ✅ Public access marked! Verify:', sessionStorage.getItem('isPublicAccess'));
           
-          console.log('[PublicLandingPage] Token stored, redirecting to /transcribe');
+          console.log('[PublicLandingPage] 🚀🚀🚀 ALL DATA STORED - NOW REDIRECTING TO /transcribe 🚀🚀🚀');
+          console.log('[PublicLandingPage] Current URL:', window.location.href);
+          console.log('[PublicLandingPage] Target URL:', window.location.origin + '/transcribe');
+          
           // Use hard redirect to ensure fresh page load with new token
-          window.location.href = '/transcribe';
+          setTimeout(() => {
+            console.log('[PublicLandingPage] ⏱️ Executing redirect NOW...');
+            window.location.href = '/transcribe';
+          }, 100); // Small delay to ensure logs are visible
         } else if (result.type === 'mp3') {
+          console.log('[PublicLandingPage] 🎵 MP3 ACCESS - Navigating to MP3 view');
           // Navigate to MP3 view
           navigate(`/public/mp3/${id}?pw=${encodeURIComponent(password)}`);
+        } else {
+          console.error('[PublicLandingPage] ❌❌❌ UNEXPECTED RESULT STRUCTURE ❌❌❌');
+          console.error('[PublicLandingPage] result.type:', result.type);
+          console.error('[PublicLandingPage] result.token:', result.token ? 'EXISTS' : 'MISSING');
+          console.error('[PublicLandingPage] result.user:', result.user ? 'EXISTS' : 'MISSING');
+          console.error('[PublicLandingPage] Full result:', JSON.stringify(result, null, 2));
         }
       } else {
         console.error('[PublicLandingPage] Password verification failed:', result.error);
