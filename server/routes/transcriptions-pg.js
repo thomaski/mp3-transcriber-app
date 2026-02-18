@@ -368,7 +368,13 @@ router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => 
  * Get single transcription (ohne mp3_data, nur Metadaten + Text)
  */
 router.get('/:id', authenticateJWT, async (req, res) => {
+  console.log('[transcriptions-pg] 📄 GET /api/transcriptions/:id called');
+  console.log('[transcriptions-pg] Transcription ID:', req.params.id);
+  console.log('[transcriptions-pg] Request user:', req.user.userId);
+  console.log('[transcriptions-pg] Is Admin:', req.user.isAdmin);
+  
   try {
+    console.log('[transcriptions-pg] Fetching transcription from database...');
     const transcription = await queryOne(
       `SELECT 
         t.id,
@@ -388,19 +394,28 @@ router.get('/:id', authenticateJWT, async (req, res) => {
     );
     
     if (!transcription) {
+      console.warn('[transcriptions-pg] ⚠️ Transcription not found:', req.params.id);
       return res.status(404).json({
         success: false,
         error: 'Transkription nicht gefunden.'
       });
     }
     
+    console.log('[transcriptions-pg] ✅ Transcription found');
+    console.log('[transcriptions-pg] Owner:', transcription.user_id);
+    console.log('[transcriptions-pg] Filename:', transcription.mp3_filename);
+    console.log('[transcriptions-pg] Size:', transcription.mp3_size_bytes);
+    
     // Check permissions: Own transcription or admin
     if (transcription.user_id !== req.user.userId && !req.user.isAdmin) {
+      console.warn('[transcriptions-pg] ❌ Access denied - not owner and not admin');
       return res.status(403).json({
         success: false,
         error: 'Zugriff verweigert.'
       });
     }
+    
+    console.log('[transcriptions-pg] ✅ Access granted');
     
     res.json({
       success: true,
@@ -408,7 +423,8 @@ router.get('/:id', authenticateJWT, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Get transcription error:', error);
+    console.error('[transcriptions-pg] ❌ Get transcription error:', error);
+    console.error('[transcriptions-pg] Error stack:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Abrufen der Transkription.'

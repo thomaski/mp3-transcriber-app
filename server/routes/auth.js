@@ -145,8 +145,14 @@ router.post('/login', loginLimiter, async (req, res) => {
  * Logout (client-side token removal)
  */
 router.post('/logout', (req, res) => {
+  console.log('[auth] 🚪 POST /api/auth/logout called');
+  console.log('[auth] IP:', req.ip);
+  console.log('[auth] User-Agent:', req.get('user-agent') || 'none');
+  
   // With JWT in header, logout is handled client-side
   // Server just confirms the action
+  console.log('[auth] ✅ Logout confirmed');
+  
   res.json({
     success: true,
     message: 'Erfolgreich ausgeloggt.'
@@ -157,20 +163,30 @@ router.post('/logout', (req, res) => {
  * GET /api/auth/me
  * Get current user info (requires authentication)
  */
-router.get('/me', authenticateJWT, (req, res) => {
+router.get('/me', authenticateJWT, async (req, res) => {
+  console.log('[auth] 👤 GET /api/auth/me called');
+  console.log('[auth] User ID:', req.user.userId);
+  console.log('[auth] Username:', req.user.username);
+  
   try {
+    console.log('[auth] Fetching user from database...');
     // Get full user info from database
-    const user = queryOne(
-      'SELECT id, username, first_name, last_name, is_admin, created_at FROM users WHERE id = ?',
+    const user = await queryOne(
+      'SELECT id, username, first_name, last_name, is_admin, created_at FROM users WHERE id = $1',
       [req.user.userId]
     );
     
     if (!user) {
+      console.error('[auth] ❌ User not found in database:', req.user.userId);
       return res.status(404).json({
         success: false,
         error: 'Benutzer nicht gefunden.'
       });
     }
+    
+    console.log('[auth] ✅ User found:', user.username);
+    console.log('[auth] Name:', user.first_name, user.last_name);
+    console.log('[auth] Is Admin:', user.is_admin);
     
     res.json({
       success: true,
@@ -179,13 +195,14 @@ router.get('/me', authenticateJWT, (req, res) => {
         username: user.username,
         first_name: user.first_name,
         last_name: user.last_name,
-        isAdmin: user.is_admin === 1,
+        isAdmin: user.is_admin,
         created_at: user.created_at
       }
     });
     
   } catch (error) {
-    console.error('Get user info error:', error);
+    console.error('[auth] ❌ Get user info error:', error);
+    console.error('[auth] Error stack:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Abrufen der Benutzerinformationen.'
@@ -198,8 +215,14 @@ router.get('/me', authenticateJWT, (req, res) => {
  * Check if user is authenticated (with full user details from DB)
  */
 router.get('/check', authenticateJWTOptional, async (req, res) => {
+  console.log('[auth] 🔍 GET /api/auth/check called');
+  console.log('[auth] Has token:', !!req.user);
+  
   if (req.user) {
+    console.log('[auth] Token present, user ID:', req.user.userId);
+    
     try {
+      console.log('[auth] Fetching user from database...');
       // Get full user info from database
       const user = await queryOne(
         'SELECT id, username, first_name, last_name, email, is_admin, created_at FROM users WHERE id = $1',
@@ -207,17 +230,23 @@ router.get('/check', authenticateJWTOptional, async (req, res) => {
       );
       
       if (!user) {
+        console.warn('[auth] ⚠️ User not found in database (token valid but user deleted?)');
         return res.json({
           success: true,
           authenticated: false
         });
       }
       
+      console.log('[auth] ✅ User authenticated:', user.username);
+      console.log('[auth] Name:', user.first_name, user.last_name);
+      console.log('[auth] Email:', user.email);
+      console.log('[auth] Is Admin:', user.is_admin);
+      
       // User is authenticated - return full user info
-    res.json({
-      success: true,
-      authenticated: true,
-      user: {
+      res.json({
+        success: true,
+        authenticated: true,
+        user: {
           id: user.id,
           userId: user.id, // Keep for backward compatibility
           username: user.username,
@@ -226,10 +255,11 @@ router.get('/check', authenticateJWTOptional, async (req, res) => {
           email: user.email,
           isAdmin: user.is_admin,
           created_at: user.created_at
-      }
-    });
+        }
+      });
     } catch (error) {
-      console.error('Check auth error:', error);
+      console.error('[auth] ❌ Check auth error:', error);
+      console.error('[auth] Error stack:', error.stack);
       res.json({
         success: true,
         authenticated: false
@@ -237,6 +267,7 @@ router.get('/check', authenticateJWTOptional, async (req, res) => {
     }
   } else {
     // No valid token
+    console.log('[auth] ❌ No valid token found');
     res.json({
       success: true,
       authenticated: false
