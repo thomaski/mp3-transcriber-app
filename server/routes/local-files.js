@@ -2,29 +2,53 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const path = require('path');
+const { authenticateJWT } = require('../middleware/auth');
+const { queryOne } = require('../db/database-pg');
 
-// Konfiguration für lokales Verzeichnis
-const LOCAL_AUDIO_DIR = 'D:\\Projekte_KI\\pyenv_1_transcode_durchgabe\\audio';
+// Konfiguration für lokales Verzeichnis (Default)
+const DEFAULT_AUDIO_DIR = 'D:\\Projekte_KI\\pyenv_1_transcode_durchgabe\\audio';
 
 /**
  * GET /api/local-files/list
  * Liste lokale MP3 oder TXT Dateien aus dem Audio-Verzeichnis
  * Query-Parameter: type=mp3|txt
+ * Verwendet das gespeicherte Verzeichnis des Users (falls vorhanden) oder DEFAULT
  */
-router.get('/list', (req, res) => {
+router.get('/list', authenticateJWT, async (req, res) => {
   try {
     const fileType = req.query.type || 'mp3'; // 'mp3' oder 'txt'
+    
+    // Load user's last upload directory (if exists)
+    let audioDir = DEFAULT_AUDIO_DIR;
+    if (req.user && req.user.userId) {
+      try {
+        const user = await queryOne(
+          'SELECT last_upload_directory FROM users WHERE id = $1',
+          [req.user.userId]
+        );
+        if (user && user.last_upload_directory) {
+          audioDir = user.last_upload_directory;
+          console.log('[local-files] Using user\'s saved directory:', audioDir);
+        } else {
+          console.log('[local-files] Using default directory:', audioDir);
+        }
+      } catch (dbError) {
+        console.error('[local-files] Error loading user directory, using default:', dbError.message);
+      }
+    }
+
+    console.log('[local-files] Scanning directory:', audioDir);
 
     // Prüfen ob Verzeichnis existiert
-    if (!fs.existsSync(LOCAL_AUDIO_DIR)) {
+    if (!fs.existsSync(audioDir)) {
       return res.status(404).json({ 
-        error: `Verzeichnis nicht gefunden: ${LOCAL_AUDIO_DIR}`,
-        hint: 'Bitte stelle sicher, dass das WSL2 Audio-Verzeichnis korrekt gemountet ist.'
+        error: `Verzeichnis nicht gefunden: ${audioDir}`,
+        hint: 'Bitte stelle sicher, dass das Verzeichnis korrekt ist oder ändere es in den Einstellungen.'
       });
     }
 
     // Dateien lesen
-    const allFiles = fs.readdirSync(LOCAL_AUDIO_DIR);
+    const allFiles = fs.readdirSync(audioDir);
 
     // Filtern nach Typ
     let filteredFiles = [];
@@ -42,7 +66,7 @@ router.get('/list', (req, res) => {
 
     // Datei-Details sammeln
     const filesWithDetails = filteredFiles.map(filename => {
-      const fullPath = path.join(LOCAL_AUDIO_DIR, filename);
+      const fullPath = path.join(audioDir, filename);
       const stats = fs.statSync(fullPath);
       
       return {
@@ -59,7 +83,7 @@ router.get('/list', (req, res) => {
     filesWithDetails.sort((a, b) => b.modified - a.modified);
 
     res.json({
-      directory: LOCAL_AUDIO_DIR,
+      directory: audioDir,
       type: fileType,
       count: filesWithDetails.length,
       files: filesWithDetails
@@ -78,27 +102,43 @@ router.get('/list', (req, res) => {
  * GET /api/local-files/info
  * Gibt Informationen über das lokale Audio-Verzeichnis zurück
  */
-router.get('/info', (req, res) => {
+router.get('/info', authenticateJWT, async (req, res) => {
   try {
-    const exists = fs.existsSync(LOCAL_AUDIO_DIR);
+    // Load user's last upload directory (if exists)
+    let audioDir = DEFAULT_AUDIO_DIR;
+    if (req.user && req.user.userId) {
+      try {
+        const user = await queryOne(
+          'SELECT last_upload_directory FROM users WHERE id = $1',
+          [req.user.userId]
+        );
+        if (user && user.last_upload_directory) {
+          audioDir = user.last_upload_directory;
+        }
+      } catch (dbError) {
+        console.error('[local-files] Error loading user directory:', dbError.message);
+      }
+    }
+    
+    const exists = fs.existsSync(audioDir);
     
     if (!exists) {
       return res.json({
-        directory: LOCAL_AUDIO_DIR,
+        directory: audioDir,
         exists: false,
-        wslPath: '/mnt/d/Projekte_KI/pyenv_1_transcode_durchgabe/audio'
+        wslPath: audioDir.replace('D:\\', '/mnt/d/').replace(/\\/g, '/')
       });
     }
 
-    const stats = fs.statSync(LOCAL_AUDIO_DIR);
-    const allFiles = fs.readdirSync(LOCAL_AUDIO_DIR);
+    const stats = fs.statSync(audioDir);
+    const allFiles = fs.readdirSync(audioDir);
     const mp3Count = allFiles.filter(f => f.toLowerCase().endsWith('.mp3')).length;
     const txtCount = allFiles.filter(f => f.toLowerCase().endsWith('.txt')).length;
 
     res.json({
-      directory: LOCAL_AUDIO_DIR,
+      directory: audioDir,
       exists: true,
-      wslPath: '/mnt/d/Projekte_KI/pyenv_1_transcode_durchgabe/audio',
+      wslPath: audioDir.replace('D:\\', '/mnt/d/').replace(/\\/g, '/'),
       isDirectory: stats.isDirectory(),
       totalFiles: allFiles.length,
       mp3Files: mp3Count,

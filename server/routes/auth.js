@@ -214,10 +214,10 @@ router.get('/check', authenticateJWTOptional, async (req, res) => {
       }
       
       // User is authenticated - return full user info
-      res.json({
-        success: true,
-        authenticated: true,
-        user: {
+    res.json({
+      success: true,
+      authenticated: true,
+      user: {
           id: user.id,
           userId: user.id, // Keep for backward compatibility
           username: user.username,
@@ -226,8 +226,8 @@ router.get('/check', authenticateJWTOptional, async (req, res) => {
           email: user.email,
           isAdmin: user.is_admin,
           created_at: user.created_at
-        }
-      });
+      }
+    });
     } catch (error) {
       console.error('Check auth error:', error);
       res.json({

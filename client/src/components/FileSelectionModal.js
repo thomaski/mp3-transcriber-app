@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FaTimes, FaFile, FaMusic, FaSpinner } from 'react-icons/fa';
+import { FaTimes, FaFile, FaMusic, FaSpinner, FaFolder, FaSave } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
+import { updateUploadDirectory, getUploadDirectory } from '../services/userService';
 
 function FileSelectionModal({ isOpen, onClose, fileType, onSelect }) {
+  const { user } = useAuth();
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [currentDirectory, setCurrentDirectory] = useState('');
+  const [isEditingDirectory, setIsEditingDirectory] = useState(false);
+  const [newDirectory, setNewDirectory] = useState('');
+  const [savingDirectory, setSavingDirectory] = useState(false);
 
   // ESC-Taste schließt IMMER das Modal (Emergency Exit)
   useEffect(() => {
@@ -28,7 +35,11 @@ function FileSelectionModal({ isOpen, onClose, fileType, onSelect }) {
     
     try {
       const backendUrl = process.env.REACT_APP_BACKEND_URL || window.location.origin;
-      const response = await fetch(`${backendUrl}/api/local-files/list?type=${fileType}`);
+      const response = await fetch(`${backendUrl}/api/local-files/list?type=${fileType}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -37,6 +48,8 @@ function FileSelectionModal({ isOpen, onClose, fileType, onSelect }) {
       
       const data = await response.json();
       setFiles(data.files || []);
+      setCurrentDirectory(data.directory || '');
+      setNewDirectory(data.directory || '');
       
     } catch (err) {
       console.error('Fehler beim Laden der Dateiliste:', err);
@@ -64,10 +77,42 @@ function FileSelectionModal({ isOpen, onClose, fileType, onSelect }) {
     }
   };
 
-  const handleDoubleClick = (filename) => {
+  const handleDoubleClick = async (filename) => {
     // Bei Doppelklick direkt auswählen und Modal schließen
     onSelect(filename);
+    
+    // Speichere das Verzeichnis für den Admin
+    if (user?.isAdmin && user?.userId && currentDirectory) {
+      try {
+        console.log('[FileSelectionModal] Saving directory for user:', user.userId, currentDirectory);
+        await updateUploadDirectory(user.userId, currentDirectory);
+        console.log('[FileSelectionModal] Directory saved successfully');
+      } catch (err) {
+        console.error('[FileSelectionModal] Error saving directory:', err);
+        // Fehler nicht anzeigen, da Datei bereits ausgewählt wurde
+      }
+    }
+    
     onClose();
+  };
+  
+  const handleSaveDirectory = async () => {
+    if (!newDirectory || !user?.userId) return;
+    
+    setSavingDirectory(true);
+    try {
+      console.log('[FileSelectionModal] Manually saving directory:', newDirectory);
+      await updateUploadDirectory(user.userId, newDirectory);
+      setCurrentDirectory(newDirectory);
+      setIsEditingDirectory(false);
+      // Reload files from new directory
+      await loadFiles();
+    } catch (err) {
+      console.error('[FileSelectionModal] Error saving directory:', err);
+      setError('Fehler beim Speichern des Verzeichnisses: ' + err.message);
+    } finally {
+      setSavingDirectory(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -96,6 +141,59 @@ function FileSelectionModal({ isOpen, onClose, fileType, onSelect }) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
+          {/* Directory Display/Edit - Only for Admins */}
+          {user?.isAdmin && currentDirectory && (
+            <div className="mb-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <div className="flex items-center space-x-2">
+                <FaFolder className="text-gray-500" />
+                {isEditingDirectory ? (
+                  <>
+                    <input
+                      type="text"
+                      value={newDirectory}
+                      onChange={(e) => setNewDirectory(e.target.value)}
+                      className="flex-1 px-3 py-1 border border-gray-300 rounded text-sm font-mono"
+                      placeholder="D:\Pfad\zum\Verzeichnis"
+                    />
+                    <button
+                      onClick={handleSaveDirectory}
+                      disabled={savingDirectory}
+                      className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition text-sm flex items-center space-x-1"
+                      title="Verzeichnis speichern"
+                    >
+                      {savingDirectory ? <FaSpinner className="animate-spin" /> : <FaSave />}
+                      <span>Speichern</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsEditingDirectory(false);
+                        setNewDirectory(currentDirectory);
+                      }}
+                      className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition text-sm"
+                    >
+                      Abbrechen
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1 text-sm font-mono text-gray-700 truncate" title={currentDirectory}>
+                      {currentDirectory}
+                    </span>
+                    <button
+                      onClick={() => setIsEditingDirectory(true)}
+                      className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm"
+                    >
+                      Ändern
+                    </button>
+                  </>
+                )}
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                💾 Dieses Verzeichnis wird als Standard für zukünftige Uploads gespeichert.
+              </p>
+            </div>
+          )}
+          
           {loading && (
             <div className="flex items-center justify-center py-12">
               <FaSpinner className="animate-spin text-primary-500 text-4xl" />

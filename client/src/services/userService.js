@@ -65,11 +65,51 @@ export async function getUserTranscriptions(userId) {
   return response.data;
 }
 
+/**
+ * Update user's last upload directory
+ * @param {string} userId 
+ * @param {string} directory Path to directory
+ * @returns {Promise<Object>} Success response
+ */
+export async function updateUploadDirectory(userId, directory) {
+  console.log('[userService] updateUploadDirectory called:', userId, directory);
+  const response = await apiClient.patch(`/users/${userId}/upload-directory`, { directory });
+  console.log('[userService] updateUploadDirectory response:', response.data);
+  return response.data;
+}
+
+/**
+ * Get user's last upload directory
+ * @param {string} userId 
+ * @returns {Promise<Object>} Directory path
+ */
+export async function getUploadDirectory(userId) {
+  console.log('[userService] getUploadDirectory called:', userId);
+  const response = await apiClient.get(`/users/${userId}/upload-directory`);
+  console.log('[userService] getUploadDirectory response:', response.data);
+  return response.data;
+}
+
+/**
+ * Get user's last/most recent transcription
+ * @param {string} userId 
+ * @returns {Promise<Object>} Last transcription
+ */
+export async function getLastTranscription(userId) {
+  console.log('[userService] getLastTranscription called:', userId);
+  const response = await apiClient.get(`/users/${userId}/last-transcription`);
+  console.log('[userService] getLastTranscription response:', response.data);
+  return response.data;
+}
+
 export default {
   getAllUsers,
   getUser,
   createUser,
   updateUser,
   deleteUser,
-  getUserTranscriptions
+  getUserTranscriptions,
+  updateUploadDirectory,
+  getUploadDirectory,
+  getLastTranscription
 };

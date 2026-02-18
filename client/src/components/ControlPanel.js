@@ -23,60 +23,60 @@ function ControlPanel({
       <div className="flex flex-wrap gap-4 items-center justify-between">
         {/* Action Buttons - NUR für Admins sichtbar */}
         {isAdmin && (
-          <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3">
             {/* Transcribe Button (lokal) */}
-            <button
-              onClick={onTranscribeLocal}
-              disabled={isProcessing}
-              className={`
-                flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all
-                ${isProcessing
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
-                }
-              `}
+          <button
+            onClick={onTranscribeLocal}
+            disabled={isProcessing}
+            className={`
+              flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all
+              ${isProcessing
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
+              }
+            `}
               title="Transkribiere MP3 mit WSL2 Python"
-            >
+          >
               <FaMicrophone />
               <span>Transcribe MP3</span>
-            </button>
-            
+          </button>
+          
             {/* Summarize Button (lokal) */}
+          <button
+            onClick={onSummarizeLocal}
+            disabled={isProcessing}
+            className={`
+              flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all
+              ${isProcessing
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg'
+              }
+            `}
+              title="Erstelle Summary einer Transkription mit WSL2 Python"
+          >
+                <FaFileAlt />
+                <span>Summarize</span>
+          </button>
+          
+          {/* Reset Button - only shown when audio or transcription is loaded */}
+          {(hasAudio || hasTranscription) && (
             <button
-              onClick={onSummarizeLocal}
+              onClick={onReset}
               disabled={isProcessing}
               className={`
                 flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all
                 ${isProcessing
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg'
+                  : 'bg-orange-500 hover:bg-orange-600 text-white shadow-md hover:shadow-lg'
                 }
               `}
-              title="Erstelle Summary einer Transkription mit WSL2 Python"
+              title="Aktuelle Dateien entladen und neue laden"
             >
-              <FaFileAlt />
-              <span>Summarize</span>
+              <FaRedo />
+              <span>Neue Datei laden</span>
             </button>
-            
-            {/* Reset Button - only shown when audio or transcription is loaded */}
-            {(hasAudio || hasTranscription) && (
-              <button
-                onClick={onReset}
-                disabled={isProcessing}
-                className={`
-                  flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all
-                  ${isProcessing
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-orange-500 hover:bg-orange-600 text-white shadow-md hover:shadow-lg'
-                  }
-                `}
-                title="Aktuelle Dateien entladen und neue laden"
-              >
-                <FaRedo />
-                <span>Neue Datei laden</span>
-              </button>
-            )}
-          </div>
+          )}
+        </div>
         )}
         
         {/* Edit Mode Toggle - nur sichtbar wenn showEditButton true ist */}

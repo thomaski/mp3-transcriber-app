@@ -212,17 +212,36 @@ function UserManagement() {
   async function handleCreateUser(e) {
     e.preventDefault();
 
+    console.log('[UserManagement] handleCreateUser called');
+    console.log('[UserManagement] New user data:', {
+      username: newUser.username,
+      password: newUser.password ? '***' : undefined,
+      first_name: newUser.first_name,
+      last_name: newUser.last_name,
+      email: newUser.email,
+      is_admin: newUser.is_admin
+    });
+
     try {
+      console.log('[UserManagement] Calling createUser API...');
       const response = await createUser(newUser);
+      console.log('[UserManagement] createUser response:', response);
 
       if (response.success) {
+        console.log('[UserManagement] User created successfully:', response.user);
         setUsers(prev => [response.user, ...prev]);
         setShowNewUserForm(false);
         setNewUser({ username: '', password: '', first_name: '', last_name: '', email: '', is_admin: false });
+      } else {
+        console.error('[UserManagement] Create user failed:', response.error);
+        setError(response.error || 'Fehler beim Erstellen des Benutzers.');
       }
     } catch (error) {
-      console.error('Create user error:', error);
-      setError(error.response?.data?.error || 'Fehler beim Erstellen des Benutzers.');
+      console.error('[UserManagement] ❌ Create user error:', error);
+      console.error('[UserManagement] Error response:', error.response);
+      console.error('[UserManagement] Error response data:', error.response?.data);
+      console.error('[UserManagement] Error message:', error.message);
+      setError(error.response?.data?.error || error.message || 'Fehler beim Erstellen des Benutzers.');
     }
   }
 
@@ -349,7 +368,13 @@ function UserManagement() {
                 Benutzer ({users.length})
               </h2>
               <button
-                onClick={() => setShowNewUserForm(!showNewUserForm)}
+                onClick={() => {
+                  if (showNewUserForm) {
+                    // Beim Schließen das Formular zurücksetzen
+                    setNewUser({ username: '', password: '', first_name: '', last_name: '', email: '', is_admin: false });
+                  }
+                  setShowNewUserForm(!showNewUserForm);
+                }}
                 className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition"
               >
                 {showNewUserForm ? 'Abbrechen' : '+ Neu'}
@@ -358,46 +383,56 @@ function UserManagement() {
 
             {/* New User Form */}
             {showNewUserForm && (
-              <form onSubmit={handleCreateUser} className="p-4 border-b border-gray-200 bg-blue-50">
+              <form onSubmit={handleCreateUser} className="p-4 border-b border-gray-200 bg-blue-50" autoComplete="off">
                 <h3 className="font-semibold mb-3">Neuer Benutzer</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <input
                     type="text"
+                    name="new-username"
                     placeholder="Benutzername *"
                     value={newUser.username}
                     onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
                     className="px-3 py-2 border rounded text-sm"
+                    autoComplete="off"
                     required
                   />
                   <input
                     type="password"
+                    name="new-password"
                     placeholder="Passwort *"
                     value={newUser.password}
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                     className="px-3 py-2 border rounded text-sm"
+                    autoComplete="new-password"
                     required
                   />
                   <input
                     type="text"
+                    name="new-first-name"
                     placeholder="Vorname *"
                     value={newUser.first_name}
                     onChange={(e) => setNewUser({ ...newUser, first_name: e.target.value })}
                     className="px-3 py-2 border rounded text-sm"
+                    autoComplete="off"
                     required
                   />
                   <input
                     type="text"
+                    name="new-last-name"
                     placeholder="Nachname"
                     value={newUser.last_name}
                     onChange={(e) => setNewUser({ ...newUser, last_name: e.target.value })}
                     className="px-3 py-2 border rounded text-sm"
+                    autoComplete="off"
                   />
                   <input
                     type="email"
+                    name="new-email"
                     placeholder="Email (optional)"
                     value={newUser.email}
                     onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                     className="px-3 py-2 border rounded text-sm col-span-2"
+                    autoComplete="off"
                   />
                 </div>
                 <label className="flex items-center mt-3 text-sm">

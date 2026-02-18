@@ -254,34 +254,56 @@ router.get('/user/:id', async (req, res) => {
   const { id } = req.params;
   const { pw } = req.query; // password from query
   
+  console.log('[publicAccess] GET /user/:id called');
+  console.log('[publicAccess] User ID:', id);
+  console.log('[publicAccess] Password provided:', pw ? `YES (${pw.length} chars)` : 'NO');
+  console.log('[publicAccess] Full query params:', req.query);
+  
   try {
     // Validate ID format
+    console.log('[publicAccess] Validating ID format...');
     if (!isValidIdFormat(id) || !isUserIdPattern(id)) {
+      console.error('[publicAccess] Invalid ID format:', id);
       return res.status(400).json({
         success: false,
         error: 'Ungültige Benutzer-ID.'
       });
     }
+    console.log('[publicAccess] ID format valid');
     
     // Get user
+    console.log('[publicAccess] Fetching user from database...');
     const user = await queryOne('SELECT id, first_name, last_name FROM users WHERE id = $1', [id]);
+    console.log('[publicAccess] Database query result:', user);
     
     if (!user) {
+      console.error('[publicAccess] User not found for ID:', id);
       return res.status(404).json({
         success: false,
         error: 'Benutzer nicht gefunden.'
       });
     }
+    console.log('[publicAccess] User found:', user.first_name, user.last_name);
     
     // Verify password again
+    console.log('[publicAccess] Verifying password...');
+    console.log('[publicAccess] Provided password:', pw);
+    console.log('[publicAccess] Expected password (first_name):', user.first_name);
+    console.log('[publicAccess] Match (case-insensitive):', pw?.toLowerCase() === user.first_name.toLowerCase());
+    
     if (!pw || pw.toLowerCase() !== user.first_name.toLowerCase()) {
+      console.error('[publicAccess] Password verification failed!');
+      console.error('[publicAccess] Provided:', pw?.toLowerCase());
+      console.error('[publicAccess] Expected:', user.first_name.toLowerCase());
       return res.status(401).json({
         success: false,
         error: 'Passwort erforderlich oder falsch.'
       });
     }
+    console.log('[publicAccess] Password verified successfully');
     
     // Get user's MP3 transcriptions
+    console.log('[publicAccess] Fetching MP3 transcriptions for user...');
     const mp3s = await query(
       `SELECT id, mp3_filename, has_summary, created_at, updated_at
        FROM transcriptions
@@ -289,8 +311,10 @@ router.get('/user/:id', async (req, res) => {
        ORDER BY created_at DESC`,
       [id]
     );
+    console.log('[publicAccess] Found', mp3s.length, 'MP3 transcriptions');
     
     // Log access
+    console.log('[publicAccess] Logging audit event...');
     logAuditEvent({
       event_type: 'public_user_access',
       user_id: user.id,
@@ -300,23 +324,19 @@ router.get('/user/:id', async (req, res) => {
       success: true
     });
     
+    console.log('[publicAccess] Sending success response with user data and MP3s');
     res.json({
       success: true,
       user: {
         id: user.id,
         name: `${user.first_name} ${user.last_name}`.trim()
       },
-      transcriptions: mp3s.map(mp3 => ({
-        id: mp3.id,
-        mp3_filename: mp3.mp3_filename,
-        has_summary: mp3.has_summary === true, // PostgreSQL boolean
-        created_at: mp3.created_at,
-        updated_at: mp3.updated_at
-      }))
+      transcriptions: mp3s
     });
     
   } catch (error) {
-    console.error('Get user MP3s error:', error);
+    console.error('[publicAccess] Error in GET /user/:id:', error);
+    console.error('[publicAccess] Error stack:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Laden der MP3-Liste.'

@@ -78,6 +78,109 @@ function Show-TranscriberDatabase {
 }
 Set-Alias -Name view-db -Value Show-TranscriberDatabase
 
+# ============================================================================
+# GIT/GITHUB BEFEHLE
+# ============================================================================
+
+# Quick-Push: Stage alle Änderungen, committe und pushe zu GitHub
+function Quick-GitPush {
+    param(
+        [string]$Message = "Update: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+    )
+    
+    Set-Location "D:\Projekte\git\mp3-transcriber-app"
+    Write-Host "`n📤 Quick-Push zu GitHub...`n" -ForegroundColor Cyan
+    
+    # Status anzeigen
+    Write-Host "📊 Aktueller Status:" -ForegroundColor Yellow
+    git status --short
+    Write-Host ""
+    
+    # Stage alle Änderungen
+    Write-Host "➕ Stage alle Änderungen..." -ForegroundColor Blue
+    git add .
+    
+    # Commit
+    Write-Host "💾 Commit mit Message: '$Message'" -ForegroundColor Blue
+    git commit -m $Message
+    
+    # Push
+    Write-Host "📤 Push zu GitHub..." -ForegroundColor Blue
+    git push
+    
+    Write-Host "`n✅ Erfolgreich zu GitHub gepusht!`n" -ForegroundColor Green
+}
+Set-Alias -Name qpush -Value Quick-GitPush
+Set-Alias -Name quick-push -Value Quick-GitPush
+
+# Git Tag erstellen und zu GitHub pushen
+function Create-GitTag {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$TagName,
+        [string]$Message = ""
+    )
+    
+    Set-Location "D:\Projekte\git\mp3-transcriber-app"
+    Write-Host "`n🏷️  Erstelle Git Tag: $TagName`n" -ForegroundColor Cyan
+    
+    if ($Message -eq "") {
+        $Message = "Release $TagName"
+    }
+    
+    # Tag erstellen
+    Write-Host "🏷️  Erstelle Tag..." -ForegroundColor Blue
+    git tag -a $TagName -m $Message
+    
+    # Tag zu GitHub pushen
+    Write-Host "📤 Pushe Tag zu GitHub..." -ForegroundColor Blue
+    git push origin $TagName
+    
+    Write-Host "`n✅ Tag '$TagName' erfolgreich erstellt und gepusht!`n" -ForegroundColor Green
+}
+Set-Alias -Name create-tag -Value Create-GitTag
+
+# Zeige alle Tags
+function Show-GitTags {
+    Set-Location "D:\Projekte\git\mp3-transcriber-app"
+    Write-Host "`n🏷️  Alle Git Tags:`n" -ForegroundColor Cyan
+    git tag -l
+    Write-Host ""
+}
+Set-Alias -Name show-tags -Value Show-GitTags
+
+# Git Status
+function Show-GitStatus {
+    Set-Location "D:\Projekte\git\mp3-transcriber-app"
+    Write-Host "`n📊 Git Status:`n" -ForegroundColor Cyan
+    git status
+    Write-Host ""
+}
+Set-Alias -Name gst -Value Show-GitStatus
+Set-Alias -Name git-status -Value Show-GitStatus
+
+# Zeige Git Log (letzte 10 Commits)
+function Show-GitLog {
+    Set-Location "D:\Projekte\git\mp3-transcriber-app"
+    Write-Host "`n📜 Letzte 10 Commits:`n" -ForegroundColor Cyan
+    git log --oneline --graph --decorate -10
+    Write-Host ""
+}
+Set-Alias -Name glog -Value Show-GitLog
+
+# Pull von GitHub
+function Pull-FromGitHub {
+    Set-Location "D:\Projekte\git\mp3-transcriber-app"
+    Write-Host "`n⬇️  Pull von GitHub...`n" -ForegroundColor Cyan
+    git pull
+    Write-Host "`n✅ Erfolgreich von GitHub gepullt!`n" -ForegroundColor Green
+}
+Set-Alias -Name gpull -Value Pull-FromGitHub
+
+# ============================================================================
+# ENDE GIT/GITHUB BEFEHLE
+# ============================================================================
+
 # Zeige verfügbare Commands mit interaktivem Menü
 function Show-TranscriberCommands {
     param(
@@ -89,24 +192,38 @@ function Show-TranscriberCommands {
     Write-Host "  📋 MP3 Transcriber App - Verfügbare Commands" -ForegroundColor White
     Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "  [1] 🚀 start-server" -ForegroundColor Green -NoNewline
-    Write-Host "      Startet Backend (Development) auf Port 5000"
-    Write-Host "  [2] 🛑 stop-server" -ForegroundColor Red -NoNewline
-    Write-Host "       Stoppt alle Node.js Prozesse"
-    Write-Host "  [3] 🛑 force-stop" -ForegroundColor Red -NoNewline
-    Write-Host "        Stoppt alle Node.js Prozesse (Force)"
-    Write-Host "  [4] 📦 install-deps" -ForegroundColor Yellow -NoNewline
-    Write-Host "      Installiert alle Dependencies"
-    Write-Host "  [5] 📊 view-db" -ForegroundColor Magenta -NoNewline
-    Write-Host "          Zeigt PostgreSQL Datenbank-Inhalt"
-    Write-Host "  [6] 📂 transcriber" -ForegroundColor Cyan -NoNewline
-    Write-Host "        Wechselt zum Projekt-Verzeichnis"
-    Write-Host "  [7] 🔧 rebuild-gui" -ForegroundColor Blue -NoNewline
+    Write-Host "  [1] 🔧 rebuild-gui" -ForegroundColor Blue -NoNewline
     Write-Host "       Rebuilt Frontend und deployed"
-    Write-Host "  [8] 🔧 rebuild-all" -ForegroundColor Blue -NoNewline
+    Write-Host "  [2] 🔧 rebuild-all" -ForegroundColor Blue -NoNewline
     Write-Host "       Rebuilt ALLES (Dependencies + GUI + Deploy)"
-    Write-Host "  [9] 🚀 start-prod" -ForegroundColor Green -NoNewline
+    Write-Host "  [3] 🚀 start-server" -ForegroundColor Green -NoNewline
+    Write-Host "      Startet Backend (Development) auf Port 5000"
+    Write-Host "  [4] 🚀 start-prod" -ForegroundColor Green -NoNewline
     Write-Host "        Startet Backend (Production) auf Port 5000"
+    Write-Host "  [5] 🛑 stop-server" -ForegroundColor Red -NoNewline
+    Write-Host "       Stoppt alle Node.js Prozesse"
+    Write-Host "  [6] 🛑 force-stop" -ForegroundColor Red -NoNewline
+    Write-Host "        Stoppt alle Node.js Prozesse (Force)"
+    Write-Host "  [7] 📊 view-db" -ForegroundColor Magenta -NoNewline
+    Write-Host "          Zeigt PostgreSQL Datenbank-Inhalt"
+    Write-Host "  [8] 📦 install-deps" -ForegroundColor Yellow -NoNewline
+    Write-Host "      Installiert alle Dependencies"
+    Write-Host "  [9] 📂 transcriber" -ForegroundColor Cyan -NoNewline
+    Write-Host "        Wechselt zum Projekt-Verzeichnis"
+    Write-Host ""
+    Write-Host "  🌐 Git/GitHub Befehle:" -ForegroundColor White
+    Write-Host "     • qpush [message]" -ForegroundColor DarkCyan -NoNewline
+    Write-Host "    - Quick-Push (add + commit + push)"
+    Write-Host "     • create-tag <name>" -ForegroundColor DarkCyan -NoNewline
+    Write-Host "  - Tag erstellen und pushen"
+    Write-Host "     • gst" -ForegroundColor DarkCyan -NoNewline
+    Write-Host "               - Git Status anzeigen"
+    Write-Host "     • glog" -ForegroundColor DarkCyan -NoNewline
+    Write-Host "              - Letzte Commits anzeigen"
+    Write-Host "     • gpull" -ForegroundColor DarkCyan -NoNewline
+    Write-Host "             - Von GitHub pullen"
+    Write-Host "     • show-tags" -ForegroundColor DarkCyan -NoNewline
+    Write-Host "         - Alle Tags anzeigen"
     Write-Host ""
     Write-Host "  [0] ❌ Exit" -ForegroundColor White -NoNewline
     Write-Host "             Zurück zum Prompt"
@@ -168,56 +285,6 @@ function Show-TranscriberCommands {
         switch ($choice) {
             "1" {
                 Write-Host ""
-                Start-TranscriberServer
-                return
-            }
-            "2" {
-                Write-Host ""
-                Stop-TranscriberServer
-                Write-Host ""
-                Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
-                Read-Host
-                Show-TranscriberCommands
-                return
-            }
-            "3" {
-                Write-Host ""
-                Stop-TranscriberServer
-                Write-Host ""
-                Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
-                Read-Host
-                Show-TranscriberCommands
-                return
-            }
-            "4" {
-                Write-Host ""
-                Install-TranscriberDeps
-                Write-Host ""
-                Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
-                Read-Host
-                Show-TranscriberCommands
-                return
-            }
-            "5" {
-                Write-Host ""
-                Show-TranscriberDatabase
-                Write-Host ""
-                Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
-                Read-Host
-                Show-TranscriberCommands
-                return
-            }
-            "6" {
-                Write-Host ""
-                Set-TranscriberDirectory
-                Write-Host ""
-                Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
-                Read-Host
-                Show-TranscriberCommands
-                return
-            }
-            "7" {
-                Write-Host ""
                 Rebuild-TranscriberGUI
                 Write-Host ""
                 Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
@@ -225,7 +292,7 @@ function Show-TranscriberCommands {
                 Show-TranscriberCommands
                 return
             }
-            "8" {
+            "2" {
                 Write-Host ""
                 Rebuild-TranscriberAll
                 Write-Host ""
@@ -234,9 +301,59 @@ function Show-TranscriberCommands {
                 Show-TranscriberCommands
                 return
             }
+            "3" {
+                Write-Host ""
+                Start-TranscriberServer
+                return
+            }
+            "4" {
+                Write-Host ""
+                Start-TranscriberProdServer
+                return
+            }
+            "5" {
+                Write-Host ""
+                Stop-TranscriberServer
+                Write-Host ""
+                Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
+                Read-Host
+                Show-TranscriberCommands
+                return
+            }
+            "6" {
+                Write-Host ""
+                Stop-TranscriberForce
+                Write-Host ""
+                Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
+                Read-Host
+                Show-TranscriberCommands
+                return
+            }
+            "7" {
+                Write-Host ""
+                Show-TranscriberDatabase
+                Write-Host ""
+                Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
+                Read-Host
+                Show-TranscriberCommands
+                return
+            }
+            "8" {
+                Write-Host ""
+                Install-TranscriberDeps
+                Write-Host ""
+                Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
+                Read-Host
+                Show-TranscriberCommands
+                return
+            }
             "9" {
                 Write-Host ""
-                Start-TranscriberProd
+                Set-TranscriberDirectory
+                Write-Host ""
+                Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
+                Read-Host
+                Show-TranscriberCommands
                 return
             }
             default {
@@ -251,24 +368,24 @@ function Show-TranscriberCommands {
                 Write-Host "  📋 MP3 Transcriber App - Verfügbare Commands" -ForegroundColor White
                 Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
                 Write-Host ""
-                Write-Host "  [1] 🚀 start-server" -ForegroundColor Green -NoNewline
-                Write-Host "      Startet Backend (serviert Frontend + API) auf Port 5000"
-                Write-Host "  [2] 🛑 stop-server" -ForegroundColor Red -NoNewline
-                Write-Host "       Stoppt alle Node.js Prozesse"
-                Write-Host "  [3] 🛑 force-stop" -ForegroundColor Red -NoNewline
-                Write-Host "        Stoppt alle Node.js Prozesse (Force)"
-                Write-Host "  [4] 📦 install-deps" -ForegroundColor Yellow -NoNewline
-                Write-Host "      Installiert alle Dependencies"
-                Write-Host "  [5] 📊 view-db" -ForegroundColor Magenta -NoNewline
-                Write-Host "          Zeigt Datenbank-Tabellen und Inhalt"
-                Write-Host "  [6] 📂 transcriber" -ForegroundColor Cyan -NoNewline
-                Write-Host "        Wechselt zum Projekt-Verzeichnis"
-                Write-Host "  [7] 🔧 rebuild-gui" -ForegroundColor Blue -NoNewline
+                Write-Host "  [1] 🔧 rebuild-gui" -ForegroundColor Blue -NoNewline
                 Write-Host "       Rebuilt Frontend und deployed"
-                Write-Host "  [8] 🔧 rebuild-all" -ForegroundColor Blue -NoNewline
+                Write-Host "  [2] 🔧 rebuild-all" -ForegroundColor Blue -NoNewline
                 Write-Host "       Rebuilt ALLES (Dependencies + GUI + Deploy)"
-                Write-Host "  [9] 🚀 start-prod" -ForegroundColor Green -NoNewline
+                Write-Host "  [3] 🚀 start-server" -ForegroundColor Green -NoNewline
+                Write-Host "      Startet Backend (Development) auf Port 5000"
+                Write-Host "  [4] 🚀 start-prod" -ForegroundColor Green -NoNewline
                 Write-Host "        Startet Backend (Production) auf Port 5000"
+                Write-Host "  [5] 🛑 stop-server" -ForegroundColor Red -NoNewline
+                Write-Host "       Stoppt alle Node.js Prozesse"
+                Write-Host "  [6] 🛑 force-stop" -ForegroundColor Red -NoNewline
+                Write-Host "        Stoppt alle Node.js Prozesse (Force)"
+                Write-Host "  [7] 📊 view-db" -ForegroundColor Magenta -NoNewline
+                Write-Host "          Zeigt PostgreSQL Datenbank-Inhalt"
+                Write-Host "  [8] 📦 install-deps" -ForegroundColor Yellow -NoNewline
+                Write-Host "      Installiert alle Dependencies"
+                Write-Host "  [9] 📂 transcriber" -ForegroundColor Cyan -NoNewline
+                Write-Host "        Wechselt zum Projekt-Verzeichnis"
                 Write-Host ""
                 Write-Host "  [0] ❌ Exit" -ForegroundColor White -NoNewline
                 Write-Host "             Zurück zum Prompt"

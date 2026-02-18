@@ -217,34 +217,34 @@ function DropZone({ onDrop }) {
               </p>
             </>
           )}
-          
+              
           {/* Prominenter Browse-Button - IMMER anzeigen, aber bei Drag unsichtbar */}
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={handleBrowseClick}
-              style={{ pointerEvents: 'auto' }}
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={handleBrowseClick}
+                  style={{ pointerEvents: 'auto' }}
               className={`inline-flex items-center px-8 py-4 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-base ${isDragActive ? 'invisible' : 'visible'}`}
-            >
-              <FaFolderOpen className="mr-3 text-xl" />
-              Datei durchsuchen
-            </button>
-          </div>
-          
+                >
+                  <FaFolderOpen className="mr-3 text-xl" />
+                  Datei durchsuchen
+                </button>
+              </div>
+              
           <div className={`mt-6 flex items-center justify-center space-x-6 text-xs text-gray-400 ${isDragActive ? 'invisible' : 'visible'}`}>
-            <div className="flex items-center space-x-2">
-              <FaFileAudio className="text-base" />
-              <span>MP3-Audio (max. 100 MB)</span>
-            </div>
-          </div>
+                <div className="flex items-center space-x-2">
+                  <FaFileAudio className="text-base" />
+                  <span>MP3-Audio (max. 100 MB)</span>
+                </div>
+              </div>
         </div>
         
         {/* Additional Info - IMMER anzeigen, aber bei Drag unsichtbar */}
         <div className={`mt-6 pt-6 border-t border-gray-200 ${isDragActive ? 'invisible' : 'visible'}`}>
-          <p className="text-xs text-gray-400">
-            💡 Drag & Drop funktioniert auch bei Remote-Zugriff
-          </p>
-        </div>
+            <p className="text-xs text-gray-400">
+              💡 Drag & Drop funktioniert auch bei Remote-Zugriff
+            </p>
+          </div>
       </div>
     </div>
   );

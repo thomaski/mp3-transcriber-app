@@ -4,6 +4,7 @@
 // Axios-based API calls to backend
 
 import axios from 'axios';
+import apiClient from './apiClient'; // Import authenticated client
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
@@ -182,15 +183,55 @@ export const healthCheck = async () => {
 
 // Save transcription to database
 export const saveTranscription = async (transcriptionData) => {
+  console.log('[api.js] saveTranscription called');
+  console.log('[api.js] transcriptionData:', {
+    target_user_id: transcriptionData.target_user_id,
+    mp3_filename: transcriptionData.mp3_filename,
+    mp3_file_present: !!transcriptionData.mp3_file,
+    transcription_text_length: transcriptionData.transcription_text?.length || 0,
+    has_summary: transcriptionData.has_summary
+  });
+  
   try {
-    const response = await api.post('/transcriptions', transcriptionData, {
+    console.log('[api.js] Preparing FormData...');
+    
+    // Create FormData for multipart/form-data upload
+    const formData = new FormData();
+    
+    // Add MP3 file if present
+    if (transcriptionData.mp3_file) {
+      formData.append('mp3File', transcriptionData.mp3_file);
+      console.log('[api.js] Added MP3 file to FormData:', transcriptionData.mp3_file.name);
+    }
+    
+    // Add other fields
+    formData.append('mp3_filename', transcriptionData.mp3_filename);
+    formData.append('transcription_text', transcriptionData.transcription_text || '');
+    formData.append('has_summary', transcriptionData.has_summary ? 'true' : 'false');
+    
+    if (transcriptionData.target_user_id) {
+      formData.append('target_user_id', transcriptionData.target_user_id);
+      console.log('[api.js] Added target_user_id to FormData:', transcriptionData.target_user_id);
+    }
+    
+    console.log('[api.js] Sending POST request to /api/transcriptions with FormData...');
+    
+    // Use apiClient instead of api to include Authorization header
+    const response = await apiClient.post('/transcriptions', formData, {
       headers: {
-        'Content-Type': 'application/json'
-      },
-      withCredentials: true
+        'Content-Type': 'multipart/form-data'
+      }
     });
+    
+    console.log('[api.js] saveTranscription response:', response.data);
+    console.log('[api.js] Action:', response.data.action);
+    console.log('[api.js] Transcription ID:', response.data.transcriptionId || response.data.id);
+    
     return response.data;
   } catch (error) {
+    console.error('[api.js] saveTranscription error:', error);
+    console.error('[api.js] Error response:', error.response);
+    console.error('[api.js] Error response data:', error.response?.data);
     throw new Error(error.response?.data?.error || 'Fehler beim Speichern der Transkription');
   }
 };

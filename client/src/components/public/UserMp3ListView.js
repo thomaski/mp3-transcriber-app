@@ -18,23 +18,32 @@ function UserMp3ListView() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    console.log('[UserMp3ListView] useEffect called with id:', id, 'password:', password ? `${password.length} chars` : 'NONE');
+    
     if (!password) {
+      console.warn('[UserMp3ListView] No password in URL, redirecting to landing page');
       navigate(`/access/${id}`);
       return;
     }
 
+    console.log('[UserMp3ListView] Fetching user MP3 list...');
     getUserMp3List(id, password)
       .then((data) => {
+        console.log('[UserMp3ListView] getUserMp3List response:', data);
         if (data.success) {
+          console.log('[UserMp3ListView] Success! User data:', data.user, 'MP3 count:', data.transcriptions?.length);
           setUserData(data);
           setLoading(false);
         } else {
+          console.error('[UserMp3ListView] API returned success:false, error:', data.error);
           setError(data.error || 'Fehler beim Laden der MP3-Liste.');
           setLoading(false);
         }
       })
       .catch((err) => {
-        setError(err.error || 'Zugriff verweigert.');
+        console.error('[UserMp3ListView] getUserMp3List error:', err);
+        console.error('[UserMp3ListView] Error object:', JSON.stringify(err, null, 2));
+        setError(err.error || err.message || 'Zugriff verweigert.');
         setLoading(false);
       });
   }, [id, password, navigate]);

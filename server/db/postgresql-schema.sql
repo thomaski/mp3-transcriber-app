@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
   last_name VARCHAR(100),                     -- Nachname (optional)
   email VARCHAR(255) UNIQUE,                  -- Email (optional, must be valid if provided)
   is_admin BOOLEAN DEFAULT FALSE,
+  last_upload_directory VARCHAR(500),         -- Last used upload directory (for admins)
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -43,6 +44,7 @@ CREATE TABLE IF NOT EXISTS transcriptions (
   mp3_filename VARCHAR(255) NOT NULL,
   mp3_data BYTEA,                             -- MP3 file stored as binary data
   mp3_size_bytes BIGINT,                      -- File size in bytes
+  mp3_hash VARCHAR(64),                       -- SHA-256 hash of MP3 file (64 hex characters)
   transcription_text TEXT,                    -- Transcription content
   has_summary BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -53,6 +55,7 @@ CREATE TABLE IF NOT EXISTS transcriptions (
 CREATE INDEX IF NOT EXISTS idx_transcriptions_user_id ON transcriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_transcriptions_created_at ON transcriptions(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_transcriptions_has_summary ON transcriptions(has_summary);
+CREATE INDEX IF NOT EXISTS idx_transcriptions_mp3_hash ON transcriptions(mp3_hash);
 
 -- ============================================
 -- Table: access_tokens

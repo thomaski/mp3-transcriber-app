@@ -8,8 +8,15 @@ const { query, queryOne, execute } = require('../db/database-pg');
 const { authenticateJWT, requireAdmin } = require('../middleware/auth');
 const { logAuditEvent } = require('../utils/logger');
 const multer = require('multer');
+const crypto = require('crypto'); // For SHA-256 hash
 
 const router = express.Router();
+
+// Helper function: Calculate SHA-256 hash of buffer
+function calculateHash(buffer) {
+  if (!buffer) return null;
+  return crypto.createHash('sha256').update(buffer).digest('hex');
+}
 
 // Multer für MP3-Upload (in-memory)
 const upload = multer({
@@ -83,12 +90,20 @@ router.get('/', authenticateJWT, async (req, res) => {
 
 /**
  * POST /api/transcriptions
- * Create new transcription with MP3 data and optional target user (admin only)
+ * Create or update transcription with MP3 data and optional target user (admin only)
+ * UPSERT logic: If a transcription with same mp3_filename and user_id exists, UPDATE it
  */
 router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => {
   const { mp3_filename, transcription_text, has_summary, target_user_id } = req.body;
   
+  console.log('[transcriptions-pg] POST /api/transcriptions called');
+  console.log('[transcriptions-pg] mp3_filename:', mp3_filename);
+  console.log('[transcriptions-pg] transcription_text length:', transcription_text?.length);
+  console.log('[transcriptions-pg] has_summary:', has_summary);
+  console.log('[transcriptions-pg] target_user_id:', target_user_id);
+  
   if (!mp3_filename) {
+    console.error('[transcriptions-pg] Missing mp3_filename');
     return res.status(400).json({
       success: false,
       error: 'MP3-Dateiname ist erforderlich.'
@@ -105,65 +120,205 @@ router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => 
       // Admin: Prüfen ob target_user existiert
       const targetUser = await queryOne('SELECT id FROM users WHERE id = $1', [target_user_id]);
       if (!targetUser) {
+        console.error('[transcriptions-pg] Target user not found:', target_user_id);
         return res.status(400).json({
           success: false,
           error: 'Ziel-User nicht gefunden.'
         });
       }
       userId = target_user_id;
-      console.log(`Admin ${req.user.username} erstellt Transkription für User ${target_user_id}`);
+      console.log(`[transcriptions-pg] Admin ${req.user.username} erstellt/aktualisiert Transkription für User ${target_user_id}`);
+    } else {
+      console.log(`[transcriptions-pg] User ${req.user.username} erstellt/aktualisiert eigene Transkription`);
     }
     
     // MP3-Datei aus Request (Buffer)
     let mp3Data = null;
     let mp3Size = 0;
+    let mp3Hash = null;
     
     if (req.file) {
       mp3Data = req.file.buffer;
       mp3Size = req.file.size;
-      console.log(`📁 MP3-Datei hochgeladen: ${mp3_filename} (${mp3Size} bytes)`);
+      mp3Hash = calculateHash(mp3Data);
+      console.log(`[transcriptions-pg] 📁 MP3-Datei hochgeladen: ${mp3_filename} (${mp3Size} bytes)`);
+      console.log(`[transcriptions-pg] 🔑 MP3 Hash (SHA-256): ${mp3Hash}`);
+    } else {
+      console.log(`[transcriptions-pg] ⚠️ Keine MP3-Datei im Request`);
     }
     
-    // Insert transcription
-    const result = await execute(
-      `INSERT INTO transcriptions (user_id, mp3_filename, mp3_data, mp3_size_bytes, transcription_text, has_summary)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, created_at`,
-      [
-        userId,
-        mp3_filename,
-        mp3Data,
-        mp3Size,
-        transcription_text || '',
-        has_summary || false
-      ]
+    // Check if transcription already exists for this user and filename
+    console.log(`[transcriptions-pg] Prüfe ob Transkription bereits existiert: user_id=${userId}, filename=${mp3_filename}`);
+    const existingTranscription = await queryOne(
+      `SELECT id, mp3_hash FROM transcriptions WHERE user_id = $1 AND mp3_filename = $2`,
+      [userId, mp3_filename]
     );
     
-    const transcriptionId = result.rows[0].id;
+    let transcriptionId;
+    let isUpdate = false;
+    let mp3Changed = false;
+    
+    if (existingTranscription) {
+      // UPDATE existing transcription
+      isUpdate = true;
+      transcriptionId = existingTranscription.id;
+      console.log(`[transcriptions-pg] ♻️ Transkription existiert bereits (ID: ${transcriptionId})`);
+      
+      // Check if MP3 hash has changed
+      if (mp3Hash && existingTranscription.mp3_hash) {
+        mp3Changed = mp3Hash !== existingTranscription.mp3_hash;
+        console.log(`[transcriptions-pg] 🔍 Hash-Vergleich:`);
+        console.log(`  Alte MP3 Hash: ${existingTranscription.mp3_hash}`);
+        console.log(`  Neue MP3 Hash: ${mp3Hash}`);
+        console.log(`  MP3 geändert: ${mp3Changed ? '✅ JA' : '❌ NEIN (identisch)'}`);
+      } else if (mp3Hash && !existingTranscription.mp3_hash) {
+        // No hash stored yet, consider as changed
+        mp3Changed = true;
+        console.log(`[transcriptions-pg] ⚠️ Keine alte MP3-Hash vorhanden, MP3 wird gespeichert`);
+      } else if (!mp3Hash) {
+        // No new MP3 data provided
+        mp3Changed = false;
+        console.log(`[transcriptions-pg] ℹ️ Keine neue MP3-Datei im Request`);
+      }
+      
+      // Prepare UPDATE query - only update fields that are provided
+      let updateFields = [];
+      let updateValues = [];
+      let paramCounter = 1;
+      
+      if (transcription_text !== undefined && transcription_text !== null) {
+        updateFields.push(`transcription_text = $${paramCounter++}`);
+        updateValues.push(transcription_text);
+        console.log(`[transcriptions-pg]   → Aktualisiere: transcription_text`);
+      }
+      
+      if (has_summary !== undefined && has_summary !== null) {
+        updateFields.push(`has_summary = $${paramCounter++}`);
+        updateValues.push(has_summary);
+        console.log(`[transcriptions-pg]   → Aktualisiere: has_summary = ${has_summary}`);
+      }
+      
+      // Only update MP3 data if hash has changed
+      if (mp3Data && mp3Changed) {
+        updateFields.push(`mp3_data = $${paramCounter++}`);
+        updateValues.push(mp3Data);
+        updateFields.push(`mp3_size_bytes = $${paramCounter++}`);
+        updateValues.push(mp3Size);
+        updateFields.push(`mp3_hash = $${paramCounter++}`);
+        updateValues.push(mp3Hash);
+        console.log(`[transcriptions-pg]   → Aktualisiere: mp3_data, mp3_size_bytes, mp3_hash (MP3 hat sich geändert)`);
+      } else if (mp3Data && !mp3Changed) {
+        console.log(`[transcriptions-pg]   → Überspringe MP3-Update: Hash ist identisch (keine Änderung)`);
+      }
+      
+      // Only proceed with UPDATE if there are fields to update
+      if (updateFields.length === 0) {
+        console.log(`[transcriptions-pg] ℹ️ Keine Änderungen erkannt, UPDATE übersprungen`);
+        // Still return success, but indicate nothing was updated
+        const savedTranscription = await queryOne(
+          `SELECT 
+            t.id,
+            t.mp3_filename,
+            t.mp3_size_bytes,
+            t.mp3_hash,
+            LENGTH(t.transcription_text) as transcription_length,
+            t.has_summary,
+            t.created_at,
+            t.updated_at,
+            at.token as access_token
+          FROM transcriptions t
+          LEFT JOIN access_tokens at ON t.id = at.transcription_id
+          WHERE t.id = $1`,
+          [transcriptionId]
+        );
+        
+        return res.status(200).json({
+          success: true,
+          transcriptionId: transcriptionId,
+          id: transcriptionId,
+          transcription: savedTranscription,
+          action: 'unchanged',
+          message: 'Keine Änderungen erkannt (MP3-Hash ist identisch)'
+        });
+      }
+      
+      // Always update updated_at
+      updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+      
+      // Add WHERE clause parameters
+      updateValues.push(transcriptionId);
+      
+      const updateQuery = `
+        UPDATE transcriptions 
+        SET ${updateFields.join(', ')}
+        WHERE id = $${paramCounter}
+        RETURNING id, updated_at
+      `;
+      
+      console.log('[transcriptions-pg] UPDATE query:', updateQuery);
+      console.log('[transcriptions-pg] UPDATE values (excluding mp3_data):', updateValues.map((v, i) => 
+        Buffer.isBuffer(v) ? `[Buffer ${v.length} bytes]` : v
+      ));
+      
+      await execute(updateQuery, updateValues);
+      console.log(`[transcriptions-pg] ✅ Transkription ${transcriptionId} erfolgreich aktualisiert`);
+      
+    } else {
+      // INSERT new transcription
+      console.log(`[transcriptions-pg] ➕ Transkription existiert noch nicht, INSERT wird durchgeführt`);
+      
+      const { generateMp3Id } = require('../utils/generateShortId');
+      transcriptionId = generateMp3Id();
+      console.log(`[transcriptions-pg] Generierte ID: ${transcriptionId}`);
+      
+      const result = await execute(
+        `INSERT INTO transcriptions (id, user_id, mp3_filename, mp3_data, mp3_size_bytes, mp3_hash, transcription_text, has_summary)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING id, created_at`,
+        [
+          transcriptionId,
+          userId,
+          mp3_filename,
+          mp3Data,
+          mp3Size,
+          mp3Hash,
+          transcription_text || '',
+          has_summary || false
+        ]
+      );
+      
+      console.log(`[transcriptions-pg] ✅ Neue Transkription ${transcriptionId} erfolgreich erstellt`);
+    }
     
     // Log event
     await logAuditEvent({
-      event_type: 'transcription_create',
+      event_type: isUpdate ? 'transcription_update' : 'transcription_create',
       user_id: req.user.userId,
       ip_address: req.ip,
       user_agent: req.get('user-agent') || '',
       details: { 
         transcription_id: transcriptionId, 
         mp3_filename,
-        target_user_id: userId !== req.user.userId ? userId : undefined
+        mp3_hash: mp3Hash || null,
+        mp3_changed: isUpdate ? mp3Changed : true,
+        target_user_id: userId !== req.user.userId ? userId : undefined,
+        action: isUpdate ? 'update' : 'insert'
       },
       success: true
     });
+    console.log(`[transcriptions-pg] Audit event logged: ${isUpdate ? 'update' : 'insert'}`);
     
-    // Return created transcription (ohne mp3_data)
-    const newTranscription = await queryOne(
+    // Return transcription (ohne mp3_data)
+    const savedTranscription = await queryOne(
       `SELECT 
         t.id,
         t.mp3_filename,
         t.mp3_size_bytes,
+        t.mp3_hash,
         LENGTH(t.transcription_text) as transcription_length,
         t.has_summary,
         t.created_at,
+        t.updated_at,
         at.token as access_token
       FROM transcriptions t
       LEFT JOIN access_tokens at ON t.id = at.transcription_id
@@ -171,16 +326,30 @@ router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => 
       [transcriptionId]
     );
     
-    res.status(201).json({
+    console.log('[transcriptions-pg] Response:', {
       success: true,
-      transcription: newTranscription
+      transcriptionId,
+      action: isUpdate ? 'updated' : 'created',
+      mp3_changed: isUpdate ? mp3Changed : true
+    });
+    
+    res.status(isUpdate ? 200 : 201).json({
+      success: true,
+      transcriptionId: transcriptionId,
+      id: transcriptionId, // Backwards compatibility
+      transcription: savedTranscription,
+      action: isUpdate ? 'updated' : 'created',
+      mp3_changed: isUpdate ? mp3Changed : true
     });
     
   } catch (error) {
-    console.error('Create transcription error:', error);
+    console.error('[transcriptions-pg] Error:', error);
+    console.error('[transcriptions-pg] Error name:', error.name);
+    console.error('[transcriptions-pg] Error message:', error.message);
+    console.error('[transcriptions-pg] Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Fehler beim Erstellen der Transkription.'
+      error: 'Fehler beim Speichern der Transkription.'
     });
   }
 });

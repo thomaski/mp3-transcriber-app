@@ -70,8 +70,12 @@ app.use(cors({
   origin: true, // Allow all origins (Frontend kommt vom gleichen Server)
   credentials: true // Allow Authorization header
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// Body Parser mit erhöhten Limits für MP3-Daten in JSON
+app.use(express.json({ limit: '150mb' })); // Erhöht von default 100kb auf 150mb
+app.use(express.urlencoded({ extended: true, limit: '150mb' }));
+
+console.log('✅ Body Parser configured with 150MB limit for MP3 data');
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = process.env.UPLOAD_DIR || './uploads';

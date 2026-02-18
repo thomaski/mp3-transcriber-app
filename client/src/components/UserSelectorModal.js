@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { FaUser, FaTimes, FaUserShield, FaSearch } from 'react-icons/fa';
+import apiClient from '../services/apiClient';
 
 function UserSelectorModal({ isOpen, onClose, onSelectUser, currentUser }) {
   const [users, setUsers] = useState([]);
@@ -28,24 +29,36 @@ function UserSelectorModal({ isOpen, onClose, onSelectUser, currentUser }) {
   }, [firstNameFilter, lastNameFilter, users]);
 
   const fetchAllUsers = async () => {
+    console.log('[UserSelectorModal] fetchAllUsers called');
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/users', {
-        credentials: 'include'
-      });
+      console.log('[UserSelectorModal] Making GET request to /api/users via apiClient');
+      const response = await apiClient.get('/users');
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log('[UserSelectorModal] Fetched users:', data.users);
-        setUsers(data.users || []);
-        setFilteredUsers(data.users || []);
+      console.log('[UserSelectorModal] Response:', response);
+      console.log('[UserSelectorModal] Response data:', response.data);
+      console.log('[UserSelectorModal] Found users:', response.data.users);
+      console.log('[UserSelectorModal] User count:', response.data.users?.length);
+      
+      if (response.data.success) {
+        setUsers(response.data.users || []);
+        setFilteredUsers(response.data.users || []);
       } else {
+        console.error('[UserSelectorModal] API returned success:false');
         setError('Fehler beim Laden der Benutzer.');
       }
     } catch (err) {
       console.error('[UserSelectorModal] Error fetching users:', err);
-      setError('Fehler beim Laden der Benutzer.');
+      console.error('[UserSelectorModal] Error message:', err.message);
+      console.error('[UserSelectorModal] Error response:', err.response);
+      if (err.response?.status === 401) {
+        setError('Nicht authentifiziert. Bitte neu einloggen.');
+      } else if (err.response?.status === 403) {
+        setError('Keine Berechtigung. Admin-Rechte erforderlich.');
+      } else {
+        setError('Fehler beim Laden der Benutzer.');
+      }
     } finally {
       setIsLoading(false);
     }

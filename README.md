@@ -2,7 +2,7 @@
 
 Eine moderne Full-Stack-Webapp für die Transkription und Zusammenfassung von MP3-Audio-Dateien mit PostgreSQL, Whisper und Llama.
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![React](https://img.shields.io/badge/React-18.2-61dafb.svg)
 ![Node](https://img.shields.io/badge/Node-18+-339933.svg)
@@ -31,7 +31,7 @@ Eine moderne Full-Stack-Webapp für die Transkription und Zusammenfassung von MP
 
 ## ✨ Features
 
-### 🆕 Version 2.0.0 Highlights
+### 🆕 Version 1.0.0 Highlights
 
 - **🗄️ PostgreSQL**: Migration von SQLite → PostgreSQL für bessere Skalierung
 - **💾 DB-Storage**: MP3-Dateien in DB (BYTEA) statt Filesystem
