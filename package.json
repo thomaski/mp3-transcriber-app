@@ -4,13 +4,16 @@
   "description": "Full-Stack-Webapp für MP3-Transkription und -Zusammenfassung mit React und Node.js",
   "main": "server/index.js",
   "scripts": {
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "dev": "nodemon server/index.js",
     "server": "nodemon server/index.js",
     "client": "cd client && npm start",
     "build": "cd client && npm run build",
+    "build-deploy": "npm run build && npm run deploy-frontend",
+    "deploy-frontend": "powershell -Command \"Remove-Item -Recurse -Force server/public -ErrorAction SilentlyContinue; Copy-Item -Recurse client/build server/public; Write-Host '✅ Frontend deployed' -ForegroundColor Green\"",
     "start": "node server/index.js",
+    "start-prod": "set NODE_ENV=production&& node server/index.js",
+    "rebuild-all": "npm run install-all && npm run build-deploy",
     "install-all": "npm install && cd client && npm install",
-    "start-server": "npm run dev",
     "force-stop": "powershell -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force\"",
     "stop": "npm run force-stop"
   },
@@ -25,16 +28,23 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "socket.io": "^4.6.1",
     "axios": "^1.6.7",
-    "multer": "^1.4.5-lts.1",
+    "bcrypt": "^6.0.0",
+    "better-sqlite3": "^12.6.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^8.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^1.4.5-lts.1",
+    "nanoid": "^3.3.11",
+    "pg": "^8.18.0",
+    "react-router-dom": "^7.13.0",
+    "socket.io": "^4.6.1",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.3",
-    "concurrently": "^8.2.2"
+    "nodemon": "^3.0.3"
   }
 }

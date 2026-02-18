@@ -512,65 +512,68 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
   };
   
   return (
-    <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden relative" ref={containerRef}>
-      {/* Header */}
-      <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Transkription</h2>
-          {isEditMode && (
-            <span className="text-sm text-yellow-600 font-medium">
-              ✏️ Bearbeitungsmodus - Klicke auf eine Zeile zum Bearbeiten
-            </span>
-          )}
+    <div className="relative">
+      {/* Main Transcription Container */}
+      <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden" ref={containerRef}>
+        {/* Header */}
+        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Transkription</h2>
+            {isEditMode && (
+              <span className="text-sm text-yellow-600 font-medium">
+                ✏️ Bearbeitungsmodus - Klicke auf eine Zeile zum Bearbeiten
+              </span>
+            )}
+          </div>
+        </div>
+        
+        {/* Content */}
+        <div 
+          className="p-6 overflow-y-auto relative"
+          style={{ maxHeight: `${contentHeight}px` }}
+        >
+          <div className="prose max-w-none">
+            <div className="font-mono text-sm leading-relaxed">
+              {renderTranscription()}
+            </div>
+          </div>
+        </div>
+        
+        {/* Info Footer */}
+        <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
+          <p className="text-xs text-gray-500">
+            💡 Tipps: 
+            <br />
+            • Klicke auf <span className="font-mono">[HH:MM:SS]</span> Timestamps, um zur entsprechenden Stelle im Audio zu springen.
+            {transcription.includes('Gesamtzusammenfassung:') && (
+              <>
+                <br />
+                • Klicke auf Überschriften in der <span className="font-semibold">Gesamtzusammenfassung</span>, um zum entsprechenden Abschnitt zu springen.
+                <br />
+                • Nutze den <span className="font-semibold">↑ Zur Zusammenfassung</span> Button rechts, um zurück nach oben zu springen.
+              </>
+            )}
+            {isEditMode && (
+              <>
+                <br />
+                • Klicke auf eine Zeile zum Bearbeiten. Drücke <kbd className="px-1 py-0.5 bg-gray-200 rounded">Enter</kbd> zum Speichern oder <kbd className="px-1 py-0.5 bg-gray-200 rounded">Esc</kbd> zum Abbrechen.
+              </>
+            )}
+          </p>
         </div>
       </div>
       
-      {/* Floating "Zurück nach oben" Button */}
+      {/* Floating "Zur Zusammenfassung" Button - rechts außerhalb, mittig mit Tipps-Block */}
       {transcription.includes('Gesamtzusammenfassung:') && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-8 right-8 z-50 flex items-center space-x-2 bg-primary-500 hover:bg-primary-600 text-white px-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all"
+          className="absolute bottom-3 -right-4 transform translate-x-full flex items-center space-x-2 bg-primary-500 hover:bg-primary-600 text-white px-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all z-10"
           title="Zurück zur Gesamtzusammenfassung"
         >
           <FaArrowUp />
           <span className="text-sm font-medium">Zur Zusammenfassung</span>
         </button>
       )}
-      
-      {/* Content */}
-      <div 
-        className="p-6 overflow-y-auto"
-        style={{ maxHeight: `${contentHeight}px` }}
-      >
-        <div className="prose max-w-none">
-          <div className="font-mono text-sm leading-relaxed">
-            {renderTranscription()}
-          </div>
-        </div>
-      </div>
-      
-      {/* Info Footer */}
-      <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
-        <p className="text-xs text-gray-500">
-          💡 Tipps: 
-          <br />
-          • Klicke auf <span className="font-mono">[HH:MM:SS]</span> Timestamps, um zur entsprechenden Stelle im Audio zu springen.
-          {transcription.includes('Gesamtzusammenfassung:') && (
-            <>
-              <br />
-              • Klicke auf Überschriften in der <span className="font-semibold">Gesamtzusammenfassung</span>, um zum entsprechenden Abschnitt zu springen.
-              <br />
-              • Nutze den <span className="font-semibold">↑ Zur Zusammenfassung</span> Button unten rechts, um zurück nach oben zu springen.
-            </>
-          )}
-          {isEditMode && (
-            <>
-              <br />
-              • Klicke auf eine Zeile zum Bearbeiten. Drücke <kbd className="px-1 py-0.5 bg-gray-200 rounded">Enter</kbd> zum Speichern oder <kbd className="px-1 py-0.5 bg-gray-200 rounded">Esc</kbd> zum Abbrechen.
-            </>
-          )}
-        </p>
-      </div>
     </div>
   );
 }

@@ -15,13 +15,43 @@ function Set-TranscriberDirectory {
 }
 Set-Alias -Name transcriber -Value Set-TranscriberDirectory
 
-# Starte den Development Server (Frontend + Backend)
+# Starte das Backend (serviert Frontend + API)
 function Start-TranscriberServer {
     Set-Location "D:\Projekte\git\mp3-transcriber-app"
-    Write-Host "🚀 Starte MP3 Transcriber Server..." -ForegroundColor Green
+    Write-Host "`n🚀 Starte MP3 Transcriber Backend (Development)...`n" -ForegroundColor Green
+    Write-Host "📌 WICHTIG: Öffne Browser auf http://localhost:5000" -ForegroundColor Yellow
+    Write-Host "👤 Login: user=tom | pwd=MT9#Detomaso`n" -ForegroundColor Gray
     npm run dev
 }
 Set-Alias -Name start-server -Value Start-TranscriberServer
+
+# Starte Production-Server
+function Start-TranscriberProd {
+    Set-Location "D:\Projekte\git\mp3-transcriber-app"
+    Write-Host "`n🚀 Starte MP3 Transcriber Backend (Production)...`n" -ForegroundColor Green
+    Write-Host "📌 WICHTIG: Öffne Browser auf http://localhost:5000" -ForegroundColor Yellow
+    Write-Host "⚠️  Production-Modus: Keine Demo-Credentials!`n" -ForegroundColor Red
+    npm run start-prod
+}
+Set-Alias -Name start-prod -Value Start-TranscriberProd
+
+# Rebuild GUI (Frontend)
+function Rebuild-TranscriberGUI {
+    Set-Location "D:\Projekte\git\mp3-transcriber-app"
+    Write-Host "`n🔧 Rebuilde Frontend und deploye...`n" -ForegroundColor Cyan
+    npm run build-deploy
+    Write-Host "`n✅ Frontend wurde neu gebaut und deployed!`n" -ForegroundColor Green
+}
+Set-Alias -Name rebuild-gui -Value Rebuild-TranscriberGUI
+
+# Rebuild ALL (Dependencies + GUI + Deploy)
+function Rebuild-TranscriberAll {
+    Set-Location "D:\Projekte\git\mp3-transcriber-app"
+    Write-Host "`n🔧 Rebuilde ALLES (Dependencies + Frontend + Deploy)...`n" -ForegroundColor Cyan
+    npm run rebuild-all
+    Write-Host "`n✅ Alles wurde neu gebaut!`n" -ForegroundColor Green
+}
+Set-Alias -Name rebuild-all -Value Rebuild-TranscriberAll
 
 # Stoppe alle Node.js Prozesse (Force Stop)
 function Stop-TranscriberServer {
@@ -40,6 +70,14 @@ function Install-TranscriberDeps {
 }
 Set-Alias -Name install-deps -Value Install-TranscriberDeps
 
+# Zeige Datenbank-Inhalt
+function Show-TranscriberDatabase {
+    Set-Location "D:\Projekte\git\mp3-transcriber-app"
+    Write-Host "📊 Zeige Datenbank-Inhalt..." -ForegroundColor Cyan
+    node scripts/view-database-pg.js
+}
+Set-Alias -Name view-db -Value Show-TranscriberDatabase
+
 # Zeige verfügbare Commands mit interaktivem Menü
 function Show-TranscriberCommands {
     param(
@@ -52,15 +90,23 @@ function Show-TranscriberCommands {
     Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "  [1] 🚀 start-server" -ForegroundColor Green -NoNewline
-    Write-Host "      Startet Frontend + Backend Development Server"
+    Write-Host "      Startet Backend (Development) auf Port 5000"
     Write-Host "  [2] 🛑 stop-server" -ForegroundColor Red -NoNewline
     Write-Host "       Stoppt alle Node.js Prozesse"
     Write-Host "  [3] 🛑 force-stop" -ForegroundColor Red -NoNewline
     Write-Host "        Stoppt alle Node.js Prozesse (Force)"
     Write-Host "  [4] 📦 install-deps" -ForegroundColor Yellow -NoNewline
     Write-Host "      Installiert alle Dependencies"
-    Write-Host "  [5] 📂 transcriber" -ForegroundColor Cyan -NoNewline
+    Write-Host "  [5] 📊 view-db" -ForegroundColor Magenta -NoNewline
+    Write-Host "          Zeigt PostgreSQL Datenbank-Inhalt"
+    Write-Host "  [6] 📂 transcriber" -ForegroundColor Cyan -NoNewline
     Write-Host "        Wechselt zum Projekt-Verzeichnis"
+    Write-Host "  [7] 🔧 rebuild-gui" -ForegroundColor Blue -NoNewline
+    Write-Host "       Rebuilt Frontend und deployed"
+    Write-Host "  [8] 🔧 rebuild-all" -ForegroundColor Blue -NoNewline
+    Write-Host "       Rebuilt ALLES (Dependencies + GUI + Deploy)"
+    Write-Host "  [9] 🚀 start-prod" -ForegroundColor Green -NoNewline
+    Write-Host "        Startet Backend (Production) auf Port 5000"
     Write-Host ""
     Write-Host "  [0] ❌ Exit" -ForegroundColor White -NoNewline
     Write-Host "             Zurück zum Prompt"
@@ -82,7 +128,7 @@ function Show-TranscriberCommands {
         # Prüfe ob wir in einem interaktiven Terminal sind
         if ([Environment]::UserInteractive -and -not [Environment]::GetCommandLineArgs().Contains('-NonInteractive')) {
             try {
-                Write-Host "Wähle eine Option (0-5 oder ESC zum Beenden): " -NoNewline -ForegroundColor White
+                Write-Host "Wähle eine Option (0-9 oder ESC zum Beenden): " -NoNewline -ForegroundColor White
                 $choice = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
                 
                 # ESC-Taste gedrückt?
@@ -123,7 +169,7 @@ function Show-TranscriberCommands {
             "1" {
                 Write-Host ""
                 Start-TranscriberServer
-                return  # Start-Server läuft lange, danach zurück zum Prompt
+                return
             }
             "2" {
                 Write-Host ""
@@ -131,7 +177,6 @@ function Show-TranscriberCommands {
                 Write-Host ""
                 Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
                 Read-Host
-                # Zeige Menü erneut
                 Show-TranscriberCommands
                 return
             }
@@ -141,7 +186,6 @@ function Show-TranscriberCommands {
                 Write-Host ""
                 Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
                 Read-Host
-                # Zeige Menü erneut
                 Show-TranscriberCommands
                 return
             }
@@ -151,24 +195,54 @@ function Show-TranscriberCommands {
                 Write-Host ""
                 Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
                 Read-Host
-                # Zeige Menü erneut
                 Show-TranscriberCommands
                 return
             }
             "5" {
                 Write-Host ""
+                Show-TranscriberDatabase
+                Write-Host ""
+                Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
+                Read-Host
+                Show-TranscriberCommands
+                return
+            }
+            "6" {
+                Write-Host ""
                 Set-TranscriberDirectory
                 Write-Host ""
                 Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
                 Read-Host
-                # Zeige Menü erneut
                 Show-TranscriberCommands
+                return
+            }
+            "7" {
+                Write-Host ""
+                Rebuild-TranscriberGUI
+                Write-Host ""
+                Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
+                Read-Host
+                Show-TranscriberCommands
+                return
+            }
+            "8" {
+                Write-Host ""
+                Rebuild-TranscriberAll
+                Write-Host ""
+                Write-Host "Drücke Enter zum Fortfahren..." -ForegroundColor DarkGray
+                Read-Host
+                Show-TranscriberCommands
+                return
+            }
+            "9" {
+                Write-Host ""
+                Start-TranscriberProd
                 return
             }
             default {
                 Write-Host ""
                 Write-Host "❌ Ungültige Auswahl: $choice" -ForegroundColor Red
-                Write-Host "   Bitte wähle eine Zahl zwischen 0 und 5." -ForegroundColor Yellow
+                Write-Host "   Bitte wähle eine Zahl zwischen 0 und 9." -ForegroundColor Yellow
                 Write-Host ""
                 Start-Sleep -Seconds 2
                 # Loop wiederholt sich automatisch
@@ -178,15 +252,23 @@ function Show-TranscriberCommands {
                 Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
                 Write-Host ""
                 Write-Host "  [1] 🚀 start-server" -ForegroundColor Green -NoNewline
-                Write-Host "      Startet Frontend + Backend Development Server"
+                Write-Host "      Startet Backend (serviert Frontend + API) auf Port 5000"
                 Write-Host "  [2] 🛑 stop-server" -ForegroundColor Red -NoNewline
                 Write-Host "       Stoppt alle Node.js Prozesse"
                 Write-Host "  [3] 🛑 force-stop" -ForegroundColor Red -NoNewline
                 Write-Host "        Stoppt alle Node.js Prozesse (Force)"
                 Write-Host "  [4] 📦 install-deps" -ForegroundColor Yellow -NoNewline
                 Write-Host "      Installiert alle Dependencies"
-                Write-Host "  [5] 📂 transcriber" -ForegroundColor Cyan -NoNewline
+                Write-Host "  [5] 📊 view-db" -ForegroundColor Magenta -NoNewline
+                Write-Host "          Zeigt Datenbank-Tabellen und Inhalt"
+                Write-Host "  [6] 📂 transcriber" -ForegroundColor Cyan -NoNewline
                 Write-Host "        Wechselt zum Projekt-Verzeichnis"
+                Write-Host "  [7] 🔧 rebuild-gui" -ForegroundColor Blue -NoNewline
+                Write-Host "       Rebuilt Frontend und deployed"
+                Write-Host "  [8] 🔧 rebuild-all" -ForegroundColor Blue -NoNewline
+                Write-Host "       Rebuilt ALLES (Dependencies + GUI + Deploy)"
+                Write-Host "  [9] 🚀 start-prod" -ForegroundColor Green -NoNewline
+                Write-Host "        Startet Backend (Production) auf Port 5000"
                 Write-Host ""
                 Write-Host "  [0] ❌ Exit" -ForegroundColor White -NoNewline
                 Write-Host "             Zurück zum Prompt"

@@ -191,7 +191,7 @@ npm run dev
 
 Dies startet:
 - Backend auf http://localhost:5000
-- Frontend auf http://localhost:3000
+- Frontend auf http://localhost:4000
 
 **Option 2: Separat starten**
 
@@ -227,7 +227,7 @@ App läuft auf http://localhost:5000
 
 Öffne deinen Browser:
 ```
-http://localhost:3000
+http://localhost:4000
 ```
 
 ### 2. Testdatei hochladen
@@ -240,7 +240,7 @@ Nutze die Beispiel-Dateien aus `base-data/`:
 
 2. **Option B: URL-Parameter**
    ```
-   http://localhost:3000?text=/path/to/base-data/test_3min.txt
+   http://localhost:4000?text=/path/to/base-data/test_3min.txt
    ```
 
 ### 3. Timestamps testen
@@ -251,7 +251,7 @@ Nutze die Beispiel-Dateien aus `base-data/`:
 ### 4. Edit-Modus testen
 
 ```
-http://localhost:3000?edit=true
+http://localhost:4000?edit=true
 ```
 
 - Button "Edit Text" sollte erscheinen
@@ -272,14 +272,14 @@ npm cache clean --force
 npm install
 ```
 
-### Problem: Port 3000 oder 5000 bereits belegt
+### Problem: Port 4000 oder 5000 bereits belegt
 
 **Lösung:**
 
 Windows:
 ```powershell
-# Port finden
-netstat -ano | findstr :3000
+# Port finden (ersetze 4000 mit dem gewünschten Port)
+netstat -ano | findstr :4000
 # Prozess beenden
 taskkill /PID <PID> /F
 ```

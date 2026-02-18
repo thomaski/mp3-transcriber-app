@@ -1,27 +1,16 @@
 // ============================================================================
 // Upload Route
 // ============================================================================
-// Handhabt MP3- und Text-Datei-Uploads mit Multer
+// Handhabt MP3- und Text-Datei-Uploads mit Multer (in-memory für DB-Speicherung)
 
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
 
-// Configure multer storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = process.env.UPLOAD_DIR || './uploads';
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `${uuidv4()}-${file.originalname}`;
-    cb(null, uniqueName);
-  }
-});
+// Configure multer storage (in-memory, nicht auf Filesystem speichern)
+const storage = multer.memoryStorage();
 
 // File filter
 const fileFilter = (req, file, cb) => {
@@ -53,20 +42,27 @@ router.post('/', upload.single('file'), (req, res) => {
       return res.status(400).json({ error: 'Keine Datei hochgeladen' });
     }
     
+    // Datei ist jetzt in req.file.buffer (Buffer) statt auf Filesystem
     const fileInfo = {
-      filename: req.file.filename,
       originalname: req.file.originalname,
-      path: req.file.path,
+      buffer: req.file.buffer,           // Binary data für DB-Speicherung
       size: req.file.size,
-      mimetype: req.file.mimetype,
-      url: `/api/files/${req.file.filename}`
+      mimetype: req.file.mimetype
     };
     
-    console.log(`✓ Datei hochgeladen: ${req.file.originalname} (${req.file.size} bytes)`);
+    console.log(`✓ Datei hochgeladen (in-memory): ${req.file.originalname} (${req.file.size} bytes)`);
     
+    // Buffer kann nicht direkt als JSON zurückgegeben werden
+    // Stattdessen nur Metadaten zurückgeben
     res.json({
       success: true,
-      file: fileInfo
+      file: {
+        originalname: fileInfo.originalname,
+        size: fileInfo.size,
+        mimetype: fileInfo.mimetype,
+        // Buffer bleibt im Server-Speicher für weitere Verarbeitung
+        // (wird in transcribe.js oder transcriptions.js gespeichert)
+      }
     });
   } catch (error) {
     console.error('Upload error:', error);

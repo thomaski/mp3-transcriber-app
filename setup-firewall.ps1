@@ -49,10 +49,10 @@ Write-Host ""
 Write-Host "Erstelle Firewall-Regeln..." -ForegroundColor Cyan
 Write-Host ""
 
-# Port 3000 - React Frontend
-Write-Host "  Port 3000 (React Frontend)..." -NoNewline
+# Port 4000 - React Frontend
+Write-Host "  Port 4000 (React Frontend)..." -NoNewline
 try {
-    New-NetFirewallRule -DisplayName "MP3 Transcriber Frontend (Port 3000)" -Direction Inbound -LocalPort 3000 -Protocol TCP -Action Allow -Profile Private -Description "Erlaubt Zugriff auf das React Frontend der MP3 Transcriber App im lokalen Netzwerk" -ErrorAction Stop | Out-Null
+    New-NetFirewallRule -DisplayName "MP3 Transcriber Frontend (Port 4000)" -Direction Inbound -LocalPort 4000 -Protocol TCP -Action Allow -Profile Private -Description "Erlaubt Zugriff auf das React Frontend der MP3 Transcriber App im lokalen Netzwerk" -ErrorAction Stop | Out-Null
     Write-Host " OK" -ForegroundColor Green
 } catch {
     Write-Host " FEHLER" -ForegroundColor Red
@@ -86,7 +86,7 @@ Write-Host "  Naechste Schritte:" -ForegroundColor White
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  1. Starte den Server: npm run dev" -ForegroundColor Yellow
-Write-Host "  2. Oeffne im Browser (Win7): http://192.168.178.20:3000" -ForegroundColor Yellow
+Write-Host "  2. Oeffne im Browser (Win7): http://192.168.178.20:4000" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""

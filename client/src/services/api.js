@@ -34,35 +34,6 @@ export const uploadFile = async (file) => {
   }
 };
 
-// Transcribe audio
-export const transcribeAudio = async (filename, socketId) => {
-  try {
-    const response = await api.post('/transcribe', {
-      filePath: filename,
-      socketId
-    });
-    
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.error || 'Transkription fehlgeschlagen');
-  }
-};
-
-// Summarize text
-export const summarizeText = async (transcription, promptType = 'durchgabe', socketId) => {
-  try {
-    const response = await api.post('/summarize', {
-      transcription,
-      promptType,
-      socketId
-    });
-    
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.error || 'Zusammenfassung fehlgeschlagen');
-  }
-};
-
 // Get file
 export const getFile = async (filename) => {
   try {
@@ -88,7 +59,7 @@ export const loadLocalFile = async (filePath, type = 'mp3') => {
   try {
     // Für MP3: Verwende Stream-URL vom Backend
     if (type === 'mp3') {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || window.location.protocol + '//' + window.location.hostname + ':5000';
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || window.location.origin;
       const streamUrl = `${backendUrl}/api/files/stream?path=${encodeURIComponent(filePath)}`;
       const filename = filePath.split(/[\\/]/).pop();
       
@@ -209,4 +180,20 @@ export const healthCheck = async () => {
   }
 };
 
+// Save transcription to database
+export const saveTranscription = async (transcriptionData) => {
+  try {
+    const response = await api.post('/transcriptions', transcriptionData, {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      withCredentials: true
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Fehler beim Speichern der Transkription');
+  }
+};
+
 export default api;
+

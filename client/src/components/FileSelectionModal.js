@@ -27,7 +27,7 @@ function FileSelectionModal({ isOpen, onClose, fileType, onSelect }) {
     setError(null);
     
     try {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || `${window.location.protocol}//${window.location.hostname}:5000`;
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || window.location.origin;
       const response = await fetch(`${backendUrl}/api/local-files/list?type=${fileType}`);
       
       if (!response.ok) {

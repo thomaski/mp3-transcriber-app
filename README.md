@@ -1,212 +1,180 @@
 # 🎙️ MP3 Transcriber App
 
-Eine moderne Full-Stack-Webapp für die Transkription und Zusammenfassung von MP3-Audio-Dateien mit Whisper und Llama.
+Eine moderne Full-Stack-Webapp für die Transkription und Zusammenfassung von MP3-Audio-Dateien mit PostgreSQL, Whisper und Llama.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![React](https://img.shields.io/badge/React-18.2-61dafb.svg)
 ![Node](https://img.shields.io/badge/Node-18+-339933.svg)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)
+
+> **🎯 Production URL:** `https://mp3-transcriber.m4itexpertsgmbh.de`  
+> **🏠 Lokal:** `http://localhost:5000`  
+> **📦 Backend:** Port 5000 (serviert Frontend + API)  
+> **🗄️ Datenbank:** PostgreSQL (Port 5432)
+
+---
 
 ## 📋 Inhaltsverzeichnis
 
-- [Features](#features)
-- [Screenshots](#screenshots)
-- [Architektur](#architektur)
-- [Installation](#installation)
-- [Konfiguration](#konfiguration)
-- [Verwendung](#verwendung)
-- [API-Endpunkte](#api-endpunkte)
-- [URL-Parameter](#url-parameter)
-- [Entwicklung](#entwicklung)
-- [Deployment](#deployment)
-- [Troubleshooting](#troubleshooting)
+- [Features](#-features)
+- [Schnellstart](#-schnellstart)
+- [Installation](#-installation)
+- [Konfiguration](#️-konfiguration)
+- [Verwendung](#-verwendung)
+- [Remote Start von Win7](#-remote-start-von-win7)
+- [Cloudflare Tunnel](#️-cloudflare-tunnel-externe-tests)
+- [API-Endpunkte](#-api-endpunkte)
+- [Dokumentation](#-dokumentation)
+
+---
 
 ## ✨ Features
 
-### 🆕 Neue Features (2026)
+### 🆕 Version 2.0.0 Highlights
 
-- 🐧 **WSL2 Integration**: Lokale Transkription & Summarization mit Python-Skripten
-  - **Transcribe MP3 (lokal)**: Faster-Whisper via WSL2
-  - **Summarize (lokal)**: Llama-3.1-8B via WSL2
-  - Live-Output-Streaming mit ANSI-Farben
-  - Auto-Close bei Erfolg
-- 🎯 **Intelligente Dateiauswahl**: 
-  - MP3 geladen → Sofort transkribieren, kein Modal!
-  - Transkription ohne Summary → Direkt summarizen!
-  - Doppelklick in Modals → Sofortauswahl
-- 📁 **Standard-Dateien**: Auto-Load beim Start ohne Parameter
-- 🎨 **Inline-Editing**: Zeilenweise editieren, auto-save, Header-Editing
-- ⌨️ **Keyboard-Shortcuts**: `Ctrl+E` für Edit-Modus, `Esc` zum Beenden
-- 🎵 **Player-Verbesserungen**: Dateiname-Anzeige, Auto-Load nach Transkription
-- 📺 **Live-Output-Modal**: Terminal-Style mit Fortschrittsbalken (80% × 70%)
+- **🗄️ PostgreSQL**: Migration von SQLite → PostgreSQL für bessere Skalierung
+- **💾 DB-Storage**: MP3-Dateien in DB (BYTEA) statt Filesystem
+- **👥 User-Zuordnung**: Admins können Transkriptionen Usern zuweisen (mit Autocomplete)
+- **📥 Download**: Transkriptionstext als TXT herunterladen
+- **🎨 UI-Optimierung**: Edit-Button näher am Text positioniert
+- **☁️ Cloudflare Toggle**: Konfigurierbarer Schalter für Cloudflare Tunnel
+- **🌐 Remote Start**: Server von Win7 aus starten (PowerShell Remoting)
 
 ### Core Features
+
 - 🎵 **MP3-Upload**: Drag-and-Drop oder File-Browser
-- 🎧 **HTML5 Audio Player**: Custom Controls mit Play/Pause/Stop, Seek, Volume
+- 🎧 **Audio Player**: Custom HTML5 Player mit Controls
 - 📝 **Transkription**: RunPod Whisper API + Lokale WSL2-Verarbeitung
 - 📊 **Zusammenfassung**: RunPod Llama API + Lokale WSL2-Verarbeitung
-- ⏱️ **Timestamp-Navigation**: Klickbare Timestamps [HH:MM:SS] zum Springen im Audio
-- 🔆 **Playback-Highlighting**: Aktuelle Zeile wird hervorgehoben und zentriert
-- 📑 **Summary-Navigation**: Klickbare Überschriften, "↑ Zur Zusammenfassung"-Button
-- ✏️ **Edit-Modus**: Inline-Editing einzelner Zeilen + Header
-- 📁 **Text-Import**: TXT-Dateien per Drag-and-Drop laden
+- ⏱️ **Timestamp-Navigation**: Klickbare Timestamps [HH:MM:SS]
+- 🔆 **Playback-Highlighting**: Aktuelle Zeile wird hervorgehoben
+- ✏️ **Edit-Modus**: Inline-Editing mit Auto-Save
+- 🔒 **Authentication**: JWT mit httpOnly Cookies
+- 👥 **User Management**: Admin/User Rollen, CRUD-Operationen
 - 🔄 **Real-time Progress**: WebSocket-basierte Live-Updates
-- 📱 **Responsive Design**: Optimiert für Desktop, Tablet und Mobile
+- 📱 **Responsive Design**: Desktop, Tablet, Mobile
 
-### Technische Features
-- ⚡ **WebSocket**: Socket.io für Echtzeit-Kommunikation (Remote + WSL2)
-- 🎨 **Tailwind CSS**: Moderne, responsive UI
-- 🔒 **Error Handling**: Umfassendes Error-Management
-- 📦 **File Management**: Upload + lokale Datei-Streaming
-- 🌐 **URL-Parameter**: MP3/Text via URL laden, Edit-Modus aktivieren
-- 💾 **Persistent Storage**: Server-seitiges File-Management
-- 🐧 **WSL2-Bridge**: Node.js ↔ WSL2 Python via `child_process.spawn`
-- 🎨 **ANSI-Support**: Farbige Terminal-Ausgaben im Browser
+---
 
-## 🖼️ Screenshots
+## 🚀 Schnellstart
 
-Das Layout orientiert sich an Sonix (siehe `./base-data/sonix.jpg`):
-- **Oben**: Audio-Player mit Waveform und Controls
-- **Mitte**: Control-Panel mit Buttons (Transcribe, Summarize, Edit)
-- **Unten**: Transkriptionsbereich mit klickbaren Timestamps
+### Windows PowerShell-Alias (empfohlen)
 
-## 🏗️ Architektur
-
-### Technologie-Stack
-
-#### Frontend
-- **React 18.2**: UI-Framework
-- **Tailwind CSS**: Styling
-- **Monaco Editor**: Code-Editor für Edit-Modus
-- **react-dropzone**: Drag-and-Drop File-Upload
-- **Socket.io-client**: WebSocket-Kommunikation
-- **Axios**: HTTP-Client
-- **React Icons**: Icon-Library
-
-#### Backend
-- **Node.js**: Runtime
-- **Express**: Web-Framework
-- **Socket.io**: WebSocket-Server
-- **Multer**: File-Upload-Middleware
-- **Axios**: HTTP-Client für RunPod API
-- **dotenv**: Environment-Management
-
-### Projektstruktur
-
-```
-mp3-transcriber-app/
-├── client/                      # React Frontend
-│   ├── public/
-│   │   ├── index.html
-│   │   └── manifest.json
-│   ├── src/
-│   │   ├── components/          # React Components
-│   │   │   ├── AudioPlayer.js   # Audio-Player mit Controls
-│   │   │   ├── TranscriptView.js # Transkript-Anzeige + Inline-Editing
-│   │   │   ├── ControlPanel.js  # Button-Panel (lokal + remote)
-│   │   │   ├── DropZone.js      # Drag-and-Drop Zone (MP3)
-│   │   │   ├── TextDropZone.js  # Text-Drop-Zone (Edit-Modus)
-│   │   │   ├── ProgressModal.js # Progress-Overlay (remote)
-│   │   │   ├── LiveOutputModal.js # Live-Output (WSL2)
-│   │   │   └── FileSelectionModal.js # Datei-Auswahl
-│   │   ├── services/
-│   │   │   └── api.js           # API-Service (remote + lokal)
-│   │   ├── utils/
-│   │   │   └── helpers.js       # Utility-Funktionen
-│   │   ├── App.js               # Main App Component
-│   │   ├── index.js             # Entry Point
-│   │   └── index.css            # Global Styles + Tailwind
-│   ├── package.json
-│   └── tailwind.config.js
-│
-├── server/                      # Node.js Backend
-│   ├── routes/
-│   │   ├── transcribe.js        # Transkription (RunPod)
-│   │   ├── summarize.js         # Zusammenfassung (RunPod)
-│   │   ├── transcribe-local.js  # Transkription (WSL2)
-│   │   ├── summarize-local.js   # Zusammenfassung (WSL2)
-│   │   ├── local-files.js       # Lokale Dateiliste
-│   │   ├── upload.js            # Upload-Route
-│   │   └── files.js             # File-Management + Streaming
-│   └── index.js                 # Server Entry Point
-│
-├── base-data/                   # Original Python-Skripte & Beispiele
-│   ├── transcribe.py            # Original-Skript (WSL2)
-│   ├── summarize.py             # Original-Skript (WSL2)
-│   ├── test_3min.txt            # Beispiel-Transkription
-│   ├── test_3min_s.txt          # Beispiel-Summary
-│   └── sonix.jpg                # UI-Referenz
-│
-├── uploads/                     # Upload-Verzeichnis (auto-created)
-├── .env                         # Environment-Variablen
-├── .gitignore
-├── package.json                 # Root Package
-├── README.md                    # Dieses Dokument
-├── INSTALLATION.md              # Detaillierte Setup-Anleitung
-├── ARCHITECTURE.md              # Technische Architektur
-├── WSL2_INTEGRATION.md          # WSL2-Setup & -Verwendung
-├── WORKFLOW.md                  # Benutzer-Workflows
-├── COMMANDS.md                  # Alle Befehle
-└── UPDATES.md                   # Changelog & neue Features
+```powershell
+start-server    # Startet Backend (Port 5000)
+cmds           # Zeigt alle Befehle
+force-stop     # Stoppt Node.js Prozesse
 ```
 
-## 🚀 Installation
+### Manuell
+
+```bash
+# Installation
+npm install
+cd client && npm install && cd ..
+
+# Server starten (Backend + Frontend)
+npm run server
+
+# Oder Development-Modus (mit Hot-Reload)
+npm run dev
+```
+
+Die App läuft auf: **http://localhost:5000**
+
+---
+
+## 📦 Installation
 
 ### Voraussetzungen
-- Node.js 18+ und npm
-- (Optional) RunPod Account mit Whisper und Llama Endpoints
-- (Optional) WSL2 + Ubuntu für lokale Verarbeitung (siehe [WSL2_INTEGRATION.md](./WSL2_INTEGRATION.md))
 
-### Schnellstart
-
-**Windows PowerShell-Alias (empfohlen):**
-```powershell
-start_server    # Startet den Dev-Server
-cmds            # Zeigt alle Befehle
-force_stop      # Beendet Node-Prozesse
-```
-
-**Manuelle Installation:**
+- **Node.js 18+** und npm
+- **PostgreSQL 15+** (Port 5432)
+- (Optional) RunPod Account für Remote-Verarbeitung
+- (Optional) WSL2 + Ubuntu für lokale Verarbeitung
 
 ### Schritt 1: Repository klonen
+
 ```bash
 cd mp3-transcriber-app
 ```
 
 ### Schritt 2: Dependencies installieren
+
 ```bash
-# Root & Backend Dependencies
+# Root & Backend
 npm install
 
-# Frontend Dependencies
-cd client
-npm install
-cd ..
+# Frontend
+cd client && npm install && cd ..
 ```
 
-Oder alle auf einmal:
+### Schritt 3: PostgreSQL einrichten
+
+#### 3.1 PostgreSQL installieren (Windows)
+
+Download: https://www.postgresql.org/download/windows/
+
+- Port: `5432`
+- Passwort setzen (z.B. `PG9#Detomaso`)
+
+#### 3.2 Datenbank erstellen
+
+```powershell
+# PowerShell (als Admin)
+psql -U postgres
+```
+
+```sql
+CREATE DATABASE mp3_transcriber;
+\q
+```
+
+#### 3.3 Schema laden
+
+```powershell
+psql -U postgres -d mp3_transcriber -f server/db/postgresql-schema.sql
+```
+
+#### 3.4 Default-User anlegen
+
 ```bash
-npm run install-all
+node server/db/seed-pg.js
 ```
 
-### Schritt 3: Environment-Variablen konfigurieren
-Erstelle eine `.env` Datei im Root-Verzeichnis (siehe [Konfiguration](#konfiguration))
+**Standard-User:**
+- `tom` / `MT9#Detomaso` (Admin)
+- `micha` / `MT9#Schutzengel` (Admin)
+- `test` / `test` (User)
 
-## ⚙️ Konfiguration
+### Schritt 4: Environment-Variablen konfigurieren
 
-Erstelle eine `.env` Datei im Root-Verzeichnis:
+Erstelle `.env` im Root-Verzeichnis:
 
 ```env
 # Server Configuration
 PORT=5000
 NODE_ENV=development
 
-# RunPod Endpoints
+# PostgreSQL Configuration
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD="PG9#Detomaso"
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=mp3_transcriber
+
+# JWT Secret
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+# RunPod Endpoints (optional)
 RUNPOD_WHISPER_ENDPOINT=https://api.runpod.ai/v2/YOUR_WHISPER_ENDPOINT
 RUNPOD_LLAMA_ENDPOINT=https://api.runpod.ai/v2/YOUR_LLAMA_ENDPOINT
-
-# RunPod API Keys (optional)
 RUNPOD_API_KEY=YOUR_API_KEY_HERE
+
+# Cloudflare Tunnel (optional)
+CLOUDFLARE_TUNNEL_ENABLED=false
+CLOUDFLARE_TUNNEL_NAME=mp3-transcriber
 
 # Model Configuration
 WHISPER_MODEL=openai/whisper-large-v3
@@ -214,500 +182,484 @@ LLAMA_MODEL=avans06/Meta-Llama-3.1-8B-Instruct-ct2-int8_float16
 
 # Upload Configuration
 MAX_FILE_SIZE=104857600
-UPLOAD_DIR=./uploads
 ```
 
-### RunPod Setup
+**⚠️ Wichtig:** Passwörter mit `#` müssen in Anführungszeichen: `"PG9#Detomaso"`
 
-Die App erwartet folgende RunPod-Endpoints:
+### Schritt 5: Server starten
 
-#### Whisper Endpoint
-- **Modell**: `openai/whisper-large-v3` (CT2-Format int8_float16)
-- **Input**: Base64-codiertes Audio
-- **Parameter**: `language`, `beam_size`, `vad_filter`, etc.
-- **Output**: Segments mit `start`, `text`
+```bash
+npm run server
+```
 
-#### Llama Endpoint
-- **Modell**: `avans06/Meta-Llama-3.1-8B-Instruct-ct2-int8_float16`
-- **Input**: Prompt-Text
-- **Parameter**: `max_length`, `temperature`, `repetition_penalty`
-- **Output**: Generated text
+✅ App läuft auf: **http://localhost:5000**
 
-**Hinweis**: Die genaue API-Struktur muss ggf. in `server/routes/transcribe.js` und `server/routes/summarize.js` angepasst werden.
+---
+
+## ⚙️ Konfiguration
+
+### Environment-Variablen (.env)
+
+Erstelle `.env` im Root-Verzeichnis:
+
+```env
+# Server Configuration
+PORT=5000
+NODE_ENV=development
+
+# PostgreSQL Configuration
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD="PG9#Detomaso"
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=mp3_transcriber
+
+# JWT Secret
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+# RunPod Endpoints (optional)
+RUNPOD_WHISPER_ENDPOINT=https://api.runpod.ai/v2/YOUR_WHISPER_ENDPOINT
+RUNPOD_LLAMA_ENDPOINT=https://api.runpod.ai/v2/YOUR_LLAMA_ENDPOINT
+RUNPOD_API_KEY=YOUR_API_KEY_HERE
+
+# Cloudflare Tunnel (optional)
+CLOUDFLARE_TUNNEL_ENABLED=false
+CLOUDFLARE_TUNNEL_NAME=mp3-transcriber
+
+# Model Configuration
+WHISPER_MODEL=openai/whisper-large-v3
+LLAMA_MODEL=avans06/Meta-Llama-3.1-8B-Instruct-ct2-int8_float16
+
+# Upload Configuration
+MAX_FILE_SIZE=104857600
+```
+
+**⚠️ Wichtig:** Passwörter mit `#` müssen in Anführungszeichen: `"PG9#Detomaso"`
+
+### Development vs. Production
+
+Die App unterstützt verschiedene Umgebungen für sicheres Deployment:
+
+#### Development-Modus
+
+**Verwendung:**
+```bash
+cd client
+npm start  # Dev-Server auf Port 3000
+```
+
+**Features:**
+- ✅ Demo-Zugangsdaten im Login-Screen angezeigt (`user=test | pwd=test`)
+- ✅ Placeholder-Texte in Eingabefeldern
+- ✅ Hot-Reload aktiviert
+- 🔧 Konfiguration: `client/.env.development`
+
+#### Production-Modus
+
+**Verwendung:**
+```bash
+cd client
+npm run build  # Erstellt optimierten Build
+
+# Deployment
+cd ..
+Remove-Item -Recurse -Force server\public
+Copy-Item -Recurse client\build server\public
+npm run server  # Startet Production-Server auf Port 5000
+```
+
+**Features:**
+- ❌ Keine Demo-Zugangsdaten im Login-Screen
+- ❌ Keine Placeholder-Texte (Sicherheit)
+- ✅ Optimierte Build-Dateien
+- 🔒 Konfiguration: `client/.env.production`
+
+**🔐 Sicherheitshinweis:**
+- Im Production-Build werden **keine** Login-Hints oder Demo-Credentials angezeigt
+- Der Login-Screen ist in Production vollständig blank (nur Labels)
+- Siehe `ENV_CONFIGURATION.md` für Details
+
+### Frontend Environment (.env.local) 🆕
+
+**Optional:** Erstelle `client/.env.local` für Frontend-Konfiguration:
+
+```env
+# API Base URL (relative path für Reverse Proxy)
+REACT_APP_API_URL=/api
+
+# Deaktiviere automatisches Browser-Öffnen
+BROWSER=none
+```
+
+**Erklärung:**
+- `REACT_APP_API_URL=/api` - Verwendet relative Pfade, funktioniert mit Reverse Proxy und Cloudflare Tunnel
+- `BROWSER=none` - Verhindert automatisches Öffnen von `localhost:3000` (React Dev Server)
+
+**Hinweis:** Die Frontend-Komponenten verwenden automatisch `window.location.origin` als Fallback, daher ist `.env.local` **optional**.
+
+### Ports
+
+| Port | Service | Zugriff |
+|------|---------|---------|
+| **5000** | **Backend + Frontend** | ✅ Öffentlich |
+| 5432 | PostgreSQL | 🔒 Intern |
+
+---
 
 ## 💻 Verwendung
 
-### Development Mode
+### Workflow: Lokale Transkription (WSL2)
 
-**Mit PowerShell-Alias (empfohlen):**
+1. **MP3 laden**: Drag & Drop oder Standard-Datei
+2. **Transcribe**: "Transcribe MP3 (lokal)" → Startet sofort
+3. **Live-Output**: Terminal-Style Modal zeigt Fortschritt
+4. **Fertig**: Transkription + MP3 geladen
+
+### Workflow: Remote-Transkription (RunPod)
+
+1. **MP3 hochladen**: Via Upload-Button
+2. **Transcribe**: "Transcribe MP3" → RunPod API
+3. **Progress**: WebSocket-basierte Live-Updates
+4. **Summarize**: "Summarize" → Zusammenfassung mit Headings
+
+### Admin: Transkription einem User zuweisen
+
+1. **Als Admin einloggen**
+2. **MP3 hochladen & transkribieren**
+3. **User-Selector**: Autocomplete-Feld nutzen
+4. **Speichern**: Transkription wird für ausgewählten User gespeichert
+
+### Transkription herunterladen
+
+```javascript
+// Frontend-Code
+const downloadTranscription = async (transcriptionId) => {
+  const response = await fetch(`/api/transcriptions/${transcriptionId}/download`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'transcription.txt';
+  a.click();
+};
+```
+
+---
+
+## 🌐 Remote Start von Win7
+
+### Was ist das?
+
+Das `remote-start-from-win7.ps1` Script startet den MP3 Transcriber Server auf dem **Win11 Rechner** von einem **Win7 Rechner** aus via PowerShell Remoting.
+
+### Funktionsweise
+
+1. **PowerShell Remoting**: Nutzt `Invoke-Command` für Remote-Ausführung
+2. **Credential-Abfrage**: Sicherer Login mit Benutzername/Passwort
+3. **Status-Check**: Prüft ob Server bereits läuft
+4. **Auto-Start**: Startet Server falls nicht aktiv
+
+### Verwendung
+
 ```powershell
-start_server    # Startet Backend + Frontend
+# Auf Win7 Rechner:
+.\remote-start-from-win7.ps1
+
+# Eingabe:
+# - Benutzername (Win11)
+# - Passwort (Win11)
+
+# → Server startet auf Win11
+# → Erreichbar unter: http://192.168.178.20:5000
 ```
 
-**Manuell:**
-Starte Backend und Frontend gleichzeitig:
-```bash
-npm run dev
+### Voraussetzungen
+
+- PowerShell Remoting auf Win11 aktiviert
+- Netzwerkverbindung zwischen Win7 und Win11
+- Gültige Anmeldedaten für Win11
+
+### Technische Details
+
+- **Ziel-IP**: `192.168.178.20` (Win11)
+- **Ziel-Port**: `5000`
+- **Remote-Command**: `cd D:\Projekte\git\mp3-transcriber-app; npm run dev`
+
+---
+
+## ☁️ Cloudflare Tunnel (Externe Tests)
+
+### Konfiguration
+
+#### `.env` - Tunnel aktivieren/deaktivieren
+
+```env
+CLOUDFLARE_TUNNEL_ENABLED=true   # true = aktiviert, false = deaktiviert
+CLOUDFLARE_TUNNEL_NAME=mp3-transcriber
 ```
 
-Oder separat:
-```bash
-# Terminal 1: Backend
-npm run server
+### Einmalige Einrichtung (5 Minuten)
 
-# Terminal 2: Frontend
-npm run client
+#### 1. Installation
+
+```powershell
+winget install --id Cloudflare.cloudflared
 ```
 
-Die App läuft auf:
-- **Frontend**: http://localhost:3000
-- **Backend**: http://localhost:5000
+#### 2. Login
 
-### Workflow-Beispiele
-
-#### 1. Lokale Transkription (WSL2)
-```
-1. MP3 laden (Drag & Drop oder Standard-Datei)
-2. Klick "Transcribe MP3 (lokal)"
-   → Startet sofort! Kein Modal! ✅
-3. Live-Output-Modal zeigt Fortschritt
-4. Transkription + MP3 geladen
+```powershell
+cloudflared tunnel login
 ```
 
-#### 2. Lokale Summarization aus aktueller Transkription
-```
-1. Transkription ist geladen (ohne "Gesamtzusammenfassung:")
-2. Klick "Summarize (lokal)"
-   → Verwendet aktuelle Transkription! Kein Modal! ✅
-3. Live-Output → Summary mit klickbaren Headings
-```
+→ Browser öffnet sich, Account erstellen (kostenlos)
 
-#### 3. Remote-Verarbeitung (RunPod)
-```
-1. MP3 hochladen
-2. Klick "Transcribe MP3" (RunPod)
-3. Progress-Modal zeigt Status
-4. Klick "Summarize" (RunPod)
-5. Fertig!
+#### 3. Named Tunnel erstellen
+
+```powershell
+cd D:\Projekte\git\mp3-transcriber-app
+cloudflared tunnel create mp3-transcriber
 ```
 
-#### 4. Inline-Editing
+→ Tunnel-ID wird angezeigt (notieren!)
+
+#### 4. Konfigurationsdatei erstellen
+
+Erstelle `C:\Users\tom\.cloudflared\config.yml`:
+
+```yaml
+tunnel: mp3-transcriber
+credentials-file: C:\Users\tom\.cloudflared\<TUNNEL-ID>.json
+
+ingress:
+  - hostname: mp3-transcriber.m4itexpertsgmbh.de
+    service: http://localhost:5000
+  - service: http_status:404
 ```
-1. Ctrl+E (Edit-Modus)
-2. Klick auf Zeile → Editierbar
-3. Änderungen → Auto-Save beim Verlassen
-4. Esc (Edit-Modus beenden)
+
+#### 5. DNS Route erstellen
+
+```powershell
+cloudflared tunnel route dns mp3-transcriber mp3-transcriber.m4itexpertsgmbh.de
 ```
 
-### Workflow (alt)
+### Tägliche Nutzung (1 Befehl)
 
-1. **MP3 hochladen**:
-   - Datei per Drag-and-Drop in die DropZone ziehen
-   - Oder über URL-Parameter laden: `?mp3=/path/to/file.mp3`
-   - Oder Standard-Datei wird automatisch geladen
+```powershell
+.\start-cloudflare.ps1
+```
 
-2. **Transkribieren**:
-   - **Lokal**: "Transcribe MP3 (lokal)" → Sofort, wenn MP3 geladen
-   - **Remote**: "Transcribe MP3" → RunPod API
-   - Live-Output/Progress-Modal zeigt Fortschritt
-   - Transkription erscheint mit Timestamps
+**ODER manuell:**
 
-3. **Timestamps verwenden**:
-   - Auf beliebigen Timestamp `[HH:MM:SS]` klicken
-   - Audio springt zur entsprechenden Position
-   - Aktuelle Zeile wird hervorgehoben und zentriert
+```powershell
+cloudflared tunnel run mp3-transcriber
+```
 
-4. **Zusammenfassung erstellen**:
-   - **Lokal**: "Summarize (lokal)" → Verwendet aktuelle Transkription
-   - **Remote**: "Summarize" → RunPod API
-   - Summary wird mit Überschriften angezeigt
-   - Klick auf Heading → Springt zur Textstelle
+### Production URL
 
-5. **Bearbeiten** (optional):
-   - `Ctrl+E` oder URL-Parameter `?edit=true`
-   - Inline-Editing: Klick auf Zeile → Editierbar
-   - Headers auch editierbar
-   - Auto-Save beim Verlassen
-   - `Esc` zum Beenden
+**✅ Permanente URL:** `https://mp3-transcriber.m4itexpertsgmbh.de`
+
+---
 
 ## 🔌 API-Endpunkte
 
-### Lokale Verarbeitung (WSL2)
+### Authentication
 
-#### `GET /api/local-files/list?type=mp3|txt`
-Listet lokale Dateien aus WSL2-Verzeichnis
-
-**Response**:
-```json
-{
-  "success": true,
-  "files": [
-    {
-      "filename": "test.mp3",
-      "size": 1234567,
-      "modified": "2026-02-14T10:00:00.000Z"
-    }
-  ]
-}
+```
+POST /api/auth/login       # Login (gibt JWT-Token zurück)
+POST /api/auth/logout      # Logout
+GET  /api/auth/me          # Aktueller User
+GET  /api/auth/check       # Auth-Status prüfen
 ```
 
-#### `POST /api/transcribe-local`
-Transkribiert lokale MP3 mit WSL2 Python
+### Users (Admin only)
 
-**Request**:
-```json
-{
-  "filename": "test.mp3",
-  "socketId": "socket-id"
-}
+```
+GET  /api/users                     # Liste aller User
+GET  /api/users/search?q=tom        # 🆕 User-Suche (Autocomplete)
+GET  /api/users/:id                 # User-Details
+POST /api/users                     # User erstellen
+PUT  /api/users/:id                 # User aktualisieren
+DELETE /api/users/:id               # User löschen
+GET  /api/users/:id/transcriptions  # User-Transkriptionen
 ```
 
-**WebSocket Events**:
-- `transcribe:progress`: Live-Output-Zeilen
-- `transcribe:result`: `{ transcription, mp3Filename }`
-- `transcribe:error`: Fehler
+### Transcriptions
 
-#### `POST /api/summarize-local`
-Erstellt Summary mit WSL2 Python
-
-**Request**:
-```json
-{
-  "filename": "test.txt",       // Optional (aus Datei)
-  "transcription": "...",       // Optional (direkt)
-  "socketId": "socket-id"
-}
+```
+GET    /api/transcriptions              # Liste (User oder Admin)
+POST   /api/transcriptions              # Neu (mit target_user_id für Admin)
+GET    /api/transcriptions/:id          # Details
+GET    /api/transcriptions/:id/audio    # 🆕 Stream MP3 aus DB
+GET    /api/transcriptions/:id/download # 🆕 Download als TXT
+PUT    /api/transcriptions/:id          # Update
+DELETE /api/transcriptions/:id          # Delete
 ```
 
-**WebSocket Events**:
-- `summarize:progress`: Live-Output-Zeilen
-- `summarize:result`: `{ transcription }` (mit Summary)
-- `summarize:error`: Fehler
+### Transcribe & Summarize (Local)
 
-#### `GET /api/files/stream?path=<absolute-path>`
-Streamt lokale MP3-Dateien
-
-### Remote-Verarbeitung (RunPod)
-
-#### `POST /api/upload`
-Lädt MP3- oder TXT-Datei hoch
-
-**Request**: `multipart/form-data` mit `file`
-**Response**:
-```json
-{
-  "success": true,
-  "file": {
-    "filename": "uuid-filename.mp3",
-    "originalname": "original.mp3",
-    "url": "/api/files/uuid-filename.mp3",
-    "size": 1234567
-  }
-}
+```
+POST /api/transcribe-local    # WSL2 Transkription
+POST /api/summarize-local     # WSL2 Summarization
+GET  /api/local-files/list    # Lokale Dateien auflisten
 ```
 
-#### `POST /api/transcribe`
-Transkribiert MP3-Datei mit RunPod
+### Transcribe & Summarize (Remote)
 
-**Request**:
-```json
-{
-  "filePath": "uuid-filename.mp3",
-  "socketId": "socket-id"
-}
+```
+POST /api/transcribe          # RunPod Transkription
+POST /api/summarize           # RunPod Summarization
+POST /api/upload              # File-Upload
 ```
 
-**Response**:
-```json
-{
-  "success": true,
-  "transcription": "Datum: ...\n[00:00:01] Text...",
-  "segments": [...],
-  "duration": 12.34
-}
+### File Management
+
+```
+GET    /api/files/stream?path=<path>  # Stream lokale Datei
+GET    /api/files/:filename           # Download hochgeladene Datei
+DELETE /api/files/:filename           # Lösche hochgeladene Datei
 ```
 
-**WebSocket Events**:
-- `transcribe:progress`: `{ step, message, progress }`
-- `transcribe:complete`: `{ transcription, duration }`
-- `transcribe:error`: `{ error }`
+---
 
-#### `POST /api/summarize`
-Fasst Transkription zusammen mit RunPod
+## 📚 Dokumentation
 
-**Request**:
-```json
-{
-  "transcription": "Text with timestamps...",
-  "promptType": "durchgabe|newsletter",
-  "socketId": "socket-id"
-}
+### Hauptdokumente
+
+- **[CHANGELOG.md](./CHANGELOG.md)** - Alle Änderungen & Versionen
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Technische Architektur
+- **[POSTGRESQL_MIGRATION.md](./POSTGRESQL_MIGRATION.md)** - Migration SQLite → PostgreSQL
+- **[DOCS_INDEX.md](./DOCS_INDEX.md)** - Dokumentations-Übersicht
+
+### Spezifische Anleitungen
+
+- **[INSTALLATION.md](./INSTALLATION.md)** - Detaillierte Setup-Anleitung
+- **[WSL2_INTEGRATION.md](./WSL2_INTEGRATION.md)** - WSL2-Setup & Python-Integration
+- **[WORKFLOW.md](./WORKFLOW.md)** - Benutzer-Workflows
+- **[COMMANDS.md](./COMMANDS.md)** - Alle Befehle & PowerShell-Alias
+- **[NETWORK_ACCESS.md](./NETWORK_ACCESS.md)** - Netzwerk-Zugriff konfigurieren
+
+---
+
+## 🏗️ Architektur
+
+### Technologie-Stack
+
+#### Frontend
+- React 18.2, Tailwind CSS, Monaco Editor
+- Socket.io-client, Axios, React Icons
+
+#### Backend
+- Node.js 18+, Express, Socket.io
+- Multer (File-Upload), bcrypt, jsonwebtoken
+- **pg** (PostgreSQL Client) 🆕
+
+#### Datenbank
+- **PostgreSQL 15+** (statt SQLite) 🆕
+- UUID für IDs, BYTEA für MP3-Dateien
+- JSONB für audit_logs
+
+#### Deployment
+- Cloudflare Tunnel (permanente URL)
+- Single-Port Backend (Port 5000)
+- Auto-Cleanup für temporäre Files
+
+### Projektstruktur
+
+```
+mp3-transcriber-app/
+├── client/                      # React Frontend
+│   ├── src/
+│   │   ├── components/          # React Components
+│   │   ├── services/            # API Services
+│   │   ├── utils/               # Utilities
+│   │   └── App.js
+│   └── package.json
+├── server/                      # Node.js Backend
+│   ├── db/
+│   │   ├── database-pg.js       # 🆕 PostgreSQL Connection
+│   │   ├── postgresql-schema.sql # 🆕 PostgreSQL Schema
+│   │   └── seed-pg.js           # 🆕 Seed Script
+│   ├── routes/
+│   │   ├── auth.js
+│   │   ├── users-pg.js          # 🆕 User Management (PostgreSQL)
+│   │   ├── transcriptions-pg.js # 🆕 Transcriptions (PostgreSQL)
+│   │   ├── transcribe.js
+│   │   ├── summarize.js
+│   │   └── upload.js
+│   └── index.js
+├── .env                         # Environment Variables
+├── package.json
+└── README.md
 ```
 
-**Response**:
-```json
-{
-  "success": true,
-  "summary": "Formatted summary with headers...",
-  "summaries": ["summary1", "summary2"],
-  "duration": 9.87
-}
-```
-
-**WebSocket Events**:
-- `summarize:progress`: `{ step, message, progress }`
-- `summarize:complete`: `{ summary, duration }`
-- `summarize:error`: `{ error }`
-
-### Datei-Management
-
-#### `GET /api/files/:filename`
-Lädt hochgeladene Datei herunter
-
-#### `DELETE /api/files/:filename`
-Löscht hochgeladene Datei
-
-#### `GET /api/health`
-Health Check
-
-**Response**:
-```json
-{
-  "status": "ok",
-  "timestamp": "2026-02-14T12:00:00.000Z",
-  "endpoints": {
-    "whisper": "configured",
-    "llama": "configured"
-  }
-}
-```
-
-## 🔗 URL-Parameter
-
-### `?mp3=<absolute-path>`
-Lädt MP3-Datei von lokalem Dateisystem (Win11-Server)
-
-**Beispiel**:
-```
-http://localhost:3000?mp3=D:\Dokumente\HiDrive\public\Durchgaben\x_test\test_3min.mp3
-```
-
-**Remote-Zugriff** (von Win7-Client):
-```
-http://192.168.178.20:3000?mp3=D:\Dokumente\HiDrive\public\Durchgaben\x_test\test_3min.mp3
-```
-
-**Wichtig**: 
-- Verwende absolute Windows-Pfade (mit Backslashes `\` oder Forward-Slashes `/`)
-- Browser kodiert die URL automatisch (Backslashes werden zu `%5C`)
-
-### `?text=<absolute-path>`
-Lädt Text-Datei von lokalem Dateisystem
-
-**Beispiel**:
-```
-http://localhost:3000?text=D:\Dokumente\HiDrive\public\Durchgaben\x_test\test_3min_s.txt
-```
-
-### Automatisches Laden der Transkription
-
-Wenn eine MP3-Datei per URL-Parameter geladen wird (z.B. `test.mp3`), versucht die App **automatisch** die zugehörige Transkriptionsdatei `test_s.txt` aus dem gleichen Verzeichnis zu laden.
-
-**Beispiel**:
-```
-URL: ?mp3=D:\Dokumente\test.mp3
-      ↓
-App versucht automatisch: D:\Dokumente\test_s.txt
-```
-
-**Manuelles Überschreiben**:
-Falls du eine andere Transkriptionsdatei verwenden möchtest, kannst du den `text`-Parameter explizit angeben:
-```
-http://localhost:3000?mp3=D:\Dokumente\test.mp3&text=D:\Dokumente\custom.txt
-```
-
-### `?edit=true`
-Aktiviert Edit-Modus und zeigt den Edit-Button
-
-**Beispiel**: `http://localhost:3000?edit=true`
-
-### URL-Parameter werden automatisch entfernt
-
-Nach dem Laden der Dateien werden alle URL-Parameter aus der Browser-URL entfernt. Die URL ändert sich von:
-```
-http://localhost:3000?mp3=D:\...\test.mp3
-```
-zu:
-```
-http://localhost:3000
-```
-
-**Vorteil**: Saubere URL, keine Duplikate beim Neuladen, keine sensiblen Pfade in der History.
-
-### Kombinationen
-```
-http://localhost:3000?mp3=D:\Dokumente\audio.mp3&text=D:\Dokumente\transcript.txt&edit=true
-```
-
-**Minimal-Beispiel** (mit Auto-Load der Transkription):
-```
-http://localhost:3000?mp3=D:\Dokumente\test.mp3
-```
-→ Lädt `test.mp3` + versucht `test_s.txt` automatisch zu laden
-
-## 🛠️ Entwicklung
-
-### Projektstruktur erweitern
-
-#### Neue Component hinzufügen
-```bash
-cd client/src/components
-# Erstelle neue Datei, z.B. MyComponent.js
-```
-
-#### Neue Route hinzufügen
-```bash
-cd server/routes
-# Erstelle neue Datei, z.B. myroute.js
-# Registriere in server/index.js
-```
-
-### Code-Style
-
-- **Frontend**: ESLint mit React-Konfiguration
-- **Backend**: Node.js Best Practices
-- **Kommentare**: Deutsch für Business-Logik, Englisch für Code
-
-### Testing
-
-```bash
-# Frontend Tests
-cd client
-npm test
-
-# Backend Tests (TODO: Implementieren)
-npm test
-```
-
-## 📦 Deployment
-
-### Heroku
-
-```bash
-# Login
-heroku login
-
-# Create App
-heroku create mp3-transcriber
-
-# Set Environment Variables
-heroku config:set RUNPOD_WHISPER_ENDPOINT=...
-heroku config:set RUNPOD_LLAMA_ENDPOINT=...
-
-# Deploy
-git push heroku main
-```
-
-### Docker
-
-```dockerfile
-# Dockerfile (TODO: Erstellen)
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN cd client && npm install && npm run build
-EXPOSE 5000
-CMD ["npm", "start"]
-```
-
-### Vercel (Frontend) + Render (Backend)
-
-- **Frontend**: Vercel (automatisches Deployment)
-- **Backend**: Render (Web Service)
+---
 
 ## 🐛 Troubleshooting
 
-### Problem: WebSocket-Verbindung schlägt fehl
+### PostgreSQL Connection Error
 
-**Lösung**: Überprüfe CORS-Einstellungen in `server/index.js`:
+**Problem:** `Passwort-Authentifizierung für Benutzer 'postgres' fehlgeschlagen`
+
+**Lösung:**
+1. Passwort mit `#` in Anführungszeichen in `.env`: `"PG9#Detomaso"`
+2. `dotenv.config()` in DB-Scripts vorhanden?
+3. PostgreSQL läuft: `Get-Service postgresql-*`
+
+### Server läuft bereits (Port 5000 belegt)
+
+**Problem:** `EADDRINUSE: address already in use 0.0.0.0:5000`
+
+**Lösung:**
+```powershell
+npm run force-stop    # Stoppt alle Node-Prozesse
+```
+
+### WebSocket-Verbindung schlägt fehl
+
+**Lösung:** Überprüfe CORS in `server/index.js`:
 ```javascript
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:3000', // Frontend-URL
+    origin: 'http://localhost:5000',
     methods: ['GET', 'POST']
   }
 });
 ```
 
-### Problem: Upload schlägt fehl
+### Cloudflare Tunnel startet nicht
 
-**Lösung**: 
-- Überprüfe `MAX_FILE_SIZE` in `.env`
-- Stelle sicher, dass `uploads/` Verzeichnis existiert
-- Überprüfe Dateiberechtigungen
+**Lösung:**
+1. `.env` prüfen: `CLOUDFLARE_TUNNEL_ENABLED=true`
+2. Tunnel existiert: `cloudflared tunnel list`
+3. Config-Datei vorhanden: `C:\Users\tom\.cloudflared\config.yml`
 
-### Problem: Transkription dauert ewig
-
-**Lösung**:
-- Überprüfe RunPod-Endpoint-Status
-- Checke API-Key
-- Überprüfe Backend-Logs: `npm run server`
-
-### Problem: Timestamps nicht klickbar
-
-**Lösung**:
-- Überprüfe Format: `[HH:MM:SS]`
-- Stelle sicher, dass Edit-Modus deaktiviert ist
-
-### Problem: Monaco Editor lädt nicht
-
-**Lösung**:
-```bash
-cd client
-npm install @monaco-editor/react --save
-```
-
-## 📚 Basiert auf
-
-Diese App implementiert die Funktionalität der originalen Python-Skripte:
-
-- **`base-data/transcribe.py`**: Faster-Whisper Transkription
-  - Modell: openai/whisper-large-v3 (CT2 int8_float16)
-  - VAD-Filter, Beam-Search, Timestamps
-  - Läuft in WSL2 Ubuntu mit CUDA-Support
-
-- **`base-data/summarize.py`**: Llama Zusammenfassung
-  - Modell: Llama-3.1-8B (CT2 int8_float16)
-  - Block-weise Summarization mit Overlap
-  - Prompt-Typen: `durchgabe` und `newsletter`
-  - Läuft in WSL2 Ubuntu mit CUDA-Support
-
-**WSL2-Integration**: Siehe [WSL2_INTEGRATION.md](./WSL2_INTEGRATION.md) für Setup-Details.
-
-## 📚 Dokumentation
-
-- **[README.md](./README.md)** - Dieses Dokument (Projekt-Übersicht)
-- **[INSTALLATION.md](./INSTALLATION.md)** - Detaillierte Setup-Anleitung
-- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Technische Architektur & Komponenten
-- **[WSL2_INTEGRATION.md](./WSL2_INTEGRATION.md)** - WSL2-Setup & Python-Skript-Integration
-- **[WORKFLOW.md](./WORKFLOW.md)** - Benutzer-Workflows & Use-Cases
-- **[COMMANDS.md](./COMMANDS.md)** - Alle verfügbaren Befehle & PowerShell-Alias
-- **[UPDATES.md](./UPDATES.md)** - Changelog & neue Features (2026)
+---
 
 ## 📄 Lizenz
 
-MIT License - siehe LICENSE Datei
+MIT License
+
+---
 
 ## 🤝 Contributing
 
 Contributions sind willkommen! Bitte erstelle einen Pull Request.
 
+---
+
 ## 📧 Support
 
-Bei Fragen oder Problemen erstelle ein GitHub Issue.
+Bei Fragen oder Problemen:
+1. Durchsuche die [Dokumentation](#-dokumentation)
+2. Prüfe das [CHANGELOG.md](./CHANGELOG.md)
+3. Erstelle ein GitHub Issue
 
 ---
 
 **Erstellt mit ❤️ für spirituelle Audio-Transkription**
+
+**Version:** 2.0.0  
+**Letzte Aktualisierung:** 2026-02-18

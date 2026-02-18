@@ -147,8 +147,8 @@ if ($response -eq "J" -or $response -eq "j" -or $response -eq "Y" -or $response 
     Start-Sleep -Seconds 5
     
     Write-Host ""
-    Write-Host "  Local:      http://localhost:3000" -ForegroundColor Cyan
-    Write-Host "  Network:    http://192.168.178.20:3000" -ForegroundColor Cyan
+    Write-Host "  Local:      http://localhost:4000" -ForegroundColor Cyan
+    Write-Host "  Network:    http://192.168.178.20:4000" -ForegroundColor Cyan
     Write-Host ""
 }
 

@@ -13,6 +13,15 @@ uploads/
 # Build
 client/build/
 dist/
+server/public/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+transcriber.db
+transcriber.db-shm
+transcriber.db-wal
 
 # Logs
 logs/
@@ -28,3 +37,10 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Temporary test files
+test-*.js
+show-tables.js
+
+# Documentation drafts
+x_doku/

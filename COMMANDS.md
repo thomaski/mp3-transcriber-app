@@ -10,15 +10,20 @@ Diese Commands können direkt mit `npm run <script>` ausgeführt werden:
 
 | Command | Beschreibung |
 |---------|--------------|
-| `npm run dev` | Startet Frontend + Backend Development Server |
-| `npm run start-server` | Alias für `npm run dev` |
-| `npm run server` | Startet nur den Backend-Server (Port 5000) |
-| `npm run client` | Startet nur den React-Client (Port 3000) |
+| `npm run dev` | Startet Backend Server (serviert Frontend + API) |
+| `npm run server` | Startet Backend Server mit nodemon (Development) |
+| `npm run client` | Startet React Client (nur für lokale Entwicklung) |
 | `npm run build` | Erstellt Production Build des Frontends |
-| `npm run start` | Startet Production-Server (nur Backend) |
+| `npm run build-deploy` | 🆕 Baut Frontend und deployed es zu `server/public` |
+| `npm run deploy-frontend` | 🆕 Deployed bereits gebautes Frontend zu `server/public` |
+| `npm run start` | Startet Production-Server (NODE_ENV=development) |
+| `npm run start-prod` | 🆕 Startet Production-Server (NODE_ENV=production) |
+| `npm run rebuild-all` | 🆕 Installiert alle Dependencies und baut/deployed Frontend komplett neu |
 | `npm run install-all` | Installiert alle Dependencies (Root + Client) |
 | `npm run stop` | Stoppt alle Node.js Prozesse |
 | `npm run force-stop` | Stoppt alle Node.js Prozesse (Force) |
+
+**Hinweis:** In Production serviert das Backend auf Port 5000 sowohl Frontend als auch API!
 
 ---
 
@@ -48,9 +53,13 @@ Um die PowerShell-Aliase zu aktivieren, führe folgende Schritte aus:
 |-------|--------------|------------|
 | `cmds` | 📋 **Interaktives Menü** - Zeigt Commands an und erlaubt Auswahl per Nummer | - |
 | `start-server` | 🚀 Startet Development Server | `npm run dev` |
+| `start-prod` | 🆕 🚀 Startet Production Server | `npm run start-prod` |
+| `rebuild-gui` | 🆕 🔧 Rebuilt Frontend komplett und deployed | `npm run build-deploy` |
+| `rebuild-all` | 🆕 🔧 Installiert Dependencies + Rebuilt + Deployed | `npm run rebuild-all` |
 | `stop-server` | 🛑 Stoppt alle Node.js Prozesse | `Get-Process -Name node \| Stop-Process -Force` |
 | `force-stop` | 🛑 Stoppt alle Node.js Prozesse (Force) | `Get-Process -Name node \| Stop-Process -Force` |
 | `install-deps` | 📦 Installiert alle Dependencies | `npm run install-all` |
+| `view-db` | 🆕 🗄️ Zeigt PostgreSQL Datenbank-Inhalt | - |
 | `transcriber` | 📂 Wechselt zum Projekt-Verzeichnis | `cd D:\Projekte\git\mp3-transcriber-app` |
 
 ---
@@ -70,14 +79,18 @@ cmds
 1. **Tippe `cmds`** - Das interaktive Menü startet
 2. **Du siehst die Aufforderung:**
    ```
-   Wähle eine Option (0-5 oder ESC zum Beenden):
+   Wähle eine Option (0-9 oder ESC zum Beenden):
    ```
 3. **Drücke eine Taste (ohne Enter!):**
    - `1` - Startet den Development Server
    - `2` - Stoppt alle Node.js Prozesse
    - `3` - Force-Stop aller Node.js Prozesse
    - `4` - Installiert Dependencies
-   - `5` - Wechselt zum Projekt-Verzeichnis
+   - `5` - Zeigt Datenbank-Inhalt (PostgreSQL)
+   - `6` - Wechselt zum Projekt-Verzeichnis
+   - `7` - 🆕 Rebuilt Frontend und deployed
+   - `8` - 🆕 Rebuilt alles (Dependencies + Frontend + Deploy)
+   - `9` - 🆕 Startet Production-Server
    - `0` oder `ESC` - Zurück zum Prompt (sofort, ohne Enter!)
 4. **Command wird ausgeführt**
 5. **Nach Abschluss:** Drücke Enter, um zurück zum Menü zu gelangen
@@ -171,11 +184,11 @@ Stop-Process -Id <PID> -Force
 ### Port-Belegung prüfen
 
 ```powershell
-# Port 3000 (Frontend)
-netstat -ano | findstr :3000
-
-# Port 5000 (Backend)
+# Port 5000 (Backend - serviert Frontend + API)
 netstat -ano | findstr :5000
+
+# Port 3000 (Frontend Dev Server - nur für lokale Entwicklung)
+netstat -ano | findstr :3000
 ```
 
 ### Prozess nach Port-Belegung beenden
@@ -190,15 +203,24 @@ Stop-Process -Id $pid -Force
 
 ## 📝 Notizen
 
-- **Development Ports:**
-  - Frontend: `http://localhost:3000`
-  - Backend: `http://localhost:5000`
+- **Production URL:**
+  - App: `https://mp3-transcriber.m4itexpertsgmbh.de`
+  - Backend: `http://localhost:5000` (intern)
+
+- **Development (lokal):**
+  - Backend + Frontend: `http://localhost:5000`
+  - React Dev Server (optional): `http://localhost:3000`
+
+- **Cloudflare Tunnel:**
+  - Tunnel Name: `mp3-transcriber`
+  - Ziel: `http://localhost:5000`
+  - Starten: `cloudflared tunnel run mp3-transcriber`
 
 - **Environment Variables:** Konfiguriere in `.env` (siehe `.env.example`)
 
-- **Hot Reload:** Beide Server unterstützen Hot-Reload (nodemon + react-scripts)
+- **Hot Reload:** Server unterstützt Hot-Reload (nodemon)
 
-- **Logs:** Server-Logs werden in der Konsole angezeigt (mit concurrently)
+- **Temporäre Files:** Hochgeladene MP3s werden nach der Transkription automatisch gelöscht
 
 ---
 

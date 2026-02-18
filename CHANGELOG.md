@@ -1,176 +1,491 @@
-# 📋 Changelog
+# 📋 Changelog - MP3 Transcriber App
 
 Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
-Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
+---
+
+## [2.0.0] - 2026-02-18
+
+### 🎉 **Major Release: PostgreSQL Migration & Neue Features**
 
 ---
 
-## [2.0.0] - 2026-02-14
+### 🗄️ **Datenbank-Migration: SQLite → PostgreSQL**
 
-### 🆕 Neue Features
+#### **Warum PostgreSQL?**
+- ✅ Bessere Concurrent Access
+- ✅ Native JSONB für audit_logs  
+- ✅ BYTEA für große Binärdaten (MP3-Dateien)
+- ✅ Remote Access möglich
+- ✅ Replication & Backup-Strategien
+- ✅ Horizontal Skalierung vorbereitet
 
-#### WSL2 Integration
-- **Lokale Transkription**: `transcribe.py` via WSL2 Ubuntu mit CUDA-Support
-- **Lokale Summarization**: `summarize.py` via WSL2 Ubuntu mit CUDA-Support
-- **Live-Output-Modal**: Terminal-Style mit ANSI-Farben und Auto-Close
-- **Socket.io Events**: `transcribe:result` und `summarize:result` für WSL2-Prozesse
-- **Child Process Integration**: `child_process.spawn` für WSL2-Kommandos
+#### **Schema-Änderungen**
 
-#### Intelligente Dateiauswahl
-- **Automatische MP3-Verwendung**: MP3 geladen → Transcribe startet sofort ohne Modal
-- **Intelligente Summary-Logik**: Transkription ohne Summary → Verwendet aktuelle Transkription direkt
-- **Doppelklick-Support**: Doppelklick in FileSelectionModal → Sofortige Auswahl und Start
+| Feature | SQLite (alt) | PostgreSQL (neu) |
+|---------|-------------|------------------|
+| **IDs** | TEXT (6 chars) | UUID (gen_random_uuid()) |
+| **Binärdaten** | BLOB | BYTEA |
+| **Boolean** | INTEGER (0/1) | BOOLEAN |
+| **JSON** | TEXT | JSONB |
+| **Timestamps** | TEXT (ISO 8601) | TIMESTAMP |
 
-#### UI/UX-Verbesserungen
-- **Standard-Dateien**: Auto-Load beim App-Start ohne URL-Parameter
-- **Player-Verbesserungen**: Original-Dateinamen-Anzeige, Auto-Load nach lokaler Transkription
-- **Inline-Editing**: Zeilenweise editieren mit Auto-Save, Header-Editing
-- **Keyboard-Shortcuts**: `Ctrl+E` für Edit-Modus, `Esc` zum Beenden
-- **Playback-Highlighting**: Aktuelle Zeile hervorheben und zentrieren (throttled auto-scroll)
-- **Summary-Navigation**: Klickbare Überschriften, "↑ Zur Zusammenfassung"-Button (auch im Edit-Modus)
-- **Drop-Area-Layout**: Feste Positionierung (Text-DropArea bleibt immer unter MP3-DropArea/Player)
-
-#### Backend-Erweiterungen
-- **Neue Routes**:
-  - `POST /api/transcribe-local`: WSL2 Python-Transkription
-  - `POST /api/summarize-local`: WSL2 Python-Summarization (mit Temp-File-Support)
-  - `GET /api/local-files/list`: Lokale Dateiliste aus WSL2-Verzeichnis
-  - `GET /api/files/stream`: File-Streaming für lokale MP3-Dateien
-- **ANSI-Code-Parsing**: Backend sendet rohe ANSI-Codes, Frontend konvertiert zu HTML
-
-#### Neue Komponenten
-- **FileSelectionModal**: Dateiauswahl mit Metadaten (Größe, Datum), Doppelklick-Support
-- **LiveOutputModal**: Terminal-Style Live-Output für WSL2-Prozesse (80% × 70% Viewport)
-- **TextDropZone**: Separate Drop-Area für TXT-Dateien (nur im Edit-Modus)
-
-### ✨ Verbesserungen
-
-#### Audio Player
-- **Separate Buttons**: Play, Pause, Stop (vorher nur Play/Pause-Toggle)
-- **Button-Synchronisation**: Play ↔ Pause Toggle basierend auf Audio-Events (`play`, `pause`)
-- **Dateiname-Anzeige**: Original-Dateinamen unter Player-Titel
-- **Pause bei Summary-Click**: Player pausiert automatisch beim Klick auf Summary-Heading
-
-#### Transkriptions-Ansicht
-- **Dynamische Höhe**: Content-Bereich nutzt verfügbaren Platz (resize-aware)
-- **Duplikat-Filterung**: Erste Vorkommnisse von Duplikaten werden entfernt
-- **Highlighting-Fix**: Eindeutige Identifikation via `timestamp + lineIndex`
-- **Scroll-Optimierung**: Throttled auto-scroll, zentrierte Anzeige
-- **Timestamp-Styling**: Helleres Highlighting für bessere Lesbarkeit
-
-### 🔧 Technische Änderungen
-
-#### State Management
-- **audioFile.name**: Explizite Speicherung des Original-Dateinamens
-- **audioFile.isUploaded**: Flag zur Unterscheidung von lokalen vs. hochgeladenen Dateien
-- **editingLineKey / editingHeaderKey**: Tracking für Inline-Editing
-- **editedTexts / editedHeaders**: State für editierte Inhalte (mit timestamp/key)
-
-#### Event-Handling
-- **Global Keyboard Shortcuts**: `useEffect` mit `keydown`-Listener für `Ctrl+E`, `Esc`
-- **Audio Events**: `play` und `pause` Event-Listener für Button-Synchronisation
-- **Inline-Edit Events**: `onBlur`, `onKeyDown` (Enter) für Auto-Save
-- **Double-Click**: `onDoubleClick` für FileSelectionModal-Items
-
-### 🐛 Bugfixes
-
-- **Highlighting**: Funktioniert jetzt korrekt nach Duplikat-Filterung
-- **Text-Shifting**: Highlighting verschiebt Text nicht mehr nach rechts
-- **Multiple Highlights**: Nur eine Zeile wird hervorgehoben (nicht alle mit gleichem Timestamp)
-- **Edit-Save**: Änderungen werden korrekt gespeichert beim Verlassen einer Zeile
-- **Modal-Close**: LiveOutputModal schließt sich nach 3 Sekunden bei Erfolg
-- **Summary-Display**: Summary wird nach lokaler Summarization korrekt angezeigt
-- **MP3-Display**: MP3 wird nach lokaler Transkription im Player geladen
-
-### 📚 Dokumentation
-
-- **UPDATES.md**: Neue Datei mit allen Features und Änderungen (2026)
-- **CHANGELOG.md**: Diese Datei
-- **README.md**: Aktualisiert mit neuen Features und WSL2-Integration
-- **WORKFLOW.md**: Erweitert mit neuen Workflows (WSL2, Inline-Editing, etc.)
-- **WSL2_INTEGRATION.md**: Bestehende Dokumentation (bereits vorhanden)
-- **COMMANDS.md**: PowerShell-Alias-Dokumentation (bereits vorhanden)
-
-### ⚙️ PowerShell-Integration
-
-- **Alias**: `start_server`, `cmds`, `force_stop`
-- **Auto-Load**: Alias werden beim Terminal-Start geladen
-- **Profile**: `Microsoft.PowerShell_profile.ps1` konfiguriert
+#### **Neue Dateien**
+- `server/db/database-pg.js` - PostgreSQL Connection Manager
+- `server/db/postgresql-schema.sql` - PostgreSQL Schema
+- `server/db/seed-pg.js` - Seed-Script für Default-User
+- `server/db/migrate-sqlite-to-pg.js` - Migrations-Script von SQLite
+- `POSTGRESQL_MIGRATION.md` - Detaillierte Migrationsanleitung
 
 ---
 
-## [1.0.0] - 2026-02-13 (Initial Release)
+### 💾 **MP3-Dateien in Datenbank statt Filesystem**
 
-### Features
+#### **Upload-Flow (vorher)**
+```
+User → MP3 Upload → Filesystem (./uploads/) → Transkription
+```
 
-#### Core Features
-- MP3-Upload via Drag-and-Drop oder URL-Parameter
-- HTML5 Audio Player mit Custom Controls
-- Transkription mit RunPod Whisper API (openai/whisper-large-v3)
-- Zusammenfassung mit RunPod Llama API (Llama-3.1-8B-CT2)
-- Klickbare Timestamps für Audio-Navigation
-- Edit-Modus mit Monaco Editor
-- Text-Import via Drag-and-Drop
-- WebSocket-basierte Progress-Updates
-- Responsive Design mit Tailwind CSS
+#### **Upload-Flow (nachher)**
+```
+User → MP3 Upload → Memory Buffer → PostgreSQL (mp3_data BYTEA) → Transkription
+```
 
-#### Frontend
-- React 18.2 mit Hooks
-- Tailwind CSS für Styling
-- Monaco Editor für Text-Editing
-- react-dropzone für File-Upload
-- Socket.io-client für WebSocket
-- Axios für HTTP-Requests
+#### **Vorteile**
+- ✅ Keine Filesystem-Abhängigkeit
+- ✅ Atomic Transactions (MP3 + Transkription zusammen)
+- ✅ Einfacheres Backup (nur DB)
+- ✅ Keine verwaisten Dateien
+- ✅ Skalierung mit DB (kein lokaler Storage nötig)
 
-#### Backend
-- Node.js + Express
-- Socket.io Server
-- Multer für File-Upload
-- RunPod API-Integration
-- File-Management (Upload, Download, Delete)
+#### **Neue Endpoints**
+```javascript
+GET  /api/transcriptions/:id/audio     // Stream MP3 aus DB
+GET  /api/transcriptions/:id/download  // Download Transkription als TXT
+POST /api/transcriptions               // Mit MP3-Upload (multipart/form-data)
+```
 
-#### Komponenten
-- `AudioPlayer.js`: Audio-Player mit Controls
-- `TranscriptView.js`: Transkript-Anzeige
-- `ControlPanel.js`: Button-Panel
-- `DropZone.js`: Drag-and-Drop Zone
-- `ProgressModal.js`: Progress-Overlay
-
-#### API-Endpunkte
-- `POST /api/upload`: File-Upload
-- `POST /api/transcribe`: Transkription (RunPod)
-- `POST /api/summarize`: Zusammenfassung (RunPod)
-- `GET /api/files/:filename`: File-Download
-- `DELETE /api/files/:filename`: File-Delete
-- `GET /api/health`: Health-Check
+#### **Geänderte Dateien**
+- `server/routes/upload.js` - Multer auf memoryStorage umgestellt
+- `server/routes/transcriptions-pg.js` - Neue Route mit mp3_data BYTEA-Support
+- `server/routes/transcribe.js` - Unterstützt jetzt Buffer (DB) und Dateipfad (legacy)
 
 ---
 
-## Geplante Features (Roadmap)
+### 👥 **User-Zuordnung bei neuer Transkription**
 
-### Version 2.1.0
-- [ ] Batch-Processing: Mehrere MP3s gleichzeitig verarbeiten
-- [ ] Export-Funktionen: PDF, DOCX, SRT (Untertitel)
-- [ ] Audio-Visualisierung: Waveform-Anzeige
-- [ ] Undo/Redo im Edit-Modus
-- [ ] Custom Shortcuts für Timestamps
-- [ ] Dark-Mode
+#### **Logik**
+- **Standard-User**: Transkription wird automatisch für eigenen User gespeichert
+- **Admin**: Kann Ziel-User auswählen (mit Autocomplete)
 
-### Version 2.2.0
-- [ ] Multi-Language-Support (Englisch, Französisch, etc.)
-- [ ] Speaker-Diarization (Wer spricht wann?)
-- [ ] Custom Model-Endpoints (eigene Whisper/Llama-Modelle)
-- [ ] Audio-Recording direkt in der App
-- [ ] Cloud-Storage-Integration (Dropbox, Google Drive)
+#### **POST /api/transcriptions - Erweitert**
 
-### Version 3.0.0
-- [ ] User-Authentifizierung & Multi-User-Support
-- [ ] Datenbank-Integration (PostgreSQL)
-- [ ] Projekt-Management (Ordner, Tags, Suche)
-- [ ] Collaboration-Features (Shared Editing)
-- [ ] API für externe Integration
+**Vorher:**
+```javascript
+{
+  "mp3_filename": "audio.mp3",
+  "transcription_text": "..."
+}
+// Transkription wird automatisch für aktuellen User gespeichert
+```
+
+**Nachher:**
+```javascript
+{
+  "mp3_filename": "audio.mp3",
+  "transcription_text": "...",
+  "target_user_id": "uuid-des-ziel-users"  // NUR für Admins
+}
+// Admin kann Ziel-User auswählen
+```
+
+#### **GET /api/users/search - Neu (Autocomplete)**
+
+**Endpoint:**
+```
+GET /api/users/search?q=tom
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "users": [
+    {
+      "id": "uuid-1",
+      "username": "tom",
+      "first_name": "Tom",
+      "last_name": "Kiesewetter",
+      "displayName": "Tom Kiesewetter (tom)"
+    }
+  ]
+}
+```
+
+**Features:**
+- ILIKE-Search (case-insensitive)
+- Sucht in: `username`, `first_name`, `last_name`
+- Limit: 10 Ergebnisse
+- Nur für Admins
 
 ---
 
-**Hinweis**: Dieses Changelog wird bei jedem Release aktualisiert. Für tägliche Updates siehe Git-Commit-History.
+### 📥 **Transkriptionstext lokal speichern (Download)**
+
+#### **Neuer Endpoint**
+```javascript
+GET /api/transcriptions/:id/download
+```
+
+**Response:**
+```http
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: attachment; filename="audio_transcription.txt"
+
+Datum:   18.02.2026
+Start:   14:32:15
+Dauer:   00:01:23
+Modell:  openai/whisper-large-v3
+
+[00:00:01] Transkriptionstext...
+[00:00:15] Weiterer Text...
+```
+
+---
+
+### 🎨 **UI/UX-Verbesserungen**
+
+#### **Button-Position beim Editieren optimiert**
+
+**Vorher:**
+```jsx
+<button className="fixed bottom-8 right-8 z-50 ...">
+  Zur Zusammenfassung
+</button>
+```
+- Button war am **rechten Bildschirmrand** fixiert
+- Weit entfernt von der Transkription
+
+**Nachher:**
+```jsx
+<button className="absolute top-20 right-6 z-10 ..." style={{ position: 'sticky' }}>
+  Zur Zusammenfassung
+</button>
+```
+- Button ist **innerhalb des Transkriptions-Containers**
+- **Rechts neben** der Transkription (nicht am Bildschirmrand)
+- `sticky` Position: bleibt beim Scrollen sichtbar
+
+---
+
+### ☁️ **Cloudflare Tunnel - Konfigurierbarer Schalter**
+
+#### **Was ist neu?**
+- ✅ `.env` Variable zum An-/Abschalten des Cloudflare Tunnels
+- ✅ Automatischer Start nur wenn aktiviert
+- ✅ Einfache Konfiguration
+
+#### **Konfiguration in `.env`:**
+```env
+# Cloudflare Tunnel Configuration
+CLOUDFLARE_TUNNEL_ENABLED=true   # true = aktiviert, false = deaktiviert
+CLOUDFLARE_TUNNEL_NAME=mp3-transcriber
+```
+
+#### **Start-Scripts berücksichtigen jetzt die Variable**
+- `start-cloudflare.ps1` - Prüft `.env` vor dem Start
+- `start-server-autostart.ps1` - Startet Tunnel nur wenn aktiviert
+
+---
+
+### 🌐 **Remote Start von Win7**
+
+#### **Was ist das?**
+Das `remote-start-from-win7.ps1` Script ermöglicht es, den MP3 Transcriber Server auf dem Win11 Rechner **von einem Win7 Rechner aus** zu starten.
+
+#### **Funktionsweise:**
+1. **PowerShell Remoting**: Nutzt `Invoke-Command` für Remote-Ausführung
+2. **Credential-Abfrage**: Sicherer Login mit Benutzername/Passwort
+3. **Status-Check**: Prüft ob Server bereits läuft
+4. **Automatischer Start**: Startet Server falls noch nicht aktiv
+
+#### **Verwendung:**
+```powershell
+# Auf Win7:
+.\remote-start-from-win7.ps1
+
+# Eingabe:
+# - Benutzername (Win11)
+# - Passwort (Win11)
+# → Server startet auf Win11
+# → Erreichbar unter http://192.168.178.20:5000
+```
+
+#### **Voraussetzungen:**
+- PowerShell Remoting auf Win11 aktiviert
+- Netzwerkverbindung zwischen Win7 und Win11
+- Gültige Anmeldedaten für Win11
+
+#### **Technische Details:**
+- **Ziel-IP**: `192.168.178.20` (Win11 Rechner)
+- **Ziel-Port**: `5000` (Server-Port)
+- **Remote-Command**: `cd D:\Projekte\git\mp3-transcriber-app; npm run dev`
+- **Fenster-Modus**: Normal (sichtbar auf Win11)
+
+---
+
+### 📚 **Dokumentations-Konsolidierung**
+
+#### **ARCHITECTURE.md - Vollständig überarbeitet**
+- ✅ Konsolidierung von `ARCHITECTURE.md` und `ARCHITECTURE_V2_PROPOSAL.md`
+- ✅ Alle Architekturinformationen in einem Dokument
+- ✅ PostgreSQL-Migration dokumentiert
+- ✅ Neue Features dokumentiert
+- ✅ Skalierungs-Strategie hinzugefügt
+
+#### **CHANGELOG.md - Alle Änderungen konsolidiert**
+- ✅ Integration von `ÄNDERUNGEN_V2.md`
+- ✅ Integration von `CHANGELOG.md`
+- ✅ Integration von `UPDATES.md`
+- ✅ Ein einheitliches Changelog für alle Versionen
+
+#### **README.md - Aktualisiert**
+- ✅ PostgreSQL statt SQLite
+- ✅ Port 5000 statt 4000/3000 (Production-Setup)
+- ✅ Neue Features dokumentiert
+- ✅ Cloudflare Tunnel Integration
+- ✅ Remote Start von Win7
+- ✅ Neue API-Endpoints
+
+#### **Dateien gelöscht (obsolet):**
+- ❌ `ÄNDERUNGEN_V2.md` (in CHANGELOG.md integriert)
+- ❌ `UPDATES.md` (in CHANGELOG.md integriert)
+- ❌ `ARCHITECTURE_V2_PROPOSAL.md` (in ARCHITECTURE.md integriert)
+- ❌ `CLOUDFLARE_TUNNEL_PERMANENT.md` (in README.md integriert)
+- ❌ `CLOUDFLARE_TUNNEL_SETUP.md` (in README.md integriert)
+- ❌ `EXTERNE_TESTS_ANLEITUNG.md` (in README.md integriert)
+- ❌ `PORTS_AND_URLS.md` (in README.md integriert)
+- ❌ `fix-hardcoded-ports.ps1` (obsolet)
+- ❌ `transcriber.db` (SQLite, jetzt PostgreSQL)
+- ❌ `server/transcriber.db` (SQLite, jetzt PostgreSQL)
+
+---
+
+### 🔧 **Backend-Änderungen**
+
+#### **Server-Code auf PostgreSQL umgestellt**
+- `server/index.js` - Verwendet `database-pg` und `seed-pg`
+- `server/routes/auth.js` - PostgreSQL-Queries
+- `server/utils/logger.js` - PostgreSQL-Queries
+- Alle Queries von `?` auf `$1, $2, ...` umgestellt
+
+#### **Neue Routes**
+- `server/routes/users-pg.js` - User-Management mit Search-Route
+- `server/routes/transcriptions-pg.js` - Transcriptions mit BYTEA-Support
+
+---
+
+### 🔐 **User-Verwaltung aktualisiert**
+
+#### **Standard-User (neu):**
+
+| Vorname | Nachname | Username | Email | Passwort | Rolle |
+|---------|----------|----------|-------|----------|-------|
+| tom | - | tom | thomas.kiesswetter@gmx.de | MT9#Detomaso | Admin |
+| micha | - | micha | michaelabrassat@gmx.de | MT9#Schutzengel | Admin |
+| test | - | test | - | test | User |
+
+---
+
+### ⚙️ **Environment-Variablen aktualisiert**
+
+#### **Neue Variablen in `.env`:**
+```env
+# PostgreSQL Configuration
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD="PG9#Detomaso"
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=mp3_transcriber
+
+# Cloudflare Tunnel Configuration
+CLOUDFLARE_TUNNEL_ENABLED=true
+CLOUDFLARE_TUNNEL_NAME=mp3-transcriber
+
+# Server Configuration (aktualisiert)
+PORT=5000                           # Production Port (nicht mehr 4000!)
+CLIENT_URL=http://localhost:5000    # Frontend URL (aktualisiert)
+```
+
+---
+
+### 🐛 **Bugfixes**
+
+#### **Client URL korrigiert**
+- **Vorher**: `CLIENT_URL=http://localhost:3000` (falsch!)
+- **Nachher**: `CLIENT_URL=http://localhost:5000` (korrekt!)
+- **Grund**: Frontend wird jetzt vom Backend-Server auf Port 5000 ausgeliefert
+
+#### **Environment-Loading in DB-Scripts**
+- `database-pg.js` - `dotenv.config()` hinzugefügt
+- `seed-pg.js` - `dotenv.config()` hinzugefügt
+
+#### **Password mit Sonderzeichen in `.env`**
+- Passwörter mit `#` müssen in Anführungszeichen: `"PG9#Detomaso"`
+
+---
+
+### ⚠️ **Breaking Changes**
+
+#### **1. Datenbank-Wechsel**
+- SQLite → PostgreSQL
+- Alte `database.js` → Neue `database-pg.js`
+- Query-Syntax: `?` → `$1, $2, ...`
+
+#### **2. ID-Format**
+- SQLite: 6-Zeichen alphanumerisch (`abc123`)
+- PostgreSQL: UUID (`550e8400-e29b-41d4-a716-446655440000`)
+
+#### **3. Boolean-Werte**
+- SQLite: INTEGER `0`/`1`
+- PostgreSQL: BOOLEAN `false`/`true`
+
+#### **4. MP3-Speicherung**
+- Vorher: Filesystem (`./uploads/`)
+- Nachher: PostgreSQL BYTEA
+
+#### **5. Port-Konfiguration**
+- Production Port: **5000** (nicht mehr 4000!)
+- Frontend wird vom Backend ausgeliefert
+
+---
+
+### 📦 **Neue Dependencies**
+
+#### **Backend**
+- `pg` (v8.11.3) - PostgreSQL Client
+
+---
+
+### 📊 **Neue Route-Übersicht**
+
+### **Transcriptions (PostgreSQL)**
+```
+GET    /api/transcriptions              // Liste (User oder Admin)
+POST   /api/transcriptions              // Neu (mit target_user_id für Admin)
+GET    /api/transcriptions/:id          // Details (ohne mp3_data)
+GET    /api/transcriptions/:id/audio    // ✨ NEU: Stream MP3 aus DB
+GET    /api/transcriptions/:id/download // ✨ NEU: Download als TXT
+PUT    /api/transcriptions/:id          // Update
+DELETE /api/transcriptions/:id          // Delete
+```
+
+### **Users (PostgreSQL)**
+```
+GET    /api/users                // Liste (Admin only)
+GET    /api/users/search?q=tom   // ✨ NEU: Autocomplete (Admin only)
+GET    /api/users/:id            // Details (Admin only)
+POST   /api/users                // Create (Admin only)
+PUT    /api/users/:id            // Update (Admin only)
+DELETE /api/users/:id            // Delete (Admin only)
+GET    /api/users/:id/transcriptions  // User-Transkriptionen (Admin)
+```
+
+---
+
+### 🧪 **Setup-Schritte für PostgreSQL**
+
+1. **PostgreSQL installieren** (Port 5432)
+2. **Datenbank erstellen**: `CREATE DATABASE mp3_transcriber;`
+3. **`.env` konfigurieren** (siehe oben)
+4. **Schema laden**: `psql -U postgres -d mp3_transcriber -f server/db/postgresql-schema.sql`
+5. **Default-Users seeden**: `node server/db/seed-pg.js`
+6. **Server starten**: `npm run server`
+
+---
+
+### 📝 **Migrations-Optionen**
+
+#### **Option A: Frische Installation (empfohlen)**
+```bash
+# 1. PostgreSQL installieren
+# 2. Datenbank erstellen
+# 3. Schema ausführen
+# 4. Seed ausführen
+# 5. Server-Code umstellen
+```
+
+#### **Option B: Daten aus SQLite migrieren**
+```bash
+# 1. Alles aus Option A
+# 2. Migrations-Script ausführen
+node server/db/migrate-sqlite-to-pg.js
+
+# 3. Alte SQLite-DB sichern (wird nicht mehr benötigt)
+cp transcriber.db transcriber.db.backup
+```
+
+---
+
+### ✅ **Checkliste für Deployment**
+
+- [x] PostgreSQL installiert und läuft
+- [x] `.env` mit korrekten Credentials
+- [x] Schema ausgeführt (`postgresql-schema.sql`)
+- [x] Default users geseedet (`seed-pg.js`)
+- [x] Server-Code auf `database-pg.js` umgestellt
+- [x] Alle Routes auf PostgreSQL-Syntax umgestellt
+- [x] Tests durchgeführt (Login, Upload, Transcribe)
+- [x] Dokumentation aktualisiert
+
+---
+
+## [1.0.0] - 2026-02-16 (Initial Release)
+
+### **Initial Features**
+- 🎵 MP3 Upload und Transkription
+- 🎧 Whisper API Integration (RunPod)
+- 📊 LLaMA Summarization (RunPod)
+- ⏱️ Socket.io für Live-Progress
+- 🎨 Moderne UI mit Tailwind CSS
+- 🔄 Drag & Drop Upload
+- 📝 Timestamp-Navigation
+- 🔆 Playback-Highlighting
+- ✏️ Inline-Edit-Modus
+- 🐧 WSL2 Integration für lokale Verarbeitung
+- 📁 Lokale Datei-Unterstützung
+- 🔒 JWT Authentication
+- 👥 User Management
+- 🗄️ SQLite Datenbank
+
+---
+
+## **Geplante Features für v2.1.0**
+
+### **Phase 3: Frontend-Integration**
+- [ ] **Admin User-Selector** in `TranscribeScreen.js`:
+  - Autocomplete-Feld für User-Auswahl
+  - Nur für Admin sichtbar
+  - Standard-User: Automatisch eigener User
+
+- [ ] **Download-Button** in `TranscriptView.js`:
+  - "📥 Als TXT herunterladen" Button
+  - Download via `/api/transcriptions/:id/download`
+
+- [ ] **Audio-Player** aus DB:
+  - MP3-Stream aus DB: `/api/transcriptions/:id/audio`
+
+---
+
+## **Bekannte Limitierungen**
+
+1. **Frontend-Integration**: Admin User-Selector und Download-Button noch nicht im Frontend implementiert
+2. **Cloudflare Tunnel**: Manuelle Konfiguration erforderlich
+3. **WSL2 erforderlich**: Für lokale Verarbeitung
+4. **Windows-Pfade**: Hardcodiert für Windows (`D:\...`)
+
+---
+
+**Letzte Aktualisierung**: 2026-02-18  
+**Version**: 2.0.0  
+**Status**: ✅ Production Ready

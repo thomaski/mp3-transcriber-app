@@ -29,7 +29,7 @@ try {
     
     Write-Host ""
     Write-Host "Fertig! Server sollte jetzt erreichbar sein:" -ForegroundColor Green
-    Write-Host "  http://192.168.178.20:3000" -ForegroundColor Cyan
+    Write-Host "  http://192.168.178.20:4000" -ForegroundColor Cyan
     Write-Host ""
     
 } catch {

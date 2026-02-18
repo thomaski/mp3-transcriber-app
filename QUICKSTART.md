@@ -30,13 +30,13 @@ RUNPOD_API_KEY=YOUR_API_KEY_HERE
 npm run dev
 ```
 
-**Fertig!** App läuft auf http://localhost:3000
+**Fertig!** App läuft auf http://localhost:4000
 
 ### 4. Erste Schritte (1 Min)
 
 1. **Test-Transkription laden:**
    ```
-   http://localhost:3000?text=./base-data/test_3min.txt
+   http://localhost:4000?text=./base-data/test_3min.txt
    ```
 
 2. **Timestamp klicken:**
@@ -45,7 +45,7 @@ npm run dev
 
 3. **Edit-Modus testen:**
    ```
-   http://localhost:3000?edit=true
+   http://localhost:4000?edit=true
    ```
 
 ---

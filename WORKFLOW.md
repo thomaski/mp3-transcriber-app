@@ -20,7 +20,7 @@ Siehe auch: [UPDATES.md](./UPDATES.md) für Details zu neuen Features.
 
 ### Schritt 1.1: App laden
 ```
-User: Öffnet http://localhost:3000
+User: Öffnet http://localhost:4000
   ↓
 Browser: Lädt React App
   ↓
@@ -542,7 +542,7 @@ TranscriptView rendert neu mit Separatoren
 
 **Option A: URL-Parameter**
 ```
-http://localhost:3000?edit=true
+http://localhost:4000?edit=true
 ```
 
 **Option B: Button-Click**

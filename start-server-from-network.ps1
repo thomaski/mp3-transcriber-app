@@ -23,8 +23,8 @@ if ($nodeProcesses) {
     Write-Host "  Anzahl Node-Prozesse: $($nodeProcesses.Count)" -ForegroundColor Gray
     Write-Host ""
     Write-Host "Server erreichbar unter:" -ForegroundColor Yellow
-    Write-Host "  Local:   http://localhost:3000" -ForegroundColor Cyan
-    Write-Host "  Network: http://192.168.178.20:3000" -ForegroundColor Cyan
+    Write-Host "  Local:   http://localhost:4000" -ForegroundColor Cyan
+    Write-Host "  Network: http://192.168.178.20:4000" -ForegroundColor Cyan
 } else {
     Write-Host "  Server laeuft nicht" -ForegroundColor Yellow
     Write-Host ""
@@ -42,8 +42,8 @@ if ($nodeProcesses) {
     
     Write-Host ""
     Write-Host "Server sollte jetzt erreichbar sein:" -ForegroundColor Yellow
-    Write-Host "  Local:   http://localhost:3000" -ForegroundColor Cyan
-    Write-Host "  Network: http://192.168.178.20:3000" -ForegroundColor Cyan
+    Write-Host "  Local:   http://localhost:4000" -ForegroundColor Cyan
+    Write-Host "  Network: http://192.168.178.20:4000" -ForegroundColor Cyan
 }
 
 Write-Host ""

@@ -1,81 +1,108 @@
-# 🏗️ Architektur-Dokumentation
+# 🏗️ Architektur-Dokumentation MP3 Transcriber App v2.0.0
 
-## Inhaltsverzeichnis
+**Datum**: 2026-02-18  
+**Version**: 2.0.0  
+**Status**: Production
+
+---
+
+## 📋 Inhaltsverzeichnis
 
 1. [Übersicht](#übersicht)
 2. [Systemarchitektur](#systemarchitektur)
-3. [Komponenten-Details](#komponenten-details)
-4. [Datenfluss](#datenfluss)
-5. [API-Integration](#api-integration)
-6. [State Management](#state-management)
-7. [Fehlerbehandlung](#fehlerbehandlung)
-8. [Performance-Optimierungen](#performance-optimierungen)
+3. [Technologie-Stack](#technologie-stack)
+4. [Datenbank-Design](#datenbank-design)
+5. [Authentifizierung & Sicherheit](#authentifizierung--sicherheit)
+6. [Komponenten-Details](#komponenten-details)
+7. [Datenfluss](#datenfluss)
+8. [API-Dokumentation](#api-dokumentation)
+9. [State Management](#state-management)
+10. [Performance-Optimierungen](#performance-optimierungen)
+11. [Migration & Skalierung](#migration--skalierung)
 
 ---
 
-## Übersicht
+## 🎯 Übersicht
 
-Die MP3 Transcriber App ist eine moderne Full-Stack-Webapp, die aus einem React-Frontend und einem Node.js/Express-Backend besteht. Sie ermöglicht die Transkription und Zusammenfassung von MP3-Dateien unter Verwendung von RunPod-gehosteten ML-Modellen (Whisper und Llama).
+Die MP3 Transcriber App ist eine moderne Full-Stack-Webapp zur Transkription und Zusammenfassung von MP3-Dateien. Sie verwendet RunPod-gehostete ML-Modelle (Whisper für Transkription, Llama für Zusammenfassung) und bietet ein umfassendes User-Management-System mit Admin-Panel.
 
-### Technologie-Stack
+### Hauptfunktionen
 
-**Frontend:**
-- React 18.2 (Functional Components + Hooks)
-- Tailwind CSS (Utility-First Styling)
-- Monaco Editor (Code-Editor)
-- Socket.io-client (WebSocket)
-- Axios (HTTP Client)
-- react-dropzone (File Upload)
-
-**Backend:**
-- Node.js (Runtime)
-- Express 4 (Web Framework)
-- Socket.io (WebSocket Server)
-- Multer (File Upload Middleware)
-- Axios (RunPod API Calls)
+- 🎙️ **MP3-Transkription** mit Whisper Large V3
+- 📝 **KI-Zusammenfassung** mit Llama 3.1
+- 👥 **Multi-User-System** mit Role-Based Access Control
+- 🔐 **Sichere Authentifizierung** mit JWT
+- 💾 **PostgreSQL-Datenbank** für persistente Speicherung
+- 🌐 **Public Sharing** via sichere Links
+- ⚡ **Real-time Updates** via WebSocket
 
 ---
 
-## Systemarchitektur
+## 🏗️ Systemarchitektur
 
 ### High-Level Architektur
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        Client (Browser)                      │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              React Application                       │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐         │   │
-│  │  │  Audio   │  │Transcript│  │ Control  │         │   │
-│  │  │  Player  │  │   View   │  │  Panel   │         │   │
-│  │  └──────────┘  └──────────┘  └──────────┘         │   │
-│  │                                                      │   │
-│  │  ┌─────────────────────────────────────────────┐  │   │
-│  │  │         Socket.io Client                    │  │   │
-│  │  └─────────────────────────────────────────────┘  │   │
-│  └─────────────────────────────────────────────────────┘   │
+│                     Client (React SPA)                       │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │  React Router v7                                    │    │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐        │    │
+│  │  │  Login   │  │Dashboard │  │Transcribe│        │    │
+│  │  └──────────┘  └──────────┘  └──────────┘        │    │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐        │    │
+│  │  │  Admin   │  │  Public  │  │  Audio   │        │    │
+│  │  │  Panel   │  │  Access  │  │  Player  │        │    │
+│  │  └──────────┘  └──────────┘  └──────────┘        │    │
+│  └────────────────────────────────────────────────────┘    │
+│                                                             │
+│  Socket.io Client  ←──→  Axios (HTTP)                      │
 └─────────────────────────────────────────────────────────────┘
                            │
-                           │ HTTP / WebSocket
+                           │ HTTPS / WSS
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Express Server (Node.js)                  │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Routes                                              │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐         │   │
-│  │  │ Upload   │  │Transcribe│  │Summarize │         │   │
-│  │  │  Route   │  │  Route   │  │  Route   │         │   │
-│  │  └──────────┘  └──────────┘  └──────────┘         │   │
-│  └─────────────────────────────────────────────────────┘   │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │         Socket.io Server                            │   │
-│  └─────────────────────────────────────────────────────┘   │
+│              Express Server (Node.js)                        │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │  Middleware Layer                                   │    │
+│  │  ├─ JWT Auth                                        │    │
+│  │  ├─ CORS                                            │    │
+│  │  ├─ Rate Limiting                                   │    │
+│  │  ├─ Multer (File Upload)                            │    │
+│  │  └─ Error Handler                                   │    │
+│  └────────────────────────────────────────────────────┘    │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │  Routes                                             │    │
+│  │  ├─ /api/auth          (Login, Logout)             │    │
+│  │  ├─ /api/users         (CRUD)                       │    │
+│  │  ├─ /api/transcriptions (CRUD)                      │    │
+│  │  ├─ /api/transcribe    (Whisper API)                │    │
+│  │  ├─ /api/summarize     (Llama API)                  │    │
+│  │  └─ /api/public        (Public Access)              │    │
+│  └────────────────────────────────────────────────────┘    │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │  Socket.io Server                                   │    │
+│  │  └─ Real-time Progress Updates                      │    │
+│  └────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           │ SQL Queries
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   PostgreSQL Database                        │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │  Tables:                                            │    │
+│  │  ├─ users                                           │    │
+│  │  ├─ transcriptions (mit mp3_data BYTEA)            │    │
+│  │  ├─ access_tokens                                   │    │
+│  │  └─ audit_logs                                      │    │
+│  └────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────┘
                            │
                            │ HTTPS API Calls
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                         RunPod APIs                          │
+│                        RunPod APIs                           │
 │  ┌──────────────────────┐  ┌──────────────────────┐        │
 │  │  Whisper API         │  │   Llama API          │        │
 │  │  (Transcription)     │  │  (Summarization)     │        │
@@ -93,284 +120,442 @@ mp3-transcriber-app/
 │
 ├── client/                          # React Frontend
 │   ├── public/
-│   │   ├── index.html               # HTML Template
-│   │   └── manifest.json            # PWA Manifest
+│   │   ├── index.html
+│   │   └── manifest.json
 │   │
 │   └── src/
-│       ├── components/              # React Components
-│       │   ├── AudioPlayer.js       # HTML5 Audio Player mit Controls
-│       │   ├── TranscriptView.js    # Transkriptions-Anzeige
-│       │   ├── ControlPanel.js      # Buttons & Status
-│       │   ├── DropZone.js          # Drag-and-Drop Upload
-│       │   └── ProgressModal.js     # Progress-Overlay
+│       ├── components/
+│       │   ├── auth/
+│       │   │   ├── LoginScreen.js
+│       │   │   └── ProtectedRoute.js
+│       │   ├── admin/
+│       │   │   └── UserManagement.js
+│       │   ├── public/
+│       │   │   ├── PublicLandingPage.js
+│       │   │   ├── PublicMp3View.js
+│       │   │   └── UserMp3ListView.js
+│       │   ├── AudioPlayer.js
+│       │   ├── ControlPanel.js
+│       │   ├── Dashboard.js
+│       │   ├── DropZone.js
+│       │   ├── TranscribeScreen.js
+│       │   └── TranscriptView.js
+│       │
+│       ├── context/
+│       │   └── AuthContext.js
 │       │
 │       ├── services/
-│       │   └── api.js               # API Service (Axios)
+│       │   ├── api.js
+│       │   ├── apiClient.js
+│       │   ├── authService.js
+│       │   ├── userService.js
+│       │   └── publicAccessService.js
 │       │
 │       ├── utils/
-│       │   └── helpers.js           # Utility-Funktionen
+│       │   └── helpers.js
 │       │
-│       ├── App.js                   # Main App Component
-│       ├── index.js                 # Entry Point
-│       └── index.css                # Global Styles + Tailwind
+│       ├── App.js
+│       ├── index.js
+│       └── index.css
 │
 ├── server/                          # Node.js Backend
-│   ├── routes/
-│   │   ├── upload.js                # File-Upload Handler
-│   │   ├── transcribe.js            # Whisper API Integration
-│   │   ├── summarize.js             # Llama API Integration
-│   │   └── files.js                 # File Management
+│   ├── db/
+│   │   ├── database.js              # PostgreSQL Connection
+│   │   ├── schema.sql               # DB Schema
+│   │   └── seed.js                  # Initial Data
 │   │
-│   └── index.js                     # Server Entry + Socket.io Setup
+│   ├── middleware/
+│   │   ├── auth.js                  # JWT Verification
+│   │   └── rateLimiter.js           # Rate Limiting
+│   │
+│   ├── routes/
+│   │   ├── auth.js                  # Login/Logout
+│   │   ├── users.js                 # User CRUD
+│   │   ├── transcriptions.js        # Transcription CRUD
+│   │   ├── transcribe.js            # Whisper API
+│   │   ├── summarize.js             # Llama API
+│   │   ├── public.js                # Public Access
+│   │   └── upload.js                # File Upload
+│   │
+│   ├── utils/
+│   │   ├── tokenGenerator.js        # ID Generation
+│   │   ├── logger.js                # Logging
+│   │   └── validation.js            # Input Validation
+│   │
+│   └── index.js                     # Server Entry Point
 │
-└── uploads/                         # Temporärer File-Storage
+├── .env                             # Environment Variables
+├── package.json
+└── README.md
 ```
 
 ---
 
-## Komponenten-Details
+## 💻 Technologie-Stack
 
-### Frontend-Komponenten
+### Frontend
+- **React** 18.2 - UI Framework
+- **React Router** v7 - Client-Side Routing
+- **Tailwind CSS** 3.x - Styling
+- **Monaco Editor** - Code-Editor für Transkriptionen
+- **Socket.io-client** - WebSocket-Client
+- **Axios** - HTTP-Client
+- **react-dropzone** - File Upload
 
-#### 1. **App.js** (Main Container)
+### Backend
+- **Node.js** 18+ - Runtime
+- **Express** 4.x - Web Framework
+- **PostgreSQL** 15+ - Primary Database
+- **Socket.io** - WebSocket-Server
+- **JWT** - Authentication
+- **bcrypt** - Password Hashing
+- **Multer** - File Upload Middleware
 
-**Verantwortlichkeiten:**
-- Zentrales State-Management
-- Socket.io Connection Management
-- URL-Parameter Parsing
-- Event-Handler Koordination
-- Error-Handling
-
-**State:**
-```javascript
-{
-  audioFile: Object,        // Hochgeladene Datei-Info
-  audioUrl: String,         // URL zum Audio
-  transcription: String,    // Transkript-Text
-  isEditMode: Boolean,      // Edit-Modus aktiv?
-  isProcessing: Boolean,    // Verarbeitung läuft?
-  progress: Object,         // Progress-Info
-  error: String             // Error-Message
-}
-```
-
-**Lifecycle:**
-1. Mount: Socket.io-Verbindung aufbauen
-2. Mount: URL-Parameter parsen
-3. Socket Events registrieren
-4. Unmount: Socket trennen
-
-**Key Functions:**
-- `handleFileDrop()`: Datei-Upload
-- `handleTranscribe()`: Transkription starten
-- `handleSummarize()`: Zusammenfassung starten
-- `handleTimestampClick()`: Audio-Seek
+### External Services
+- **RunPod** - ML Model Hosting
+  - Whisper Large V3 (Transkription)
+  - Llama 3.1 8B (Zusammenfassung)
 
 ---
 
-#### 2. **AudioPlayer.js** (Media Player)
+## 💾 Datenbank-Design
 
-**Features:**
-- HTML5 Audio Element
-- Custom Controls (Play/Pause, Seek, Volume)
-- Time Display
-- Progress Bar
-- Mute/Unmute
+### Migrations-Strategie
 
-**Props:**
-```javascript
-{
-  audioUrl: String,      // Audio-Source
-  audioRef: Ref          // Ref zum Audio-Element
-}
+Die App verwendet nun **PostgreSQL** statt SQLite für bessere Skalierbarkeit und Unterstützung großer BLOB-Daten (MP3-Dateien).
+
+### Schema
+
+#### Tabelle: `users`
+```sql
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username VARCHAR(50) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  first_name VARCHAR(100) NOT NULL,
+  last_name VARCHAR(100),
+  email VARCHAR(255) UNIQUE,
+  is_admin BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_email ON users(email);
 ```
 
-**State:**
-```javascript
-{
-  isPlaying: Boolean,
-  currentTime: Number,
-  duration: Number,
-  volume: Number,
-  isMuted: Boolean
-}
+#### Tabelle: `transcriptions`
+```sql
+CREATE TABLE transcriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  mp3_filename VARCHAR(255) NOT NULL,
+  mp3_data BYTEA,                    -- MP3-Datei als Binary Data
+  mp3_size_bytes BIGINT,             -- Dateigröße in Bytes
+  transcription_text TEXT,
+  has_summary BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_transcriptions_user_id ON transcriptions(user_id);
+CREATE INDEX idx_transcriptions_created_at ON transcriptions(created_at DESC);
 ```
 
-**Event-Listeners:**
-- `timeupdate`: Aktuelle Zeit aktualisieren
-- `loadedmetadata`: Dauer laden
-- `ended`: Playback beendet
+#### Tabelle: `access_tokens`
+```sql
+CREATE TABLE access_tokens (
+  token VARCHAR(21) PRIMARY KEY,     -- nanoid
+  transcription_id UUID NOT NULL REFERENCES transcriptions(id) ON DELETE CASCADE,
+  expires_at TIMESTAMP,
+  access_count INTEGER DEFAULT 0,
+  last_accessed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_access_tokens_transcription_id ON access_tokens(transcription_id);
+```
+
+#### Tabelle: `audit_logs`
+```sql
+CREATE TABLE audit_logs (
+  id BIGSERIAL PRIMARY KEY,
+  event_type VARCHAR(50) NOT NULL,
+  user_id UUID REFERENCES users(id),
+  ip_address VARCHAR(45),
+  user_agent TEXT,
+  details JSONB,
+  success BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_audit_logs_event_type ON audit_logs(event_type);
+CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
+```
+
+### Warum PostgreSQL?
+
+| Feature | SQLite | PostgreSQL |
+|---------|--------|------------|
+| **BLOB-Speicherung** | Max 1 GB | Praktisch unbegrenzt (bis 1 GB pro BYTEA-Feld) |
+| **Concurrent Writes** | Begrenzt | Exzellent |
+| **JSON Support** | Eingeschränkt | Native JSONB mit Indexing |
+| **Full-Text Search** | FTS5 Extension | Native mit tsvector |
+| **Skalierbarkeit** | Single-File | Horizontal & Vertical |
+| **Remote Access** | Nein | Ja |
+| **Replication** | Nein | Native Streaming Replication |
 
 ---
 
-#### 3. **TranscriptView.js** (Text Display)
+## 🔐 Authentifizierung & Sicherheit
 
-**Modi:**
-1. **View-Modus**: Formatierte Anzeige mit klickbaren Timestamps
-2. **Edit-Modus**: Monaco Editor für Bearbeitung
+### JWT-basierte Authentifizierung
 
-**Funktionen:**
-- Timestamp-Parsing: `[HH:MM:SS]`
-- Click-Handler für Timestamps
-- Header-Rendering (Metadaten)
-- Separator-Lines (`═`, `---`)
-- Text-Editing (Monaco)
-
-**Props:**
 ```javascript
+// Login Flow
+POST /api/auth/login
 {
-  transcription: String,
-  isEditMode: Boolean,
-  onTimestampClick: Function,
-  onTextChange: Function
+  "username": "tom",
+  "password": "MT9#Detomaso"
 }
-```
 
-**Timestamp-Format:**
-```
-[00:00:01] Text des ersten Segments
-[00:00:15] Text des zweiten Segments
-```
-
----
-
-#### 4. **ControlPanel.js** (Action Buttons)
-
-**Buttons:**
-1. **Transcribe MP3**: Transkription starten (disabled wenn kein Audio)
-2. **Summarize**: Zusammenfassung erstellen (disabled ohne Transkript)
-3. **Edit-Modus Toggle**: Edit-Modus aktivieren/deaktivieren
-
-**Status-Indikatoren:**
-- Audio geladen (grün/grau)
-- Transkription verfügbar (grün/grau)
-- Verarbeitung läuft (gelb pulsierend)
-
-**Props:**
-```javascript
+Response:
 {
-  onTranscribe: Function,
-  onSummarize: Function,
-  isProcessing: Boolean,
-  hasAudio: Boolean,
-  hasTranscription: Boolean,
-  isEditMode: Boolean,
-  onToggleEdit: Function
-}
-```
-
----
-
-#### 5. **DropZone.js** (File Upload)
-
-**Features:**
-- Drag-and-Drop Support
-- Click-to-Browse
-- File-Type Validation (MP3, TXT)
-- Size Validation (max 100 MB)
-- Visual Feedback (Drag-States)
-
-**Props:**
-```javascript
-{
-  onDrop: Function(acceptedFiles)
-}
-```
-
-**States:**
-- `isDragActive`: Datei wird über Zone gezogen
-- `isDragReject`: Ungültige Datei
-
-**Accepted Files:**
-- `audio/mpeg` (.mp3)
-- `text/plain` (.txt)
-
----
-
-#### 6. **ProgressModal.js** (Progress Overlay)
-
-**Anzeige:**
-- Spinner-Icon (animiert)
-- Step-Label
-- Message
-- Progress-Bar (wenn verfügbar)
-
-**Steps:**
-- `upload`: Datei-Upload
-- `processing`: Verarbeitung läuft
-- `formatting`: Formatierung
-- `split`: Text-Split in Blöcke
-- `summarize`: Zusammenfassung erstellen
-- `complete`: Fertig
-
-**Props:**
-```javascript
-{
-  step: String,
-  message: String,
-  progress: Number (0-100)
-}
-```
-
----
-
-### Backend-Routes
-
-#### 1. **upload.js** (File Upload)
-
-**Middleware:** Multer
-
-**Konfiguration:**
-```javascript
-storage: diskStorage({
-  destination: './uploads',
-  filename: 'uuid-originalname'
-})
-```
-
-**Validierung:**
-- File-Type: MP3, TXT
-- File-Size: Max 100 MB
-
-**Response:**
-```json
-{
-  "success": true,
-  "file": {
-    "filename": "uuid-file.mp3",
-    "originalname": "audio.mp3",
-    "url": "/api/files/uuid-file.mp3",
-    "size": 1234567
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "username": "tom",
+    "is_admin": true
   }
 }
 ```
 
+### Token-Speicherung
+- **httpOnly Cookie** (verhindert XSS-Angriffe)
+- **SameSite: Strict** (CSRF-Schutz)
+- **Secure Flag** (nur HTTPS in Production)
+- **24h Gültigkeit**
+
+### Sichere ID-Generierung
+
+1. **User-IDs**: UUID v4 (kryptographisch sicher)
+2. **Access-Tokens**: nanoid (21 Zeichen, URL-safe)
+
+```javascript
+const crypto = require('crypto');
+const { nanoid } = require('nanoid');
+
+// User-ID
+const userId = crypto.randomUUID();
+// → '550e8400-e29b-41d4-a716-446655440000'
+
+// Access-Token
+const accessToken = nanoid();
+// → 'V1StGXR8_Z5jdHi6B-myT'
+```
+
+### Rate Limiting
+
+```javascript
+// Login: 5 Versuche pro 15 Minuten
+// API: 100 Requests pro 15 Minuten
+// Public Access: 10 Requests pro Minute
+```
+
+### Password-Hashing
+
+```javascript
+const bcrypt = require('bcrypt');
+const SALT_ROUNDS = 12;
+
+// Hash
+const hash = await bcrypt.hash(password, SALT_ROUNDS);
+
+// Verify
+const isValid = await bcrypt.compare(password, hash);
+```
+
 ---
 
-#### 2. **transcribe.js** (Whisper Integration)
+## 🧩 Komponenten-Details
 
-**Workflow:**
-1. Datei von `uploads/` lesen
-2. Base64-Encoding
-3. RunPod Whisper API Call
-4. Response parsen (Segments)
-5. Timestamps formatieren
-6. Header mit Metadaten erstellen
-7. WebSocket-Events senden
+### Frontend-Komponenten
 
-**Input:**
-```json
+#### 1. **AuthContext** (Context API)
+
+Zentrale Authentifizierungs-State-Verwaltung:
+
+```javascript
 {
-  "filePath": "uuid-file.mp3",
-  "socketId": "socket-id"
+  user: Object | null,     // Current user
+  isAuthenticated: Boolean,
+  isAdmin: Boolean,
+  login: Function,
+  logout: Function,
+  loading: Boolean
 }
 ```
 
-**RunPod API Request:**
+#### 2. **ProtectedRoute**
+
+Schützt Routen vor unauthentifiziertem Zugriff:
+
+```javascript
+<ProtectedRoute requireAdmin={true}>
+  <AdminPanel />
+</ProtectedRoute>
+```
+
+#### 3. **TranscribeScreen**
+
+Hauptkomponente für MP3-Transkription:
+
+**Features:**
+- MP3-Upload via Drag & Drop
+- Audio-Player mit Timestamp-Navigation
+- Real-time Transkription mit Progress
+- Edit-Modus mit Monaco Editor
+- Download-Funktion für Transkripte
+- **NEU**: Admin kann User auswählen (Autocomplete)
+- **NEU**: Standard-User automatisch zugeordnet
+
+**Props:**
+```javascript
+{
+  mode: 'create' | 'edit',
+  transcriptionId: String (optional)
+}
+```
+
+#### 4. **UserManagement** (Admin only)
+
+CRUD für User-Verwaltung:
+- User-Liste mit Suche/Filter
+- Inline-Editing
+- User anlegen/löschen
+- MP3-Transkriptionen pro User anzeigen
+
+#### 5. **PublicMp3View**
+
+Public-Access-View ohne Login:
+- Read-only Darstellung
+- Passwortschutz (First Name)
+- Keine Edit-Buttons
+- Audio-Player funktional
+
+### Backend-Routes
+
+#### Auth Routes (`/api/auth`)
+
+```javascript
+POST   /api/auth/login     // Login
+POST   /api/auth/logout    // Logout
+GET    /api/auth/me        // Current User
+```
+
+#### User Routes (`/api/users`)
+
+```javascript
+GET    /api/users          // List all (Admin only)
+GET    /api/users/:id      // Get one
+POST   /api/users          // Create (Admin only)
+PUT    /api/users/:id      // Update
+DELETE /api/users/:id      // Delete (Admin only)
+GET    /api/users/search?q=tom  // Search (Admin only)
+```
+
+#### Transcription Routes (`/api/transcriptions`)
+
+```javascript
+GET    /api/transcriptions         // List (current user or admin)
+GET    /api/transcriptions/:id     // Get one
+POST   /api/transcriptions         // Create
+PUT    /api/transcriptions/:id     // Update
+DELETE /api/transcriptions/:id     // Delete
+GET    /api/transcriptions/:id/download  // Download as .txt
+```
+
+#### Processing Routes
+
+```javascript
+POST   /api/transcribe             // Whisper API
+POST   /api/summarize              // Llama API
+```
+
+#### Public Access Routes
+
+```javascript
+GET    /api/public/:userId         // List MP3s for user
+GET    /api/public/:userId/:mp3Id  // Get specific MP3
+POST   /api/public/:userId/verify  // Verify password
+```
+
+---
+
+## 📊 Datenfluss
+
+### Neuer Transkriptions-Workflow
+
+```
+1. User: Upload MP3
+   ├─> TranscribeScreen.handleFileUpload()
+   └─> POST /api/transcriptions/upload
+       ├─> Multer: Save to memory
+       ├─> Read Buffer
+       └─> Return { filename, buffer }
+
+2. User: Click "Transcribe MP3"
+   ├─> Admin: Select target user (Autocomplete)
+   │   └─> GET /api/users/search?q=<input>
+   ├─> POST /api/transcribe
+   │   ├─> Read mp3_data from buffer
+   │   ├─> Base64-Encode
+   │   ├─> Socket: emit('transcribe:progress')
+   │   ├─> RunPod Whisper API Call
+   │   ├─> Parse & Format Response
+   │   └─> Socket: emit('transcribe:complete')
+   └─> POST /api/transcriptions
+       ├─> INSERT INTO transcriptions (user_id, mp3_data, transcription_text)
+       └─> Return transcription ID
+
+3. User: Click "Download Transcription"
+   └─> GET /api/transcriptions/:id/download
+       ├─> Fetch transcription_text
+       ├─> Set Content-Disposition: attachment
+       └─> Stream as .txt file
+```
+
+### Public Access Workflow
+
+```
+1. User: Navigate to /public/:userId
+   └─> PublicLandingPage
+       ├─> Prompt for password (first name)
+       └─> POST /api/public/:userId/verify
+           ├─> Compare with user.first_name
+           └─> Return list of MP3s (if valid)
+
+2. User: Click on MP3
+   └─> /public/:userId/:mp3Id
+       ├─> Fetch transcription (ohne mp3_data)
+       ├─> Display in PublicMp3View
+       └─> Audio-Player streams from /api/transcriptions/:id/audio
+```
+
+---
+
+## 🚀 API-Integration
+
+### RunPod Whisper API
+
+**Endpoint**: `https://api.runpod.ai/v2/{WHISPER_ENDPOINT}`
+
+**Request**:
 ```json
 {
   "input": {
-    "audio": "base64-encoded-audio",
+    "audio": "base64-encoded-mp3",
     "model": "openai/whisper-large-v3",
     "language": "de",
     "beam_size": 7,
@@ -381,242 +566,15 @@ storage: diskStorage({
 }
 ```
 
-**Output:**
-```
-Datum:   13.02.2026
-Start:   11:02:12
-Dauer:   00:00:14
-Modell:  openai/whisper-large-v3
-
-
-[00:00:01] Erster Satz der Transkription.
-[00:00:15] Zweiter Satz der Transkription.
-```
-
-**WebSocket Events:**
-```javascript
-emit('transcribe:progress', { step, message, progress })
-emit('transcribe:complete', { transcription, duration })
-emit('transcribe:error', { error })
-```
-
----
-
-#### 3. **summarize.js** (Llama Integration)
-
-**Workflow:**
-1. Transkription in Blöcke teilen (20 Zeilen, 10 Overlap)
-2. Für jeden Block:
-   - Timestamps entfernen
-   - Llama API Call
-   - Summary bereinigen
-3. Gesamt-Summary zusammenstellen
-4. Header mit Metadaten erstellen
-5. Blöcke mit Überschriften versehen
-6. WebSocket-Events senden
-
-**Input:**
+**Response**:
 ```json
-{
-  "transcription": "Text with timestamps...",
-  "promptType": "durchgabe|newsletter",
-  "socketId": "socket-id"
-}
-```
-
-**Prompt-Typen:**
-
-**durchgabe** (persönliche Beratung):
-```
-Du bist ein präziser Zusammenfasser. Antworte NUR mit EINEM kurzen Satz auf Deutsch.
-Verwende die 'Du'-Form für persönliche Referenzen auf 'Seele der Liebe'.
-Der Text ist eine spirituelle Beratung eines Engels an einen Menschen.
-```
-
-**newsletter** (Gruppenbotschaft):
-```
-Du bist ein präziser Zusammenfasser. Antworte NUR mit EINEM kurzen Satz auf Deutsch.
-Verwende NIEMALS die 'Du'-Form, sondern stattdessen IMMER die 'Ihr'-Form.
-Es geht um spirituelle Botschaften an mehrere Menschen zu Weltgeschehen.
-```
-
-**RunPod API Request:**
-```json
-{
-  "input": {
-    "prompt": "System-Prompt + Text",
-    "model": "avans06/Meta-Llama-3.1-8B-Instruct-ct2-int8_float16",
-    "max_length": 60,
-    "temperature": 0.0,
-    "repetition_penalty": 1.5
-  }
-}
-```
-
-**Output:**
-```
-════════════════════════════════════════
-Zusammenfassung des Transkripts
-════════════════════════════════════════
-Start:   12:43:18
-Dauer:   00:00:09
-Modell:  Llama-3.1-8B-CT2
-Typ:     durchgabe
-
-Gesamtzusammenfassung:
-Du bist ein Abbild des Göttlichen, geschaffen aus der Liebe.
-Du trägst sowohl die Weiblichkeit als auch den Geist in dir.
-
-----------  Du bist ein Abbild des Göttlichen, geschaffen aus der Liebe.
-[00:00:01] Erster Satz...
-[00:00:15] Zweiter Satz...
-
-----------  Du trägst sowohl die Weiblichkeit als auch den Geist in dir.
-[00:00:30] Dritter Satz...
-```
-
-**WebSocket Events:**
-```javascript
-emit('summarize:progress', { step, message, progress })
-emit('summarize:complete', { summary, duration })
-emit('summarize:error', { error })
-```
-
----
-
-#### 4. **files.js** (File Management)
-
-**Endpoints:**
-
-**GET /api/files/:filename**
-- Datei aus `uploads/` bereitstellen
-- Security-Check: Path-Traversal verhindern
-
-**DELETE /api/files/:filename**
-- Datei aus `uploads/` löschen
-- Für Cleanup nach Verarbeitung
-
----
-
-## Datenfluss
-
-### Transkriptions-Workflow
-
-```
-1. User: Drag MP3 File
-   ├─> DropZone.onDrop()
-   └─> App.handleFileDrop()
-       ├─> uploadFile(file) → POST /api/upload
-       │   └─> Multer: Save to uploads/
-       └─> setAudioFile(), setAudioUrl()
-
-2. User: Click "Transcribe MP3"
-   ├─> ControlPanel.onTranscribe()
-   └─> App.handleTranscribe()
-       ├─> transcribeAudio(filename, socketId) → POST /api/transcribe
-       │   ├─> Read audio from uploads/
-       │   ├─> Base64-Encode
-       │   ├─> Socket: emit('transcribe:progress', { step: 'upload' })
-       │   ├─> RunPod Whisper API Call
-       │   ├─> Socket: emit('transcribe:progress', { step: 'processing' })
-       │   ├─> Parse Segments
-       │   ├─> Format Timestamps
-       │   ├─> Socket: emit('transcribe:complete', { transcription })
-       │   └─> Return transcription
-       └─> setTranscription()
-
-3. User: Click Timestamp [00:00:15]
-   ├─> TranscriptView.onTimestampClick([00:00:15])
-   └─> App.handleTimestampClick()
-       ├─> parseTimestamp() → 15 seconds
-       └─> audioRef.current.currentTime = 15
-           └─> audioRef.current.play()
-```
-
-### Summarization-Workflow
-
-```
-1. User: Click "Summarize"
-   ├─> ControlPanel.onSummarize()
-   └─> App.handleSummarize()
-       ├─> Detect promptType (durchgabe vs newsletter)
-       ├─> summarizeText(transcription, promptType, socketId) → POST /api/summarize
-       │   ├─> splitIntoBlocks(transcription, blockSize=20, overlap=10)
-       │   ├─> Socket: emit('summarize:progress', { step: 'split' })
-       │   ├─> For each block:
-       │   │   ├─> Remove Timestamps
-       │   │   ├─> Socket: emit('summarize:progress', { step: 'summarize', progress: X% })
-       │   │   ├─> RunPod Llama API Call
-       │   │   ├─> Clean Summary
-       │   │   └─> Add to summaries[]
-       │   ├─> Create full summary header
-       │   ├─> Format blocks with headers
-       │   ├─> Socket: emit('summarize:complete', { summary })
-       │   └─> Return summary
-       └─> setTranscription(summary)
-```
-
-### Edit-Workflow
-
-```
-1. User: Add ?edit=true to URL
-   └─> App.useEffect()
-       └─> parseUrlParams() → { edit: 'true' }
-           └─> setIsEditMode(true)
-
-2. User: Toggle Edit-Modus Button
-   └─> ControlPanel.onToggleEdit()
-       └─> App.setIsEditMode(!isEditMode)
-
-3. Edit-Modus aktiv:
-   ├─> TranscriptView renders Monaco Editor
-   └─> User: Edit text
-       ├─> Monaco: onChange()
-       └─> TranscriptView.handleEditorChange()
-           └─> App.handleTextChange()
-               └─> setTranscription(newText)
-
-4. User: Drag TXT File (in Edit-Modus)
-   ├─> DropZone.onDrop()
-   └─> App.handleFileDrop()
-       ├─> Read TXT content
-       └─> setTranscription(content)
-```
-
----
-
-## API-Integration
-
-### RunPod Whisper API
-
-**Endpoint-Struktur** (anpassbar):
-```
-POST https://api.runpod.ai/v2/{WHISPER_ENDPOINT}
-Headers:
-  - Content-Type: application/json
-  - Authorization: Bearer {API_KEY}
-
-Body:
-{
-  "input": {
-    "audio": "base64-string",
-    "model": "openai/whisper-large-v3",
-    "language": "de",
-    "beam_size": 7,
-    "vad_filter": true,
-    "condition_on_previous_text": false,
-    "initial_prompt": "..."
-  }
-}
-
-Response:
 {
   "output": {
     "segments": [
       {
-        "start": 1.0,
-        "end": 5.0,
-        "text": " Transkribierter Text"
+        "start": 0.5,
+        "end": 3.2,
+        "text": "Hallo, das ist ein Test."
       }
     ],
     "duration": 180.5
@@ -624,361 +582,199 @@ Response:
 }
 ```
 
-**Parameter-Mapping** (aus `transcribe.py`):
-- `beam_size`: 7 (mehr Hypothesen = genauer)
-- `vad_filter`: true (Voice Activity Detection)
-- `condition_on_previous_text`: false (kein Kontext zwischen Segmenten)
-- `initial_prompt`: Hint für Modell (deutsches Vokabular)
-
----
-
 ### RunPod Llama API
 
-**Endpoint-Struktur** (anpassbar):
-```
-POST https://api.runpod.ai/v2/{LLAMA_ENDPOINT}
-Headers:
-  - Content-Type: application/json
-  - Authorization: Bearer {API_KEY}
+**Endpoint**: `https://api.runpod.ai/v2/{LLAMA_ENDPOINT}`
 
-Body:
+**Request**:
+```json
 {
   "input": {
-    "prompt": "System-Prompt + User-Text",
+    "prompt": "System: Du bist ein präziser Zusammenfasser.\n\nUser: Fasse zusammen: [Text]",
     "model": "avans06/Meta-Llama-3.1-8B-Instruct-ct2-int8_float16",
     "max_length": 60,
     "temperature": 0.0,
-    "top_p": 0.9,
     "repetition_penalty": 1.5
   }
 }
+```
 
-Response:
+---
+
+## 📈 State Management
+
+### Frontend State
+
+**AuthContext** (Global):
+```javascript
 {
-  "output": {
-    "text": "Generierte Zusammenfassung."
-  }
+  user: { id, username, is_admin },
+  isAuthenticated: Boolean,
+  login: Function,
+  logout: Function
 }
 ```
 
-**Parameter-Mapping** (aus `summarize.py`):
-- `max_length`: 60 (kurze Überschriften)
-- `temperature`: 0.0 (deterministisch)
-- `repetition_penalty`: 1.5 (vermeidet Wiederholungen)
-
----
-
-## State Management
-
-### App-State
-
-**Zentral in `App.js`** (kein Redux/Context benötigt für diese Größe):
-
+**TranscribeScreen** (Local):
 ```javascript
-const [audioFile, setAudioFile] = useState(null);
-const [audioUrl, setAudioUrl] = useState(null);
-const [transcription, setTranscription] = useState('');
-const [isEditMode, setIsEditMode] = useState(false);
-const [isProcessing, setIsProcessing] = useState(false);
-const [progress, setProgress] = useState({ step: '', message: '', progress: 0 });
-const [error, setError] = useState(null);
-```
-
-**State-Updates:**
-- File-Upload: `setAudioFile`, `setAudioUrl`
-- Transkription: `setTranscription` (via WebSocket oder API-Response)
-- Processing: `setIsProcessing`, `setProgress` (WebSocket-Events)
-- Errors: `setError`
-
-**State-Propagation:**
-- Props down: Parent → Child
-- Events up: Child → Parent (callbacks)
-
----
-
-### WebSocket State-Sync
-
-**Server → Client:**
-```javascript
-// Server
-io.to(socketId).emit('transcribe:progress', { step: 'processing', message: '...' });
-
-// Client
-socket.on('transcribe:progress', (data) => {
-  setProgress(data);
-});
-```
-
-**Events:**
-- `transcribe:progress`, `transcribe:complete`, `transcribe:error`
-- `summarize:progress`, `summarize:complete`, `summarize:error`
-
----
-
-## Fehlerbehandlung
-
-### Frontend Error-Handling
-
-**Try-Catch in Event-Handlers:**
-```javascript
-try {
-  await uploadFile(file);
-} catch (err) {
-  setError(err.message);
-  setIsProcessing(false);
+{
+  audioFile: File,
+  audioUrl: String,
+  transcription: String,
+  isProcessing: Boolean,
+  selectedUserId: String (Admin only),
+  progress: { step, message }
 }
 ```
 
-**Error-Display:**
-- Roter Banner oben in `App.js`
-- Dismiss-Button
-- Auto-Clear nach Socket-Complete
-
-**Validierung:**
-- File-Type (MP3, TXT)
-- File-Size (max 100 MB)
-- Required-Fields (audio für Transcribe, transcription für Summarize)
-
 ---
 
-### Backend Error-Handling
-
-**Express Error-Middleware:**
-```javascript
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
-```
-
-**Route-Level:**
-```javascript
-try {
-  // ... operation
-} catch (error) {
-  console.error('Transcribe error:', error);
-  io.to(socketId).emit('transcribe:error', { error: error.message });
-  res.status(500).json({ error: error.message });
-}
-```
-
-**Multer Errors:**
-- `LIMIT_FILE_SIZE`: 400 Bad Request
-- Invalid File-Type: 400 Bad Request
-
-**RunPod API Errors:**
-- Timeout (600s): 504 Gateway Timeout
-- API-Fehler: 500 Internal Server Error mit Details
-
----
-
-## Performance-Optimierungen
+## ⚡ Performance-Optimierungen
 
 ### Frontend
+1. **Code-Splitting**: React.lazy() für Monaco Editor
+2. **Memoization**: useMemo für große Transkriptionen
+3. **Virtual Scrolling**: Für lange MP3-Listen
+4. **WebSocket**: Real-time statt Polling
 
-**1. Lazy-Loading:**
-```javascript
-// Monaco Editor nur laden wenn Edit-Modus aktiv
-{isEditMode && <Editor ... />}
-```
+### Backend
+1. **Connection Pooling**: PostgreSQL Connection Pool
+2. **Streaming**: Audio-Daten streamen statt laden
+3. **Caching**: Redis für häufig abgerufene Transkriptionen (Future)
+4. **Compression**: GZIP für API-Responses
 
-**2. Debounced Text-Change:**
-```javascript
-const debouncedOnChange = debounce(onTextChange, 300);
-```
-
-**3. Memoization:**
-```javascript
-const memoizedTranscript = useMemo(() => 
-  renderTranscription(), 
-  [transcription, isEditMode]
-);
-```
-
-**4. Code-Splitting:**
-```javascript
-const MonacoEditor = lazy(() => import('@monaco-editor/react'));
-```
+### Datenbank
+1. **Indexes**: Optimiert für häufige Queries
+2. **VACUUM**: Regelmäßige DB-Wartung
+3. **Partitioning**: Nach Erstellungsdatum (bei > 1M Einträgen)
 
 ---
 
-### Backend
+## 🔄 Migration & Skalierung
 
-**1. File-Streaming:**
-```javascript
-res.sendFile(filePath);  // Statt readFile + send
+### SQLite → PostgreSQL Migration
+
+**Warum?**
+- MP3-Dateien in DB speichern (BYTEA statt BLOB)
+- Bessere Concurrent Access
+- Native JSON-Support (audit_logs)
+- Vorbereitung für Multi-Server-Setup
+
+**Migrations-Script**:
+```bash
+# Export aus SQLite
+sqlite3 transcriber.db ".dump" > backup.sql
+
+# Import in PostgreSQL (nach Schema-Anpassung)
+psql -U postgres -d mp3_transcriber -f schema.sql
+psql -U postgres -d mp3_transcriber -f backup_converted.sql
 ```
 
-**2. Connection Pooling:**
-```javascript
-const api = axios.create({
-  timeout: 600000,
-  maxRedirects: 5
-});
+### Skalierungs-Strategie
+
+**Wenn > 10.000 User oder > 1 Million Transkriptionen:**
+
+1. **Object Storage** (S3/MinIO):
+   - MP3s aus DB in S3 auslagern
+   - `mp3_data` → `mp3_s3_url`
+
+2. **Caching-Layer** (Redis):
+   - Session-Storage
+   - Häufig abgerufene Transkriptionen
+
+3. **Load Balancing**:
+   - Nginx vor Express
+   - Horizontal Scaling mit Docker/Kubernetes
+
+4. **Database Replication**:
+   - Read Replicas für Queries
+   - Master-Slave Setup
+
+---
+
+## 📊 Neue Features (v2.0.0)
+
+### 1. Admin-User-Auswahl bei Transkription
+
+**UI-Flow**:
+```
+[MP3 hochgeladen]
+  ↓
+[Transcribe-Button]
+  ↓
+[Admin?]
+  ├─ Ja → [Dropdown: "User auswählen"] (mit Autocomplete)
+  │        └─> API: GET /api/users/search?q=<input>
+  └─ Nein → [Automatisch: current user]
+  ↓
+[Transkription wird gespeichert unter gewähltem User]
 ```
 
-**3. Garbage-Collection:**
-```javascript
-// Temp-Dateien nach Verarbeitung löschen
-fs.unlinkSync(tempFilePath);
+**Implementation**:
+- React Component: `UserSelector` (Autocomplete)
+- Backend Route: `/api/users/search` (LIKE-Query)
+
+### 2. Download-Funktion für Transkriptionen
+
+**Endpoint**: `GET /api/transcriptions/:id/download`
+
+**Response Headers**:
+```http
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: attachment; filename="transcription-2026-02-18.txt"
 ```
 
-**4. Cluster-Mode** (Production):
-```javascript
-const cluster = require('cluster');
-const numCPUs = require('os').cpus().length;
+### 3. Button-Position Optimierung
 
-if (cluster.isMaster) {
-  for (let i = 0; i < numCPUs; i++) {
-    cluster.fork();
-  }
-} else {
-  // Start server
+**Vorher**: Buttons rechts am Bildschirmrand (fest positioniert)
+
+**Nachher**: Buttons rechts neben der Transkription (innerhalb des Containers)
+
+```css
+.transcript-container {
+  display: flex;
+  gap: 1rem;
+}
+
+.transcript-text {
+  flex: 1;
+}
+
+.edit-buttons {
+  flex-shrink: 0;
+  align-self: flex-start;
+  position: sticky;
+  top: 1rem;
 }
 ```
 
 ---
 
-### WebSocket-Optimierung
+## ✅ Sicherheits-Checkliste
 
-**1. Binary-Data:**
-```javascript
-// Für große Dateien: Binary statt JSON
-socket.emit('data', buffer);
-```
-
-**2. Compression:**
-```javascript
-const io = new Server(server, {
-  perMessageDeflate: true
-});
-```
-
-**3. Room-Based:**
-```javascript
-// Nur an spezifische Client senden
-io.to(socketId).emit('event', data);
-```
+- [x] Passwords mit bcrypt (cost: 12)
+- [x] JWT in httpOnly Cookies
+- [x] Rate Limiting implementiert
+- [x] SQL-Injection-Prevention (Prepared Statements)
+- [x] XSS-Protection (React escapet automatisch)
+- [x] CORS korrekt konfiguriert
+- [x] Audit-Logging für alle kritischen Aktionen
+- [x] Input-Validation auf allen Routen
+- [x] HTTPS in Production (via Cloudflare Tunnel)
 
 ---
 
-## Workflow-Diagramme
+## 🎯 Zusammenfassung
 
-### Complete User Journey
+Die MP3 Transcriber App v2.0.0 bietet:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      User startet App                        │
-│                  http://localhost:3000                       │
-└───────────────────────┬─────────────────────────────────────┘
-                        │
-                        ▼
-           ┌─────────────────────────┐
-           │  URL-Parameter parsen?  │
-           │  (?mp3=..., ?edit=...)  │
-           └────────┬────────────────┘
-                    │
-         Ja ◄───────┼───────► Nein
-         │                    │
-         ▼                    ▼
-  ┌───────────────┐    ┌──────────────────┐
-  │ Lade MP3/TXT  │    │ Zeige Drop-Zone  │
-  └───────────────┘    └──────────────────┘
-                              │
-                              ▼
-                   ┌──────────────────────┐
-                   │ User: Drag MP3 File  │
-                   └──────────┬───────────┘
-                              │
-                              ▼
-                   ┌──────────────────────┐
-                   │  Upload zu Server    │
-                   │  POST /api/upload    │
-                   └──────────┬───────────┘
-                              │
-                              ▼
-                   ┌──────────────────────┐
-                   │  Audio-Player zeigen │
-                   └──────────┬───────────┘
-                              │
-                              ▼
-                   ┌──────────────────────────────┐
-                   │ User: Click "Transcribe MP3" │
-                   └──────────┬───────────────────┘
-                              │
-                              ▼
-                   ┌──────────────────────────────┐
-                   │  POST /api/transcribe        │
-                   │  + Socket.io Progress        │
-                   └──────────┬───────────────────┘
-                              │
-                  ┌───────────┴───────────┐
-                  │                       │
-                  ▼                       ▼
-         ┌────────────────┐    ┌─────────────────┐
-         │ RunPod Whisper │    │ Progress-Modal  │
-         │    API Call    │    │   anzeigen      │
-         └────────┬───────┘    └─────────────────┘
-                  │
-                  ▼
-         ┌─────────────────────┐
-         │ Transkription zeigen│
-         │ mit Timestamps      │
-         └─────────┬───────────┘
-                   │
-                   ▼
-        ┌──────────────────────────────┐
-        │ User: Click Timestamp        │
-        │       [00:00:15]             │
-        └──────────┬───────────────────┘
-                   │
-                   ▼
-        ┌──────────────────────────────┐
-        │ Audio springt zu 15 Sekunden │
-        │ und spielt ab                │
-        └──────────┬───────────────────┘
-                   │
-                   ▼
-        ┌──────────────────────────────┐
-        │ User: Click "Summarize"      │
-        └──────────┬───────────────────┘
-                   │
-                   ▼
-        ┌──────────────────────────────┐
-        │  POST /api/summarize         │
-        │  + Socket.io Progress        │
-        └──────────┬───────────────────┘
-                   │
-       ┌───────────┴────────────┐
-       │                        │
-       ▼                        ▼
-┌────────────────┐    ┌────────────────────┐
-│ RunPod Llama   │    │ Progress für jeden │
-│  API Calls     │    │ Block anzeigen     │
-│ (Block-weise)  │    └────────────────────┘
-└────────┬───────┘
-         │
-         ▼
-┌─────────────────────────────┐
-│ Summary mit Überschriften   │
-│ und Blöcken anzeigen        │
-└─────────────────────────────┘
-```
+✅ **Skalierbare Architektur** mit PostgreSQL  
+✅ **Sichere Authentifizierung** mit JWT & bcrypt  
+✅ **Multi-User-System** mit Role-Based Access  
+✅ **Public Sharing** via sichere Links  
+✅ **MP3-Dateien in DB** (keine Filesystem-Abhängigkeit)  
+✅ **Admin-Panel** mit User-Management  
+✅ **Real-time Updates** via WebSocket  
+✅ **Performance-Optimiert** mit Indexing & Connection Pooling  
 
----
-
-## Zusammenfassung
-
-Diese Architektur bietet:
-
-✅ **Modularität**: Komponenten sind unabhängig und wiederverwendbar
-✅ **Skalierbarkeit**: WebSocket für Real-time, API für Batch-Processing
-✅ **Fehlertoleranz**: Umfassendes Error-Handling auf allen Ebenen
-✅ **Performance**: Optimierte File-Handling und Streaming
-✅ **Maintainability**: Klare Trennung von Concerns, gut dokumentiert
-✅ **User Experience**: Real-time Feedback, intuitive UI, moderne Designs
-
-Die App repliziert die Funktionalität der Python-Skripte (`transcribe.py`, `summarize.py`) erfolgreich in einer modernen Web-Umgebung und erweitert sie um Features wie Drag-and-Drop, Real-time Progress und interaktive Timestamps.
+Die Architektur ist bereit für zehntausende User und Millionen Transkriptionen.
