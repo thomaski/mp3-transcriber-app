@@ -80,12 +80,16 @@ function PublicLandingPage() {
           console.log('[PublicLandingPage] Token preview (first 20 chars):', result.token.substring(0, 20) + '...');
           console.log('[PublicLandingPage] User data:', JSON.stringify(result.user, null, 2));
           
-          // IMPORTANT: Clear all old auth data first!
+          // IMPORTANT: Clear old auth data (but keep auth_version to prevent migration!)
           console.log('[PublicLandingPage] 🧹 Step 1: Clearing old auth data...');
           console.log('[PublicLandingPage] LocalStorage BEFORE clear:', JSON.stringify(localStorage));
           console.log('[PublicLandingPage] SessionStorage BEFORE clear:', JSON.stringify(sessionStorage));
           
-          localStorage.clear();
+          // WICHTIG: NICHT localStorage.clear() verwenden!
+          // Das würde auth_version löschen → Migration läuft → Token wird gelöscht!
+          // Stattdessen nur spezifische Keys löschen:
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('user');
           sessionStorage.clear();
           
           console.log('[PublicLandingPage] ✅ LocalStorage AFTER clear:', JSON.stringify(localStorage));
@@ -110,13 +114,13 @@ function PublicLandingPage() {
           console.log('[PublicLandingPage] ⏳ Waiting 500ms for storage to settle...');
           await new Promise(resolve => setTimeout(resolve, 500));
           
-          console.log('[PublicLandingPage] 🚀🚀🚀 ALL DATA STORED - NOW REDIRECTING TO /transcribe 🚀🚀🚀');
+          console.log('[PublicLandingPage] 🚀🚀🚀 ALL DATA STORED - NOW REDIRECTING TO /dashboard 🚀🚀🚀');
           console.log('[PublicLandingPage] Current URL:', window.location.href);
-          console.log('[PublicLandingPage] Target URL:', window.location.origin + '/transcribe');
+          console.log('[PublicLandingPage] Target URL:', window.location.origin + '/dashboard');
           
-          // Use hard redirect to ensure fresh page load with new token
+          // Use hard redirect to dashboard (user will see their transcriptions there)
           console.log('[PublicLandingPage] ⏱️ Executing redirect NOW...');
-          window.location.href = '/transcribe';
+          window.location.href = '/dashboard';
         } else if (result.type === 'mp3') {
           console.log('[PublicLandingPage] 🎵 MP3 ACCESS - Navigating to MP3 view');
           // Navigate to MP3 view
