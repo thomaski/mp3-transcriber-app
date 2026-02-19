@@ -137,12 +137,11 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     const headerKey = summaryText.trim();
     logger.log('[TranscriptView] 🔍 scrollToHeader aufgerufen für:', headerKey.substring(0, 50));
     
-    // Zuverlässig per data-Attribut suchen (nicht über Refs die bei Re-Renders kurz null sein können)
-    const headerElement = containerRef.current
-      ? containerRef.current.querySelector(`[data-header-key="${CSS.escape(headerKey)}"]`)
-      : null;
+    // Suche per data-Attribut - kein CSS.escape() da das für CSS-Identifier ist, nicht Attributwerte
+    const allHeaderElements = Array.from(document.querySelectorAll('[data-header-key]'));
+    const headerElement = allHeaderElements.find(el => el.getAttribute('data-header-key') === headerKey) || null;
     
-    logger.log('[TranscriptView] 🔍 Header-Element gefunden:', !!headerElement);
+    logger.log('[TranscriptView] 🔍 Header-Elemente:', allHeaderElements.length, '| gefunden:', !!headerElement);
     
     if (headerElement) {
       headerElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -378,7 +377,9 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
   const renderTranscription = () => {
     if (!transcription) return null;
     
-    let lines = transcription.split('\n');
+    // WICHTIG: Windows CRLF (\r\n) normalisieren - \r am Zeilenende verhindert Regex-Matching mit $
+    // Denn in JS matcht '.' kein \r und '$' ohne /m-Flag matcht nicht vor \r am Zeilenende
+    let lines = transcription.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
     
     // Remove duplicate timestamp lines
     const lineCounts = new Map();
@@ -397,6 +398,7 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     lines = lines.filter((line, index) => !skipIndices.has(index));
     
     let inSummarySection = false;
+    
     
     return lines.map((line, index) => {
       // Detect "Gesamtzusammenfassung:" section
@@ -419,6 +421,8 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
         return (
           <div 
             key={index} 
+            role="button"
+            aria-label={`Zur Überschrift springen: ${line.trim().substring(0, 50)}`}
             className="mb-2 text-blue-600 hover:text-blue-800 cursor-pointer hover:underline leading-relaxed"
             onClick={() => scrollToHeader(line.trim())}
             title="Zur Überschrift springen"
