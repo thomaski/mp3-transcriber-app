@@ -146,8 +146,8 @@ function TranscribeScreen() {
                 setAudioUrl(blobUrl);
                 logger.log('[TranscribeScreen] ✅ Audio Blob URL gesetzt');
               } catch (audioError) {
+                // audioFile bleibt gesetzt (isFromDatabase: true) → UI zeigt amber Hinweis statt DropZone
                 logger.warn('[TranscribeScreen] ⚠️ Audio nicht in DB (mp3_data fehlt):', audioError.message);
-                setError('⚠️ Audio nicht verfügbar: Die MP3-Datei ist nicht in der Datenbank gespeichert. Bitte MP3 über "Neue Datei laden" neu hochladen.');
               }
             }
           }
@@ -844,21 +844,39 @@ function TranscribeScreen() {
           </div>
         )}
         
-        {/* MP3 Drop Zone (if no audio loaded) */}
-        {!audioUrl && (
-          <div className="mb-6">
-            <DropZone onDrop={handleFileDrop} />
-          </div>
-        )}
-        
-        {/* Audio Player (if audio loaded) */}
-        {audioUrl && (
+        {/* Drei Fälle:
+            1. audioUrl vorhanden → AudioPlayer anzeigen
+            2. audioFile aus DB bekannt, aber mp3_data fehlt (alt) → kompakte Warnung, KEINE DropZone
+            3. Kein audioFile → DropZone zum Hochladen anzeigen
+        */}
+        {audioUrl ? (
           <div className="mb-6">
             <AudioPlayer 
               audioUrl={audioUrl} 
               audioRef={audioRef}
               audioFile={audioFile}
             />
+          </div>
+        ) : audioFile?.isFromDatabase ? (
+          /* Fall 2: Dateiname aus DB bekannt, aber mp3_data fehlt (alte Transkription vor BYTEA-Migration) */
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="flex items-start space-x-3">
+              <span className="text-amber-500 text-xl flex-shrink-0">🎵</span>
+              <div>
+                <p className="text-sm font-medium text-amber-800">
+                  Audio: <span className="font-semibold">{audioFile.name}</span>
+                </p>
+                <p className="text-sm text-amber-700 mt-1">
+                  Die MP3-Datei ist nicht in der Datenbank gespeichert (ältere Transkription).
+                  Bitte MP3 über <strong>"Neue Datei laden"</strong> erneut hochladen, um den Player zu aktivieren.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Fall 3: Kein Audio bekannt → DropZone zum Hochladen */
+          <div className="mb-6">
+            <DropZone onDrop={handleFileDrop} />
           </div>
         )}
         
