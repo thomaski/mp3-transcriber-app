@@ -6,7 +6,18 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert
 
 ## [1.0.0] - 2026-02-19 — 🏷️ Erster Release
 
-> **Git-Tag:** `v1.0.0` | `MP3 Transcriber App v1.0.0`
+> **Git-Tag:** `MP3-Transcriber-App-v1.0.0` | **GitHub:** [Release ansehen](https://github.com/thomaski/mp3-transcriber-app/releases/tag/MP3-Transcriber-App-v1.0.0)
+
+### 🐛 **Bugfix: DropZone/AudioPlayer Anzeige-Logik** (2026-02-19)
+
+- **Problem:** Bei älteren Transkriptionen (vor BYTEA-Migration, `mp3_data = NULL`) wurde die volle Upload-DropZone angezeigt statt eines Hinweises
+- **Fix:** Drei klar getrennte Fälle:
+  1. `audioUrl` vorhanden → AudioPlayer anzeigen
+  2. `audioFile.isFromDatabase = true`, aber `mp3_data` fehlt → amber Hinweis-Box mit Erklärung
+  3. Kein `audioFile` → DropZone für neuen Upload
+- Rotes Fehler-Banner für fehlende Audio-Datei entfernt (eigene UI-Darstellung vorhanden)
+
+---
 
 ## [1.0.0] - 2026-02-19
 

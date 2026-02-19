@@ -268,3 +268,8 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ---
 
 **Viel Erfolg! 🚀**
+
+---
+
+**Version:** 1.0.0  
+**Letzte Aktualisierung:** 2026-02-19

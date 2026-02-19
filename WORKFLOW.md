@@ -1187,3 +1187,8 @@ router.get('/stream', (req, res) => {
 ---
 
 **Weitere Details:** Siehe [UPDATES.md](./UPDATES.md) und [WSL2_INTEGRATION.md](./WSL2_INTEGRATION.md)
+
+---
+
+**Version:** 1.0.0  
+**Letzte Aktualisierung:** 2026-02-19

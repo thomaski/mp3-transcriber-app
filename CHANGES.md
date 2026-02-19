@@ -146,3 +146,8 @@ Diese Dateien behalten `console.*` – sie sind **CLI-Tools**, kein Produktionsc
 - **Path-Traversal in `files.js`**: Whitelist-Pfade sollten aus `.env` gelesen werden statt hardcoded
 - **Rate Limiting** für Auth-Endpoints noch nicht implementiert
 - **Automatisierte Tests** (Jest/Mocha) fehlen noch komplett
+
+---
+
+**Version:** 1.0.0  
+**Letzte Aktualisierung:** 2026-02-19

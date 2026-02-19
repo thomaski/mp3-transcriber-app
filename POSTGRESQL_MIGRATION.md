@@ -375,4 +375,5 @@ log_min_duration_statement = 1000  # Log queries > 1s
 
 ---
 
-**Letzte Aktualisierung**: 2026-02-18
+**Letzte Aktualisierung**: 2026-02-19  
+**Version**: 1.0.0

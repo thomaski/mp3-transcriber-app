@@ -138,3 +138,8 @@ Get-NetTCPConnection -LocalPort 4000
 # Im mp3-transcriber-app Verzeichnis:
 npm run dev:all
 ```
+
+---
+
+**Version:** 1.0.0  
+**Letzte Aktualisierung:** 2026-02-19

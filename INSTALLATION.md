@@ -398,3 +398,8 @@ Bei Problemen:
 4. Erstelle ein GitHub Issue
 
 **Happy Transcribing! 🎙️**
+
+---
+
+**Version:** 1.0.0  
+**Letzte Aktualisierung:** 2026-02-19

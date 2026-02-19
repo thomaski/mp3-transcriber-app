@@ -133,3 +133,8 @@ mp3-transcriber-app/
 - 📦 Installation: [INSTALLATION.md](./INSTALLATION.md)
 
 **Happy Coding! 🚀**
+
+---
+
+**Version:** 1.0.0  
+**Letzte Aktualisierung:** 2026-02-19

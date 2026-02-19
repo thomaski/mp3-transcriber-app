@@ -158,3 +158,8 @@ npm run build    # Verwendet .env.production
 | Development | "tom" | "••••••••" | ✅ Angezeigt |
 | Production | (leer) | (leer) | ❌ Versteckt |
 
+
+---
+
+**Version:** 1.0.0  
+**Letzte Aktualisierung:** 2026-02-19

@@ -384,3 +384,8 @@ curl "http://localhost:5000/api/local-files/list?type=txt"
 3. **Batch-Processing**: Mehrere Dateien gleichzeitig verarbeiten
 4. **History**: Letzte Verarbeitungen anzeigen
 5. **Config-UI**: Verzeichnispfade über Frontend konfigurierbar
+
+---
+
+**Version:** 1.0.0  
+**Letzte Aktualisierung:** 2026-02-19
