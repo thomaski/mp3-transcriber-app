@@ -63,28 +63,28 @@ function ControlPanel({
                 <FaFileAlt />
                 <span>Summarize</span>
               </button>
+              
+              {/* Transkription speichern Button - NUR für Admins */}
+              {hasTranscription && onSmartSave && (
+                <button
+                  onClick={onSmartSave}
+                  disabled={isProcessing || saveSuccess}
+                  className={`
+                    flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-all
+                    ${isProcessing || saveSuccess
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
+                    }
+                  `}
+                  title="Transkription in Datenbank speichern"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                  <span>💾 Transkription speichern</span>
+                </button>
+              )}
             </>
-          )}
-          
-          {/* Transkription speichern Button - Für ALLE User wenn Transkription vorhanden */}
-          {hasTranscription && onSmartSave && (
-            <button
-              onClick={onSmartSave}
-              disabled={isProcessing || saveSuccess}
-              className={`
-                flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-all
-                ${isProcessing || saveSuccess
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
-                }
-              `}
-              title="Transkription in Datenbank speichern"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-              </svg>
-              <span>💾 Transkription speichern</span>
-            </button>
           )}
         </div>
         
