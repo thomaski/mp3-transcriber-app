@@ -30,6 +30,7 @@ function UserManagement() {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [transcriptions, setTranscriptions] = useState([]);
   const [transcriptionsLoading, setTranscriptionsLoading] = useState(false);
+  const [selectedTranscriptionId, setSelectedTranscriptionId] = useState(null);
 
   // Sorting state
   const [sortBy, setSortBy] = useState('first_name'); // first_name, last_name, username, email
@@ -63,6 +64,7 @@ function UserManagement() {
       loadTranscriptions(selectedUserId);
     } else {
       setTranscriptions([]);
+      setSelectedTranscriptionId(null);
     }
   }, [selectedUserId]);
 
@@ -99,6 +101,19 @@ function UserManagement() {
   function handleRowClick(userId) {
     if (editingUserId !== userId) {
       setSelectedUserId(userId === selectedUserId ? null : userId);
+    }
+  }
+
+  // Handle transcription row click (select transcription)
+  function handleTranscriptionRowClick(transcriptionId) {
+    setSelectedTranscriptionId(transcriptionId === selectedTranscriptionId ? null : transcriptionId);
+  }
+
+  // Handle open transcription
+  function handleOpenTranscription() {
+    if (selectedTranscriptionId) {
+      console.log('[UserManagement] Opening transcription:', selectedTranscriptionId);
+      navigate(`/transcribe/${selectedTranscriptionId}`);
     }
   }
 
@@ -741,16 +756,23 @@ function UserManagement() {
                       <th className="px-4 py-3">MP3-Datei</th>
                       <th className="px-4 py-3">Summary</th>
                       <th className="px-4 py-3">Erstellt</th>
-                      <th className="px-4 py-3">Aktionen</th>
                     </tr>
                   </thead>
                   <tbody>
                     {transcriptions.map((trans) => (
-                      <tr key={trans.id} className="border-b border-gray-200 hover:bg-gray-50">
+                      <tr 
+                        key={trans.id} 
+                        onClick={() => handleTranscriptionRowClick(trans.id)}
+                        className={`border-b border-gray-200 cursor-pointer transition ${
+                          selectedTranscriptionId === trans.id ? 'bg-blue-50' : 'hover:bg-gray-50'
+                        }`}
+                      >
                         <td className="px-4 py-3">
                           <span className="text-sm font-mono text-gray-600">{trans.id}</span>
                         </td>
-                        <td className="px-4 py-3 text-sm">{trans.mp3_filename}</td>
+                        <td className="px-4 py-3">
+                          <div className="text-sm">🎵 {trans.mp3_filename}</div>
+                        </td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 text-xs rounded ${
                             trans.has_summary ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
@@ -761,32 +783,46 @@ function UserManagement() {
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {new Date(trans.created_at).toLocaleDateString('de-DE')}
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => navigate(`/transcribe/${trans.id}`)}
-                              className="text-blue-600 hover:text-blue-800 text-sm"
-                            >
-                              Öffnen →
-                            </button>
-                            <button
-                              onClick={() => {
-                                const url = `${window.location.protocol}//${window.location.host}/access/${trans.id}`;
-                                navigator.clipboard.writeText(url).then(() => {
-                                  alert('✅ URL für MP3 in Zwischenablage kopiert!');
-                                });
-                              }}
-                              className="text-gray-600 hover:text-gray-800 text-sm"
-                              title="Landing-Page URL kopieren"
-                            >
-                              📋
-                            </button>
-                          </div>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* Landing-Page URL + Button (when transcription is selected) */}
+            {selectedTranscriptionId && (
+              <div className="p-4 bg-blue-50 border-t border-blue-200">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">🔗 Landing-Page URL</h3>
+                <div className="flex items-center gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={`${window.location.protocol}//${window.location.host}/access/${selectedTranscriptionId}`}
+                    readOnly
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded bg-white font-mono"
+                    onClick={(e) => e.target.select()}
+                  />
+                  <button
+                    onClick={() => {
+                      const url = `${window.location.protocol}//${window.location.host}/access/${selectedTranscriptionId}`;
+                      navigator.clipboard.writeText(url).then(() => {
+                        alert('✅ URL in Zwischenablage kopiert!');
+                      });
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition flex items-center gap-2"
+                  >
+                    📋 Kopieren
+                  </button>
+                </div>
+                <button
+                  onClick={handleOpenTranscription}
+                  className="w-full px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded hover:bg-green-700 transition flex items-center justify-center gap-2"
+                >
+                  📂 Transkription öffnen
+                </button>
+                <p className="mt-2 text-xs text-gray-600">
+                  Passwort für den Zugriff: <strong>{users.find(u => u.id === selectedUserId)?.first_name}</strong>
+                </p>
               </div>
             )}
           </div>
