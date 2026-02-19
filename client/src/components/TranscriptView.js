@@ -128,13 +128,21 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
   }, [audioRef, transcription]);
   
   // Scroll to header in transcription
+  // Verwendet data-header-key Attribute statt Refs, da Refs bei häufigen Re-Renders (timeupdate) kurz null werden können
   const scrollToHeader = (summaryText) => {
     if (audioRef && audioRef.current) {
       audioRef.current.pause();
     }
     
     const headerKey = summaryText.trim();
-    const headerElement = headerRefs.current[headerKey];
+    logger.log('[TranscriptView] 🔍 scrollToHeader aufgerufen für:', headerKey.substring(0, 50));
+    
+    // Zuverlässig per data-Attribut suchen (nicht über Refs die bei Re-Renders kurz null sein können)
+    const headerElement = containerRef.current
+      ? containerRef.current.querySelector(`[data-header-key="${CSS.escape(headerKey)}"]`)
+      : null;
+    
+    logger.log('[TranscriptView] 🔍 Header-Element gefunden:', !!headerElement);
     
     if (headerElement) {
       headerElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -143,6 +151,8 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
       setTimeout(() => {
         setHighlightedHeader(null);
       }, 3000);
+    } else {
+      logger.warn('[TranscriptView] ⚠️ Header-Element nicht gefunden für Key:', headerKey.substring(0, 50));
     }
   };
   
@@ -430,6 +440,7 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
           <div 
             key={index} 
             ref={(el) => headerRefs.current[headerText] = el}
+            data-header-key={headerText}
             className={`my-4 py-2 px-3 font-mono text-sm border-l-4 transition-all duration-300 ${
               isHighlighted 
                 ? 'bg-yellow-100 border-yellow-500 text-gray-900' 

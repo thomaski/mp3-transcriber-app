@@ -510,9 +510,9 @@ POST   /api/public/:userId/verify  // Verify password
    │   └─> GET /api/users/search?q=<input>
    ├─> POST /api/transcribe
    │   ├─> Read mp3_data from buffer
-   │   ├─> Base64-Encode
+       │   ├─> Base64-Encode
    │   ├─> Socket: emit('transcribe:progress')
-   │   ├─> RunPod Whisper API Call
+       │   ├─> RunPod Whisper API Call
    │   ├─> Parse & Format Response
    │   └─> Socket: emit('transcribe:complete')
    └─> POST /api/transcriptions
