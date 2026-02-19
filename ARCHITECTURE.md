@@ -2,6 +2,7 @@
 
 **Datum**: 2026-02-19  
 **Version**: 2.1.0  
+**Release**: v1.0.0 (MP3 Transcriber App v1.0.0)  
 **Status**: Production
 
 ---

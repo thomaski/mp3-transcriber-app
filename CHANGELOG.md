@@ -4,6 +4,16 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert
 
 ---
 
+## [v1.0.0] - 2026-02-19 — 🏷️ Erster offizieller Release
+
+> **Git-Tag:** `v1.0.0` | `MP3 Transcriber App v1.0.0`  
+> Erster öffentlich getaggter Release der MP3 Transcriber App.  
+> Beinhaltet alle Features aus den Entwicklungsversionen 2.0.0 und 2.1.0.  
+> Enthält vollständige CRLF-Normalisierung, Header-Scroll-Fix, Audio-Player via Blob-URL,  
+> rollenbasierte UI, UserManagement, Public Landing Pages und hash-basierte Duplikatserkennung.
+
+---
+
 ## [2.1.0] - 2026-02-19
 
 ### 🎨 **UI/UX Verbesserungen & Vereinfachungen**

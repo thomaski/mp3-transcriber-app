@@ -1,6 +1,6 @@
 # 📚 Dokumentations-Index
 
-Willkommen zur Dokumentation der MP3 Transcriber App **v2.0.0**!
+Willkommen zur Dokumentation der **MP3 Transcriber App v1.0.0** (interne Version 2.1.0)!
 
 Dieses Dokument gibt dir einen Überblick über alle verfügbaren Dokumentationsdateien und hilft dir, die richtige Information schnell zu finden.
 
