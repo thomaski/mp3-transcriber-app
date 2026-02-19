@@ -258,9 +258,15 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     }
     
     if (foundIndex !== -1) {
-      lines[foundIndex] = `${fullTimestamp} ${editedText}`;
-      onTextChange(lines.join('\n'));
-      logger.log(`✓ Text gespeichert für ${fullTimestamp}`);
+      const newLine = `${fullTimestamp} ${editedText}`;
+      // Nur speichern wenn der Text sich tatsächlich geändert hat
+      if (lines[foundIndex] !== newLine) {
+        lines[foundIndex] = newLine;
+        onTextChange(lines.join('\n'));
+        logger.log(`✓ Text geändert und gespeichert für ${fullTimestamp}`);
+      } else {
+        logger.log(`ℹ Text unverändert für ${fullTimestamp} – kein Speichern nötig`);
+      }
     } else {
       logger.warn(`⚠ Timestamp ${fullTimestamp} nicht gefunden in Originaltext`);
     }
@@ -288,9 +294,15 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     }
     
     if (foundIndex !== -1) {
-      lines[foundIndex] = `---------- ${editedHeaderText}`;
-      onTextChange(lines.join('\n'));
-      logger.log(`✓ Überschrift gespeichert: "${editingHeaderKey}" → "${editedHeaderText}"`);
+      const newHeaderLine = `---------- ${editedHeaderText}`;
+      // Nur speichern wenn die Überschrift sich tatsächlich geändert hat
+      if (lines[foundIndex] !== newHeaderLine) {
+        lines[foundIndex] = newHeaderLine;
+        onTextChange(lines.join('\n'));
+        logger.log(`✓ Überschrift geändert und gespeichert: "${editingHeaderKey}" → "${editedHeaderText}"`);
+      } else {
+        logger.log(`ℹ Überschrift unverändert – kein Speichern nötig`);
+      }
       
       // Update the header key in refs
       const oldRef = headerRefs.current[editingHeaderKey];
