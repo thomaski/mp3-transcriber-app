@@ -1,6 +1,6 @@
 # 📚 Dokumentations-Index
 
-Willkommen zur Dokumentation der **MP3 Transcriber App v1.0.0** (interne Version 2.1.0)!
+Willkommen zur Dokumentation der **MP3 Transcriber App v1.0.0**!
 
 Dieses Dokument gibt dir einen Überblick über alle verfügbaren Dokumentationsdateien und hilft dir, die richtige Information schnell zu finden.
 
@@ -18,7 +18,7 @@ Dieses Dokument gibt dir einen Überblick über alle verfügbaren Dokumentations
 - **[ARCHITECTURE.md](#️-architecturemd)** - Technische Architektur & Komponenten-Details
 - **[POSTGRESQL_MIGRATION.md](#️-postgresql_migrationmd)** 🆕 - Migration von SQLite zu PostgreSQL
 - **[WORKFLOW.md](#-workflowmd)** - Benutzer-Workflows & System-Abläufe
-- **[WORKFLOW_V2_VISUAL.md](#-workflow_v2_visualmd)** 🆕 - Visuelles Workflow-Diagramm v2.0
+- **[WORKFLOW_V2_VISUAL.md](#-workflow_v2_visualmd)** 🆕 - Visuelles Workflow-Diagramm v1.0
 
 ### Netzwerk & Zugriff
 - **[NETWORK_ACCESS.md](#-network_accessmd)** - Netzwerk-Zugriff einrichten
@@ -45,7 +45,7 @@ Dieses Dokument gibt dir einen Überblick über alle verfügbaren Dokumentations
 **Möchtest du die App im Netzwerk nutzen?**
 → **[NETWORK_ACCESS.md](./NETWORK_ACCESS.md)** 🌐
 
-**Was ist neu in v2.0.0?**
+**Was ist neu in v1.0.0?**
 → **[CHANGELOG.md](./CHANGELOG.md)** 🆕
 
 ---
@@ -58,7 +58,7 @@ Dieses Dokument gibt dir einen Überblick über alle verfügbaren Dokumentations
 **Projekt-Übersicht & Feature-Liste**
 
 - ✅ Was ist die MP3 Transcriber App?
-- ✅ Feature-Übersicht (v2.0.0 Highlights)
+- ✅ Feature-Übersicht (v1.0.0 Highlights)
 - ✅ Schnellstart & Installation
 - ✅ Konfiguration (PostgreSQL, Cloudflare)
 - ✅ Verwendung & Workflows
@@ -207,7 +207,7 @@ Dieses Dokument gibt dir einen Überblick über alle verfügbaren Dokumentations
 ---
 
 #### 📊 [WORKFLOW_V2_VISUAL.md](./WORKFLOW_V2_VISUAL.md)
-**Visuelles Workflow-Diagramm v2.0** 🆕
+**Visuelles Workflow-Diagramm v1.0** 🆕
 
 - ✅ Visuelles Mermaid-Diagramm aller Workflows
 - ✅ State-Flow-Diagramme
@@ -288,17 +288,16 @@ Dieses Dokument gibt dir einen Überblick über alle verfügbaren Dokumentations
 #### 📋 [CHANGELOG.md](./CHANGELOG.md)
 **Chronologisches Changelog (nach Versionen)** 🆕
 
-- ✅ **Version 2.0.0 (2026-02-18)**: 
+- ✅ **Version 1.0.0 (2026-02-19)**: Erster offizieller Release
   - PostgreSQL Migration
   - MP3-Dateien in DB
   - User-Zuordnung (Admin)
   - Download-Feature
-  - UI-Optimierungen
-  - Cloudflare Toggle
-  - Remote Start von Win7
-  - Dokumentations-Konsolidierung
-- ✅ Version 1.0.0 (2026-02-16): Initial Release
-- ✅ Roadmap (geplante Features für v2.1.0)
+  - UI-Optimierungen, rollenbasiertes Dashboard
+  - Cloudflare Toggle, Remote Start von Win7
+  - Hash-Duplikatserkennung, Audio-Player Blob-URL
+  - Header-Scrolling, CRLF-Normalisierung
+  - Public Landing Pages, MyTranscriptions-Seite
 
 **Ideal für:** Versionsverlauf, Release-Notes, Upgrade-Informationen, "Was ist neu?"
 
@@ -360,7 +359,7 @@ Dieses Dokument gibt dir einen Überblick über alle verfügbaren Dokumentations
 
 ---
 
-## 🆕 Was ist neu in v2.0.0?
+## 🆕 Was ist neu in v1.0.0?
 
 ### Wichtigste Änderungen:
 
@@ -443,6 +442,6 @@ Bei Fragen oder Problemen:
 
 ---
 
-**Zuletzt aktualisiert:** 18. Februar 2026
+**Zuletzt aktualisiert:** 19. Februar 2026
 
-**Version:** 2.0.0
+**Version:** 1.0.0

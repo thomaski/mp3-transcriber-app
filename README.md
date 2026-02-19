@@ -2,8 +2,7 @@
 
 Eine moderne Full-Stack-Webapp für die Transkription und Zusammenfassung von MP3-Audio-Dateien mit PostgreSQL, Whisper und Llama.
 
-![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)
-![Release](https://img.shields.io/badge/release-v1.0.0-brightgreen.svg)
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![React](https://img.shields.io/badge/React-18.2-61dafb.svg)
 ![Node](https://img.shields.io/badge/Node-18+-339933.svg)
@@ -32,12 +31,7 @@ Eine moderne Full-Stack-Webapp für die Transkription und Zusammenfassung von MP
 
 ## ✨ Features
 
-### 🏷️ Release v1.0.0 (2026-02-19) — Erster offizieller Release
-
-> Dieser Release beinhaltet alle Features aus den Entwicklungsversionen 2.0.0 und 2.1.0.  
-> Git-Tag: `v1.0.0` | `MP3 Transcriber App v1.0.0`
-
-### 🆕 Version 2.1.0 Highlights (2026-02-19)
+### 🆕 Version 1.0.0 Highlights (2026-02-19)
 
 - **🎨 Vereinfachte TranscribeScreen**: Intelligenter "Transkription speichern" Button mit Auto-Logik
 - **📊 Optimiertes ControlPanel**: Übersichtliches Button-Layout in einer Zeile
@@ -46,16 +40,15 @@ Eine moderne Full-Stack-Webapp für die Transkription und Zusammenfassung von MP
 - **📱 Lazy Loading**: UserManagement wird dynamisch geladen für bessere Performance
 - **🎯 Zentriertes Layout**: Benutzerverwaltung perfekt zentriert mit 50/50 Grid
 - **🔤 Alphabetische Sortierung**: MP3-Transkriptionen aufsteigend nach Dateinamen sortiert
-
-### Version 2.0.0 Highlights (2026-02-18)
-
-- **🗄️ PostgreSQL**: Migration von SQLite → PostgreSQL für bessere Skalierung
+- **🗄️ PostgreSQL**: Datenbank für bessere Skalierung
 - **💾 DB-Storage**: MP3-Dateien in DB (BYTEA) statt Filesystem
-- **👥 User-Zuordnung**: Admins können Transkriptionen Usern zuweisen (mit Autocomplete)
+- **👥 User-Zuordnung**: Admins können Transkriptionen Usern zuweisen
 - **📥 Download**: Transkriptionstext als TXT herunterladen
-- **🎨 UI-Optimierung**: Edit-Button näher am Text positioniert
-- **☁️ Cloudflare Toggle**: Konfigurierbarer Schalter für Cloudflare Tunnel
+- **☁️ Cloudflare Tunnel**: Externer Zugriff über Cloudflare
 - **🌐 Remote Start**: Server von Win7 aus starten (PowerShell Remoting)
+- **🔐 Hash-Duplikatserkennung**: SHA-256 basierte MP3-Duplikatserkennung
+- **🎧 Audio-Player**: Blob-URL basierter Player mit Auth-Support
+- **📜 Header-Scrolling**: Klick auf Zusammenfassung scrollt zur Überschrift
 
 ### Core Features
 
@@ -677,5 +670,5 @@ Bei Fragen oder Problemen:
 
 **Erstellt mit ❤️ für spirituelle Audio-Transkription**
 
-**Version:** 2.0.0  
-**Letzte Aktualisierung:** 2026-02-18
+**Version:** 1.0.0  
+**Letzte Aktualisierung:** 2026-02-19

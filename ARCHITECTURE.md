@@ -1,8 +1,7 @@
-# 🏗️ Architektur-Dokumentation MP3 Transcriber App v2.1.0
+# 🏗️ Architektur-Dokumentation MP3 Transcriber App v1.0.0
 
 **Datum**: 2026-02-19  
-**Version**: 2.1.0  
-**Release**: v1.0.0 (MP3 Transcriber App v1.0.0)  
+**Version**: 1.0.0  
 **Status**: Production
 
 ---
@@ -693,7 +692,7 @@ psql -U postgres -d mp3_transcriber -f backup_converted.sql
 
 ---
 
-## 📊 Neue Features (v2.0.0)
+## 📊 Features (v1.0.0)
 
 ### 1. Admin-User-Auswahl bei Transkription
 
@@ -767,7 +766,7 @@ Content-Disposition: attachment; filename="transcription-2026-02-18.txt"
 
 ## 🎯 Zusammenfassung
 
-Die MP3 Transcriber App v2.0.0 bietet:
+Die MP3 Transcriber App v1.0.0 bietet:
 
 ✅ **Skalierbare Architektur** mit PostgreSQL  
 ✅ **Sichere Authentifizierung** mit JWT & bcrypt  

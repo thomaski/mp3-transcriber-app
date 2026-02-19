@@ -1,4 +1,4 @@
-# 🎨 Visual Workflow für MP3 Transcriber App v2.0.0
+# 🎨 Visual Workflow für MP3 Transcriber App v1.0.0
 
 ## 🔄 User Flow Diagramm
 
@@ -494,6 +494,6 @@ mp3-transcriber-app/
 2. **Approval**: Deine Freigabe einholen
 3. **Implementation**: Phase 1 (SQLite Setup) starten
 4. **Testing**: E2E-Tests mit Playwright
-5. **Deployment**: v2.0.0 auf GitHub Release
+5. **Deployment**: v1.0.0 auf GitHub Release
 
 **Bereit für Implementation?** 🎯

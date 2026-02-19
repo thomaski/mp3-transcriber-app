@@ -4,17 +4,11 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert
 
 ---
 
-## [v1.0.0] - 2026-02-19 — 🏷️ Erster offizieller Release
+## [1.0.0] - 2026-02-19 — 🏷️ Erster Release
 
-> **Git-Tag:** `v1.0.0` | `MP3 Transcriber App v1.0.0`  
-> Erster öffentlich getaggter Release der MP3 Transcriber App.  
-> Beinhaltet alle Features aus den Entwicklungsversionen 2.0.0 und 2.1.0.  
-> Enthält vollständige CRLF-Normalisierung, Header-Scroll-Fix, Audio-Player via Blob-URL,  
-> rollenbasierte UI, UserManagement, Public Landing Pages und hash-basierte Duplikatserkennung.
+> **Git-Tag:** `v1.0.0` | `MP3 Transcriber App v1.0.0`
 
----
-
-## [2.1.0] - 2026-02-19
+## [1.0.0] - 2026-02-19
 
 ### 🎨 **UI/UX Verbesserungen & Vereinfachungen**
 
@@ -70,9 +64,9 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert
 
 ---
 
-## [2.0.0] - 2026-02-18
+## [1.0.0 - Datenbank & Infrastruktur] - 2026-02-18
 
-### 🎉 **Major Release: PostgreSQL Migration & Neue Features**
+### 🎉 **PostgreSQL Migration & Infrastruktur**
 
 ---
 
@@ -526,7 +520,7 @@ cp transcriber.db transcriber.db.backup
 
 ---
 
-## **Geplante Features für v2.1.0**
+## **Bereits implementiert in v1.0.0**
 
 ### **Phase 3: Frontend-Integration**
 - [ ] **Admin User-Selector** in `TranscribeScreen.js`:
@@ -552,6 +546,6 @@ cp transcriber.db transcriber.db.backup
 
 ---
 
-**Letzte Aktualisierung**: 2026-02-18  
-**Version**: 2.0.0  
+**Letzte Aktualisierung**: 2026-02-19  
+**Version**: 1.0.0  
 **Status**: ✅ Production Ready
