@@ -526,10 +526,17 @@ function TranscribeScreen() {
   
   // Handle timestamp click
   const handleTimestampClick = (timestamp) => {
+    logger.log('[TranscribeScreen] 🕒 Timestamp clicked:', timestamp);
     const seconds = parseTimestamp(timestamp);
+    logger.log('[TranscribeScreen] Parsed to seconds:', seconds);
     if (audioRef.current && !isNaN(seconds)) {
+      logger.log('[TranscribeScreen] Setting audio currentTime to:', seconds);
       audioRef.current.currentTime = seconds;
-      audioRef.current.play();
+      audioRef.current.play().catch(err => {
+        logger.error('[TranscribeScreen] ❌ Error playing audio after timestamp click:', err);
+      });
+    } else {
+      logger.warn('[TranscribeScreen] ⚠️ Cannot seek - audioRef:', !!audioRef.current, 'seconds:', seconds);
     }
   };
   

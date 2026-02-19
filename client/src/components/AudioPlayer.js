@@ -14,16 +14,39 @@ function AudioPlayer({ audioUrl, audioRef, audioFile }) {
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   
+  logger.log('[AudioPlayer] Rendered with:', { audioUrl, hasAudioRef: !!audioRef, audioFile: audioFile?.name });
+  
   // Update current time and sync play state
   useEffect(() => {
+    logger.log('[AudioPlayer] useEffect triggered');
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {
+      logger.warn('[AudioPlayer] ⚠️ No audio element ref available');
+      return;
+    }
     
-    const updateTime = () => setCurrentTime(audio.currentTime);
-    const updateDuration = () => setDuration(audio.duration);
-    const handleEnded = () => setIsPlaying(false);
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
+    logger.log('[AudioPlayer] Audio element found, setting up listeners');
+    
+    const updateTime = () => {
+      logger.log('[AudioPlayer] ⏱️ Time update:', audio.currentTime);
+      setCurrentTime(audio.currentTime);
+    };
+    const updateDuration = () => {
+      logger.log('[AudioPlayer] ⏱️ Duration loaded:', audio.duration);
+      setDuration(audio.duration);
+    };
+    const handleEnded = () => {
+      logger.log('[AudioPlayer] ⏹️ Audio ended');
+      setIsPlaying(false);
+    };
+    const handlePlay = () => {
+      logger.log('[AudioPlayer] ▶️ Audio playing');
+      setIsPlaying(true);
+    };
+    const handlePause = () => {
+      logger.log('[AudioPlayer] ⏸️ Audio paused');
+      setIsPlaying(false);
+    };
     
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateDuration);
@@ -31,7 +54,10 @@ function AudioPlayer({ audioUrl, audioRef, audioFile }) {
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
     
+    logger.log('[AudioPlayer] Event listeners attached');
+    
     return () => {
+      logger.log('[AudioPlayer] Cleaning up event listeners');
       audio.removeEventListener('timeupdate', updateTime);
       audio.removeEventListener('loadedmetadata', updateDuration);
       audio.removeEventListener('ended', handleEnded);
@@ -42,37 +68,56 @@ function AudioPlayer({ audioUrl, audioRef, audioFile }) {
   
   // Play/Pause Toggle
   const togglePlayPause = () => {
+    logger.log('[AudioPlayer] 🎵 togglePlayPause called');
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {
+      logger.error('[AudioPlayer] ❌ No audio element ref in togglePlayPause');
+      return;
+    }
+    
+    logger.log('[AudioPlayer] Current playing state:', isPlaying);
     
     if (isPlaying) {
+      logger.log('[AudioPlayer] Pausing audio...');
       audio.pause();
     } else {
+      logger.log('[AudioPlayer] Playing audio...');
       audio.play().catch(err => {
-        logger.error('Play error:', err);
+        logger.error('[AudioPlayer] ❌ Play error:', err);
       });
     }
   };
   
   // Stop
   const handleStop = () => {
+    logger.log('[AudioPlayer] 🛑 handleStop called');
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {
+      logger.error('[AudioPlayer] ❌ No audio element ref in handleStop');
+      return;
+    }
     
     audio.pause();
     audio.currentTime = 0;
+    logger.log('[AudioPlayer] Audio stopped and reset to 0');
     // isPlaying wird durch pause-Event automatisch auf false gesetzt
   };
   
   // Seek
   const handleSeek = (e) => {
+    logger.log('[AudioPlayer] 🎯 handleSeek called');
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {
+      logger.error('[AudioPlayer] ❌ No audio element ref in handleSeek');
+      return;
+    }
     
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const percentage = x / rect.width;
-    audio.currentTime = percentage * duration;
+    const newTime = percentage * duration;
+    logger.log('[AudioPlayer] Seeking to:', newTime, '(' + (percentage * 100).toFixed(1) + '%)');
+    audio.currentTime = newTime;
   };
   
   // Volume

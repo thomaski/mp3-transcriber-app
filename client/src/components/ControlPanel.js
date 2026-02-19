@@ -90,8 +90,8 @@ function ControlPanel({
         
         {/* Right Side: Reset & Edit Buttons */}
         <div className="flex flex-wrap gap-3 items-center">
-          {/* Reset Button - für ALLE User, only shown when audio or transcription is loaded */}
-          {(hasAudio || hasTranscription) && (
+          {/* Reset Button - NUR für Admins */}
+          {isAdmin && (hasAudio || hasTranscription) && (
             <button
               onClick={onReset}
               disabled={isProcessing}
