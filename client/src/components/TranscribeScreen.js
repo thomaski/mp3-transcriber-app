@@ -15,7 +15,7 @@ import ProgressModal from './ProgressModal';
 import FileSelectionModal from './FileSelectionModal';
 import LiveOutputModal from './LiveOutputModal';
 import UserSelectorModal from './UserSelectorModal';
-import { uploadFile, loadLocalFile, transcribeLocal, summarizeLocal, saveTranscription, getTranscription } from '../services/api';
+import { uploadFile, loadLocalFile, transcribeLocal, summarizeLocal, saveTranscription, getTranscription, getAudioBlobUrl } from '../services/api';
 import { getLastTranscription } from '../services/userService';
 import { parseUrlParams, parseTimestamp } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
@@ -136,11 +136,15 @@ function TranscribeScreen() {
               isFromDatabase: true
             });
             
-            // Get audio stream URL from backend
-            const backendUrl = process.env.REACT_APP_BACKEND_URL || window.location.origin;
-            const audioStreamUrl = `${backendUrl}/api/transcriptions/${trans.id}/audio`;
-            setAudioUrl(audioStreamUrl);
-            logger.log('[TranscribeScreen] 🎵 Audio URL gesetzt:', audioStreamUrl);
+            // WICHTIG: Lade MP3 als Blob mit Auth-Token (Browser sendet keine Auth-Header bei <audio src="...">)
+            logger.log('[TranscribeScreen] 🎵 Lade MP3 als Blob für ID:', trans.id);
+            try {
+              const blobUrl = await getAudioBlobUrl(trans.id);
+              setAudioUrl(blobUrl);
+              logger.log('[TranscribeScreen] ✅ Audio Blob URL gesetzt:', blobUrl);
+            } catch (audioError) {
+              logger.error('[TranscribeScreen] ❌ Fehler beim Laden der Audio-Blob:', audioError);
+            }
           }
         }
       } catch (error) {
@@ -184,7 +188,7 @@ function TranscribeScreen() {
           // Set saved transcription info
           setSavedTranscriptionId(lastTrans.id);
           
-          // Set audio file info (without actual playback URL since we don't have mp3_data in browser)
+          // Set audio file info
           if (lastTrans.mp3_filename) {
             setAudioFile({
               name: lastTrans.mp3_filename,
@@ -192,10 +196,15 @@ function TranscribeScreen() {
               isFromDatabase: true
             });
             
-            // Try to get audio stream URL from backend
-            const backendUrl = process.env.REACT_APP_BACKEND_URL || window.location.origin;
-            const audioStreamUrl = `${backendUrl}/api/transcriptions/${lastTrans.id}/audio`;
-            setAudioUrl(audioStreamUrl);
+            // WICHTIG: Lade MP3 als Blob mit Auth-Token (Browser sendet keine Auth-Header bei <audio src="...">)
+            logger.log('[TranscribeScreen] 🎵 Lade MP3 als Blob (letzte Transkription) für ID:', lastTrans.id);
+            try {
+              const blobUrl = await getAudioBlobUrl(lastTrans.id);
+              setAudioUrl(blobUrl);
+              logger.log('[TranscribeScreen] ✅ Audio Blob URL (letzte) gesetzt:', blobUrl);
+            } catch (audioError) {
+              logger.error('[TranscribeScreen] ❌ Fehler beim Laden der Audio-Blob (letzte):', audioError);
+            }
           }
         }
       } catch (error) {

@@ -277,4 +277,25 @@ export const getTranscription = async (transcriptionId) => {
   }
 };
 
+// Lädt die MP3-Audiodatei als Blob (mit Auth-Token) und gibt eine Blob-URL zurück
+// Hintergrund: Browser-Audio-Elemente senden keine Authorization-Header bei src-URLs,
+// daher muss die Datei per Axios mit Auth-Token heruntergeladen und als Blob-URL bereitgestellt werden.
+export const getAudioBlobUrl = async (transcriptionId) => {
+  logger.log('[api.js] getAudioBlobUrl called:', transcriptionId);
+  
+  try {
+    const response = await apiClient.get(`/transcriptions/${transcriptionId}/audio`, {
+      responseType: 'blob'
+    });
+    
+    const blob = new Blob([response.data], { type: 'audio/mpeg' });
+    const blobUrl = URL.createObjectURL(blob);
+    logger.log('[api.js] ✅ Audio Blob URL erstellt:', blobUrl, 'Größe:', blob.size, 'bytes');
+    return blobUrl;
+  } catch (error) {
+    logger.error('[api.js] ❌ getAudioBlobUrl error:', error.response?.status, error.message);
+    throw error;
+  }
+};
+
 export default api;
