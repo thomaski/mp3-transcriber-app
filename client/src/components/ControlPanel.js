@@ -20,7 +20,8 @@ function ControlPanel({
   onSmartSave,  // NEU: Smart Save Handler
   saveSuccess,  // NEU: Save Success Status
   savedTranscriptionId,  // NEU: Saved Transcription ID
-  selectedUserName  // NEU: Selected User Name
+  selectedUserName,  // NEU: Selected User Name
+  isTranscriptionDirty  // NEU: True wenn Text seit letztem Laden/Speichern geändert wurde
 }) {
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
@@ -64,24 +65,28 @@ function ControlPanel({
                 <span>Summarize</span>
               </button>
               
-              {/* Transkription speichern Button - NUR für Admins */}
+              {/* Transkription speichern Button - NUR für Admins, NUR aktiv wenn Text geändert wurde */}
               {hasTranscription && onSmartSave && (
                 <button
                   onClick={onSmartSave}
-                  disabled={isProcessing || saveSuccess}
+                  disabled={isProcessing || saveSuccess || !isTranscriptionDirty}
                   className={`
                     flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-all
-                    ${isProcessing || saveSuccess
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
+                    ${saveSuccess
+                      ? 'bg-green-100 text-green-800 cursor-not-allowed'
+                      : isProcessing || !isTranscriptionDirty
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
                     }
                   `}
-                  title="Transkription in Datenbank speichern"
+                  title={!isTranscriptionDirty ? 'Keine Änderungen zum Speichern' : 'Transkription in Datenbank speichern'}
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                   </svg>
-                  <span>💾 Transkription speichern</span>
+                  <span>
+                    {saveSuccess ? '✅ Gespeichert!' : '💾 Transkription speichern'}
+                  </span>
                 </button>
               )}
             </>

@@ -36,6 +36,8 @@ function TranscribeScreen() {
   const [showUserModal, setShowUserModal] = useState(false);
   const [savedTranscriptionId, setSavedTranscriptionId] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  // Dirty-Flag: true wenn Text seit letztem Laden/Speichern verändert wurde
+  const [isTranscriptionDirty, setIsTranscriptionDirty] = useState(false);
   
   // State management
   const [audioFile, setAudioFile] = useState(null);
@@ -121,8 +123,9 @@ function TranscribeScreen() {
           const trans = response.transcription;
           logger.log('[TranscribeScreen] ✅ Transkription geladen:', trans.id, trans.mp3_filename);
           
-          // Set transcription text
+          // Set transcription text (dirty=false, da aus DB geladen - noch keine Änderung)
           setTranscription(trans.transcription_text || '');
+          setIsTranscriptionDirty(false);
           
           // Set saved transcription info
           setSavedTranscriptionId(trans.id);
@@ -182,8 +185,9 @@ function TranscribeScreen() {
           const lastTrans = response.transcription;
           logger.log('[TranscribeScreen] Letzte Transkription gefunden:', lastTrans.id, lastTrans.mp3_filename);
           
-          // Set transcription text
+          // Set transcription text (dirty=false, da aus DB geladen)
           setTranscription(lastTrans.transcription_text || '');
+          setIsTranscriptionDirty(false);
           
           // Set saved transcription info
           setSavedTranscriptionId(lastTrans.id);
@@ -245,6 +249,7 @@ function TranscribeScreen() {
     
     socket.on('transcribe:complete', (data) => {
       setTranscription(data.transcription);
+      setIsTranscriptionDirty(true); // Neuer Transkriptions-Text → noch nicht gespeichert
       setIsProcessing(false);
       setProgress({ step: '', message: '', progress: 100 });
     });
@@ -261,6 +266,7 @@ function TranscribeScreen() {
     
     socket.on('summarize:complete', (data) => {
       setTranscription(data.summary);
+      setIsTranscriptionDirty(true); // Neue Zusammenfassung → noch nicht gespeichert
       setIsProcessing(false);
       setProgress({ step: '', message: '', progress: 100 });
     });
@@ -291,6 +297,7 @@ function TranscribeScreen() {
     socket.on('transcribe:result', async (data) => {
       logger.log('✓ Transkription empfangen via Socket:', data.filename);
       setTranscription(data.transcription);
+      setIsTranscriptionDirty(true); // Neue Transkription → noch nicht gespeichert
       setIsProcessing(false);
       
       // MP3 im Player laden
@@ -515,6 +522,7 @@ function TranscribeScreen() {
     logger.log('[TranscribeScreen] 📄 handleTextFileDrop:', text?.length, 'Zeichen');
     
     setTranscription(text);
+    setIsTranscriptionDirty(true); // Neue Datei gedroppt → noch nicht gespeichert
     
     // Automatisches Speichern wenn User, MP3 und Text vorhanden sind
     if (selectedUserId && audioFile && text && text.trim()) {
@@ -549,9 +557,10 @@ function TranscribeScreen() {
     }
   };
   
-  // Handle text change (in edit mode)
+  // Handle text change (in edit mode) - markiert als geändert
   const handleTextChange = (newText) => {
     setTranscription(newText);
+    setIsTranscriptionDirty(true);
   };
   
   // Helper function to save transcription with MP3 data
@@ -597,6 +606,7 @@ function TranscribeScreen() {
       if (saveResult.success) {
         setSavedTranscriptionId(saveResult.transcriptionId || saveResult.id);
         setSaveSuccess(true);
+        setIsTranscriptionDirty(false); // Nach erfolgreichem Speichern: kein ungespeicherter Inhalt
         
         logger.log('✅ [TranscribeScreen] Gespeichert! ID:', saveResult.transcriptionId || saveResult.id, '| Action:', saveResult.action);
         
@@ -675,6 +685,7 @@ function TranscribeScreen() {
     setAudioUrl(null);
     setTranscription('');
     setError(null);
+    setIsTranscriptionDirty(false);
     
     // Reset assoziation info
     setSavedTranscriptionId(null);
@@ -800,6 +811,7 @@ function TranscribeScreen() {
         // Load the result
         if (result.success) {
           setTranscription(result.transcription);
+          setIsTranscriptionDirty(true); // Neue lokale Transkription → noch nicht gespeichert
           logger.log(`✓ Transkription abgeschlossen: ${result.filename}`);
           
           // MP3 im Player laden
@@ -831,6 +843,7 @@ function TranscribeScreen() {
         // Load the result
         if (result.success) {
           setTranscription(result.transcription);
+          setIsTranscriptionDirty(true); // Neue Zusammenfassung → noch nicht gespeichert
           logger.log(`✓ Zusammenfassung abgeschlossen: ${result.filename}`);
         }
         
@@ -990,6 +1003,7 @@ function TranscribeScreen() {
             saveSuccess={saveSuccess}
             savedTranscriptionId={savedTranscriptionId}
             selectedUserName={selectedUserName}
+            isTranscriptionDirty={isTranscriptionDirty}
           />
         </div>
         
