@@ -573,8 +573,10 @@ function TranscribeScreen() {
   };
   
   // Helper function to save transcription with MP3 data
-  const saveTranscriptionWithMp3 = async (transcriptionText, hasSummary = false) => {
-    if (!selectedUserId) {
+  // overrideUserId: direkt übergeben wenn State noch nicht aktualisiert ist (React async state)
+  const saveTranscriptionWithMp3 = async (transcriptionText, hasSummary = false, overrideUserId = null) => {
+    const effectiveUserId = overrideUserId || selectedUserId;
+    if (!effectiveUserId) {
       logger.error('❌ [TranscribeScreen] Kein User ausgewählt, Speicherung übersprungen.');
       setError('⚠️ Kein Benutzer ausgewählt! Bitte wählen Sie einen Benutzer aus.');
       return null;
@@ -593,7 +595,7 @@ function TranscribeScreen() {
     }
     
     try {
-      logger.log('→ [TranscribeScreen] Speichere für User:', selectedUserId, '| MP3:', audioFile.name, '| hasSummary:', hasSummary);
+      logger.log('→ [TranscribeScreen] Speichere für User:', effectiveUserId, '| MP3:', audioFile.name, '| hasSummary:', hasSummary);
       
       let mp3File = null;
       if (audioFile.originalFile) {
@@ -603,7 +605,7 @@ function TranscribeScreen() {
       }
       
       const saveData = {
-        target_user_id: selectedUserId,
+        target_user_id: effectiveUserId,
         mp3_filename: audioFile.name,
         mp3_file: mp3File,
         transcription_text: transcriptionText,
@@ -1085,14 +1087,13 @@ function TranscribeScreen() {
           
           // Automatisches Speichern nach User-Auswahl
           if (transcription && !savedTranscriptionId) {
-            logger.log('[TranscribeScreen] 💾 Automatisches Speichern nach User-Auswahl');
+            logger.log('[TranscribeScreen] 💾 Automatisches Speichern nach User-Auswahl für userId:', userId);
             setShowUserModal(false);
             
-            // Kurze Verzögerung damit der User die Auswahl sieht
-            setTimeout(async () => {
-              const hasSummary = transcription.includes('Gesamtzusammenfassung:');
-              await saveTranscriptionWithMp3(transcription, hasSummary);
-            }, 300);
+            // userId direkt übergeben, da setSelectedUserId async ist und der State
+            // noch nicht aktualisiert sein könnte wenn saveTranscriptionWithMp3 aufgerufen wird
+            const hasSummary = transcription.includes('Gesamtzusammenfassung:');
+            await saveTranscriptionWithMp3(transcription, hasSummary, userId);
           }
         }}
         currentUser={user}
