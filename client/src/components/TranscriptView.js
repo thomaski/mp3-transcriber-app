@@ -24,6 +24,9 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
   const [editingHeaderKey, setEditingHeaderKey] = useState(null);
   const [editedTexts, setEditedTexts] = useState({});
   const [editedHeaders, setEditedHeaders] = useState({});
+  // Originaltexte zum Vergleich – wird beim Öffnen einer Zeile/Überschrift gesetzt
+  const [originalLineTexts, setOriginalLineTexts] = useState({});
+  const [originalHeaderTexts, setOriginalHeaderTexts] = useState({});
   const editInputRefs = useRef({});
   const headerInputRefs = useRef({});
   
@@ -170,6 +173,8 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     // Store current text and timestamp if not already stored
     if (!editedTexts[index]) {
       setEditedTexts(prev => ({ ...prev, [index]: { text: currentText, timestamp } }));
+      // Originaltext merken um am Ende prüfen zu können ob tatsächlich etwas geändert wurde
+      setOriginalLineTexts(prev => ({ ...prev, [index]: currentText }));
     }
     
     // Focus the input after a short delay to ensure it's rendered
@@ -201,6 +206,8 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     // Store current header text if not already stored
     if (!editedHeaders[headerKey]) {
       setEditedHeaders(prev => ({ ...prev, [headerKey]: currentHeaderText }));
+      // Originaltext merken um am Ende prüfen zu können ob tatsächlich etwas geändert wurde
+      setOriginalHeaderTexts(prev => ({ ...prev, [headerKey]: currentHeaderText }));
     }
     
     // Focus the input after a short delay
@@ -235,6 +242,14 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     const { text: editedText, timestamp } = editedData;
     if (editedText === undefined) return;
     
+    // Direkter Vergleich mit dem gespeicherten Originaltext (keine String-Rekonstruktion nötig)
+    const originalText = originalLineTexts[editingLineIndex];
+    if (originalText !== undefined && editedText === originalText) {
+      logger.log(`ℹ Text unverändert für [${timestamp}] – kein Speichern nötig`);
+      setEditingLineIndex(null);
+      return;
+    }
+    
     // Find and update the line with the matching timestamp in the original transcription
     const lines = transcription.split('\n');
     const fullTimestamp = `[${timestamp}]`;
@@ -258,16 +273,9 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     }
     
     if (foundIndex !== -1) {
-      const newLine = `${fullTimestamp} ${editedText}`;
-      // Nur speichern wenn der Text sich tatsächlich geändert hat.
-      // trimEnd() entfernt unsichtbare \r (Windows CRLF-Zeilenenden) beim Vergleich
-      if (lines[foundIndex].trimEnd() !== newLine) {
-        lines[foundIndex] = newLine;
-        onTextChange(lines.join('\n'));
-        logger.log(`✓ Text geändert und gespeichert für ${fullTimestamp}`);
-      } else {
-        logger.log(`ℹ Text unverändert für ${fullTimestamp} – kein Speichern nötig`);
-      }
+      lines[foundIndex] = `${fullTimestamp} ${editedText}`;
+      onTextChange(lines.join('\n'));
+      logger.log(`✓ Text geändert und gespeichert für ${fullTimestamp}`);
     } else {
       logger.warn(`⚠ Timestamp ${fullTimestamp} nicht gefunden in Originaltext`);
     }
@@ -282,6 +290,14 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     const editedHeaderText = editedHeaders[editingHeaderKey];
     if (editedHeaderText === undefined) return;
     
+    // Direkter Vergleich mit dem gespeicherten Originaltext
+    const originalHeaderText = originalHeaderTexts[editingHeaderKey];
+    if (originalHeaderText !== undefined && editedHeaderText === originalHeaderText) {
+      logger.log(`ℹ Überschrift unverändert – kein Speichern nötig`);
+      setEditingHeaderKey(null);
+      return;
+    }
+    
     // Find and update the header line in the original transcription
     const lines = transcription.split('\n');
     const searchPattern = `---------- ${editingHeaderKey}`;
@@ -295,16 +311,9 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     }
     
     if (foundIndex !== -1) {
-      const newHeaderLine = `---------- ${editedHeaderText}`;
-      // Nur speichern wenn die Überschrift sich tatsächlich geändert hat.
-      // trimEnd() entfernt unsichtbare \r (Windows CRLF-Zeilenenden) beim Vergleich
-      if (lines[foundIndex].trimEnd() !== newHeaderLine) {
-        lines[foundIndex] = newHeaderLine;
-        onTextChange(lines.join('\n'));
-        logger.log(`✓ Überschrift geändert und gespeichert: "${editingHeaderKey}" → "${editedHeaderText}"`);
-      } else {
-        logger.log(`ℹ Überschrift unverändert – kein Speichern nötig`);
-      }
+      lines[foundIndex] = `---------- ${editedHeaderText}`;
+      onTextChange(lines.join('\n'));
+      logger.log(`✓ Überschrift geändert und gespeichert: "${editingHeaderKey}" → "${editedHeaderText}"`);
       
       // Update the header key in refs
       const oldRef = headerRefs.current[editingHeaderKey];
