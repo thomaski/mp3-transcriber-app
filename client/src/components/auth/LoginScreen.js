@@ -3,15 +3,17 @@
  * Username/Password authentication
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 function LoginScreen() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Uncontrolled Inputs via Refs – funktioniert auch mit Browser-Automation-Tools (Playwright)
+  const usernameRef = useRef(null);
+  const passwordRef = useRef(null);
 
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -32,15 +34,19 @@ function LoginScreen() {
     e.preventDefault();
     setErrorMessage('');
 
+    // Werte direkt aus DOM-Refs lesen (uncontrolled inputs)
+    const usernameVal = usernameRef.current?.value?.trim() ?? '';
+    const passwordVal = passwordRef.current?.value ?? '';
+
     // Validation
-    if (!username || !password) {
+    if (!usernameVal || !passwordVal) {
       setErrorMessage('Bitte Benutzername und Passwort eingeben.');
       return;
     }
 
     setIsLoading(true);
 
-    const result = await login(username, password);
+    const result = await login(usernameVal, passwordVal);
 
     if (result.success) {
       // Redirect to dashboard or previous page
@@ -85,8 +91,8 @@ function LoginScreen() {
             <input
               type="text"
               id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              ref={usernameRef}
+              defaultValue=""
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               placeholder={showDemoCredentials ? "tom" : ""}
               disabled={isLoading}
@@ -102,8 +108,8 @@ function LoginScreen() {
             <input
               type="password"
               id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              ref={passwordRef}
+              defaultValue=""
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               placeholder={showDemoCredentials ? "••••••••" : ""}
               disabled={isLoading}
