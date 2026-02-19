@@ -3,9 +3,10 @@
  * MP3 Transcriber App v2.0.0
  */
 
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import './index.css';
 
 // Auth Components
 import LoginScreen from './components/auth/LoginScreen';
@@ -16,15 +17,13 @@ import Dashboard from './components/Dashboard';
 import TranscribeScreen from './components/TranscribeScreen';
 import MyTranscriptions from './components/MyTranscriptions';
 
-// Admin Components
-import UserManagement from './components/admin/UserManagement';
-
 // Public Access Components
 import PublicLandingPage from './components/public/PublicLandingPage';
 import UserMp3ListView from './components/public/UserMp3ListView';
 import PublicMp3View from './components/public/PublicMp3View';
 
-import './index.css';
+// Admin Components (Lazy-loaded to prevent tree-shaking)
+const UserManagement = lazy(() => import('./components/admin/UserManagement'));
 
 function App() {
   return (
@@ -49,7 +48,14 @@ function App() {
           
           {/* Admin-only Routes */}
           <Route element={<ProtectedRoute requireAdmin={true} />}>
-            <Route path="/admin/users" element={<UserManagement />} />
+            <Route 
+              path="/admin/users" 
+              element={
+                <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>}>
+                  <UserManagement />
+                </Suspense>
+              } 
+            />
           </Route>
           
           {/* Catch-all: redirect to login */}

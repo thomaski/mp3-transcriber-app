@@ -12,7 +12,8 @@
     "deploy-frontend": "powershell -Command \"Remove-Item -Recurse -Force server/public -ErrorAction SilentlyContinue; Copy-Item -Recurse client/build server/public; Write-Host '✅ Frontend deployed' -ForegroundColor Green\"",
     "start": "node server/index.js",
     "start-prod": "set NODE_ENV=production&& node server/index.js",
-    "rebuild-all": "npm run install-all && npm run build-deploy",
+    "rebuild-all": "npm run clean-build && npm run install-all && npm run build-deploy",
+    "clean-build": "powershell -Command \"Remove-Item -Recurse -Force client/build,client/node_modules/.cache,server/public -ErrorAction SilentlyContinue; Write-Host '🧹 Clean: Build-Ordner und Cache gelöscht' -ForegroundColor Yellow\"",
     "install-all": "npm install && cd client && npm install",
     "force-stop": "powershell -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force\"",
     "stop": "npm run force-stop"

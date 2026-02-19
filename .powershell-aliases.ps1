@@ -35,19 +35,25 @@ function Start-TranscriberProd {
 }
 Set-Alias -Name start-prod -Value Start-TranscriberProd
 
-# Rebuild GUI (Frontend)
+# Rebuild GUI (Frontend) - CLEAN
 function Rebuild-TranscriberGUI {
     Set-Location "D:\Projekte\git\mp3-transcriber-app"
-    Write-Host "`n🔧 Rebuilde Frontend und deploye...`n" -ForegroundColor Cyan
+    Write-Host "`n🔧 Rebuilde Frontend (CLEAN) und deploye...`n" -ForegroundColor Cyan
+    Write-Host "🧹 Lösche Build-Ordner und Cache..." -ForegroundColor Yellow
+    Remove-Item -Recurse -Force client\build,client\node_modules\.cache,server\public -ErrorAction SilentlyContinue
+    Write-Host "✅ Clean abgeschlossen`n" -ForegroundColor Green
     npm run build-deploy
     Write-Host "`n✅ Frontend wurde neu gebaut und deployed!`n" -ForegroundColor Green
 }
 Set-Alias -Name rebuild-gui -Value Rebuild-TranscriberGUI
 
-# Rebuild ALL (Dependencies + GUI + Deploy)
+# Rebuild ALL (Clean + Dependencies + GUI + Deploy)
 function Rebuild-TranscriberAll {
     Set-Location "D:\Projekte\git\mp3-transcriber-app"
-    Write-Host "`n🔧 Rebuilde ALLES (Dependencies + Frontend + Deploy)...`n" -ForegroundColor Cyan
+    Write-Host "`n🔧 Rebuilde ALLES (CLEAN + Dependencies + Frontend + Deploy)...`n" -ForegroundColor Cyan
+    Write-Host "🧹 Lösche Build-Ordner und Cache..." -ForegroundColor Yellow
+    Remove-Item -Recurse -Force client\build,client\node_modules\.cache,server\public -ErrorAction SilentlyContinue
+    Write-Host "✅ Clean abgeschlossen`n" -ForegroundColor Green
     npm run rebuild-all
     Write-Host "`n✅ Alles wurde neu gebaut!`n" -ForegroundColor Green
 }
@@ -193,9 +199,9 @@ function Show-TranscriberCommands {
     Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "  [1] 🔧 rebuild-gui" -ForegroundColor Blue -NoNewline
-    Write-Host "       Rebuilt Frontend und deployed"
+    Write-Host "       CLEAN Rebuild: Frontend + Deploy"
     Write-Host "  [2] 🔧 rebuild-all" -ForegroundColor Blue -NoNewline
-    Write-Host "       Rebuilt ALLES (Dependencies + GUI + Deploy)"
+    Write-Host "       CLEAN Rebuild: Dependencies + GUI + Deploy"
     Write-Host "  [3] 🚀 start-server" -ForegroundColor Green -NoNewline
     Write-Host "      Startet Backend (Development) auf Port 5000"
     Write-Host "  [4] 🚀 start-prod" -ForegroundColor Green -NoNewline
@@ -369,9 +375,9 @@ function Show-TranscriberCommands {
                 Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
                 Write-Host ""
                 Write-Host "  [1] 🔧 rebuild-gui" -ForegroundColor Blue -NoNewline
-                Write-Host "       Rebuilt Frontend und deployed"
+                Write-Host "       CLEAN Rebuild: Frontend + Deploy"
                 Write-Host "  [2] 🔧 rebuild-all" -ForegroundColor Blue -NoNewline
-                Write-Host "       Rebuilt ALLES (Dependencies + GUI + Deploy)"
+                Write-Host "       CLEAN Rebuild: Dependencies + GUI + Deploy"
                 Write-Host "  [3] 🚀 start-server" -ForegroundColor Green -NoNewline
                 Write-Host "      Startet Backend (Development) auf Port 5000"
                 Write-Host "  [4] 🚀 start-prod" -ForegroundColor Green -NoNewline

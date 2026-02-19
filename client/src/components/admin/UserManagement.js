@@ -109,7 +109,7 @@ function UserManagement() {
     setSelectedTranscriptionId(transcriptionId === selectedTranscriptionId ? null : transcriptionId);
   }
 
-  // Handle open transcription
+  // Handle open transcription - CHANGED_2026_02_19
   function handleOpenTranscription() {
     if (selectedTranscriptionId) {
       console.log('[UserManagement] Opening transcription:', selectedTranscriptionId);
