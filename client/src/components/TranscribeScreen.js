@@ -21,9 +21,7 @@ import { parseUrlParams, parseTimestamp } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
 import logger from '../utils/logger';
 
-// Default file paths (wenn keine URL-Parameter angegeben sind)
-const DEFAULT_MP3_PATH = 'D:\\Dokumente\\HiDrive\\public\\Durchgaben\\x_test\\newsletter_2020-03_Corona-1.mp3';
-const DEFAULT_TEXT_PATH = 'D:\\Dokumente\\HiDrive\\public\\Durchgaben\\x_test\\newsletter_2020-03_Corona-1_s.txt';
+// Keine hardcodierten Default-Pfade mehr – Laden erfolgt ausschliesslich aus DB oder per Drag & Drop
 
 function TranscribeScreen() {
   const { transcriptionId } = useParams();
@@ -116,122 +114,142 @@ function TranscribeScreen() {
     }
   }, [user, transcription]);
   
-  // Load transcription by ID from URL (if present)
+  // ============================================================================
+  // ZENTRALER LADE-EFFEKT (ersetzt 3 frühere useEffects mit Race-Conditions)
+  // Klare Priorität – genau EINE Quelle wird geladen:
+  //   1. transcriptionId in URL → aus Datenbank laden
+  //   2. ?mp3= / ?text= Query-Params → lokale Dateien via Backend
+  //   3. Admin ohne Parameter → letzte Transkription aus DB
+  //   4. Sonst → leerer State (User droppt Datei per Drag & Drop)
+  // ============================================================================
   useEffect(() => {
-    const loadTranscriptionById = async () => {
-      if (!transcriptionId) return;
-      
-      // Skip if already loaded something
-      if (audioFile || transcription) return;
-      
-      try {
-        logger.log('[TranscribeScreen] 🔵 Lade Transkription mit ID:', transcriptionId);
-        const response = await getTranscription(transcriptionId);
-        
-        if (response.success && response.transcription) {
-          const trans = response.transcription;
-          logger.log('[TranscribeScreen] ✅ Transkription geladen:', trans.id, trans.mp3_filename);
-          
-          // Set transcription text (dirty=false, da aus DB geladen - noch keine Änderung)
-          setTranscription(trans.transcription_text || '');
-          setIsTranscriptionDirty(false);
-          
-          // Set saved transcription info
-          setSavedTranscriptionId(trans.id);
-          setSelectedUserId(trans.user_id);
-          
-          // Set audio file info
-          if (trans.mp3_filename) {
-            setAudioFile({
-              name: trans.mp3_filename,
-              size: 0,
-              isFromDatabase: true
-            });
-            
-            // WICHTIG: Lade MP3 als Blob mit Auth-Token (Browser sendet keine Auth-Header bei <audio src="...">)
-            logger.log('[TranscribeScreen] 🎵 Lade MP3 als Blob für ID:', trans.id);
-            try {
-              const blobUrl = await getAudioBlobUrl(trans.id);
-              setAudioUrl(blobUrl);
-              logger.log('[TranscribeScreen] ✅ Audio Blob URL gesetzt:', blobUrl);
-            } catch (audioError) {
-              logger.error('[TranscribeScreen] ❌ Fehler beim Laden der Audio-Blob:', audioError);
+    if (!user) return; // Warten bis User bekannt ist
+
+    const loadInitial = async () => {
+      // --- Priorität 1: Transkription per ID laden (z.B. /transcribe/abc123) ---
+      if (transcriptionId) {
+        logger.log('[TranscribeScreen] 🔵 Priorität 1 – Lade Transkription per ID:', transcriptionId);
+        try {
+          const response = await getTranscription(transcriptionId);
+          if (response.success && response.transcription) {
+            const trans = response.transcription;
+            logger.log('[TranscribeScreen] ✅ Transkription geladen:', trans.id, trans.mp3_filename);
+            setTranscription(trans.transcription_text || '');
+            setIsTranscriptionDirty(false);
+            setSavedTranscriptionId(trans.id);
+            setSelectedUserId(trans.user_id);
+
+            if (trans.mp3_filename) {
+              setAudioFile({ name: trans.mp3_filename, size: 0, isFromDatabase: true });
+              try {
+                const blobUrl = await getAudioBlobUrl(trans.id);
+                setAudioUrl(blobUrl);
+                logger.log('[TranscribeScreen] ✅ Audio Blob URL gesetzt');
+              } catch (audioError) {
+                logger.warn('[TranscribeScreen] ⚠️ Audio nicht in DB (mp3_data fehlt):', audioError.message);
+                setError('⚠️ Audio nicht verfügbar: Die MP3-Datei ist nicht in der Datenbank gespeichert. Bitte MP3 über "Neue Datei laden" neu hochladen.');
+              }
             }
           }
+        } catch (err) {
+          logger.error('[TranscribeScreen] ❌ Fehler beim Laden per ID:', err);
+          setError(`Fehler beim Laden der Transkription: ${err.message}`);
         }
-      } catch (error) {
-        logger.error('[TranscribeScreen] ❌ Fehler beim Laden der Transkription:', error);
-        setError(`Fehler beim Laden der Transkription: ${error.message}`);
+        return; // Fertig – keine weiteren Quellen prüfen
       }
-    };
-    
-    loadTranscriptionById();
-  }, [transcriptionId]); // Run when transcriptionId changes
-  
-  // Load last transcription on mount (for admins, only if no transcriptionId in URL)
-  useEffect(() => {
-    const loadLastTranscription = async () => {
-      // Only for admins, only if no URL params are present, and only once
-      if (!user || !user.isAdmin || !user.userId) return;
-      
-      // Skip if transcriptionId is in URL
-      if (transcriptionId) return;
-      
+
+      // --- Priorität 2: URL-Query-Parameter (?mp3=..., ?text=...) ---
       const params = parseUrlParams();
-      const hasUrlParams = params.mp3 || params.txt || params.edit;
-      
-      // Skip if URL params are present (those take precedence)
-      if (hasUrlParams) return;
-      
-      // Skip if already loaded something
-      if (audioFile || transcription) return;
-      
-      try {
-        logger.log('[TranscribeScreen] Lade letzte Transkription für Admin:', user.userId);
-        const response = await getLastTranscription(user.userId);
-        
-        if (response.success && response.transcription) {
-          const lastTrans = response.transcription;
-          logger.log('[TranscribeScreen] Letzte Transkription gefunden:', lastTrans.id, lastTrans.mp3_filename);
-          
-          // Set transcription text (dirty=false, da aus DB geladen)
-          setTranscription(lastTrans.transcription_text || '');
-          setIsTranscriptionDirty(false);
-          
-          // Set saved transcription info
-          setSavedTranscriptionId(lastTrans.id);
-          
-          // Set audio file info
-          if (lastTrans.mp3_filename) {
-            setAudioFile({
-              name: lastTrans.mp3_filename,
-              size: 0,
-              isFromDatabase: true
-            });
-            
-            // WICHTIG: Lade MP3 als Blob mit Auth-Token (Browser sendet keine Auth-Header bei <audio src="...">)
-            logger.log('[TranscribeScreen] 🎵 Lade MP3 als Blob (letzte Transkription) für ID:', lastTrans.id);
-            try {
-              const blobUrl = await getAudioBlobUrl(lastTrans.id);
-              setAudioUrl(blobUrl);
-              logger.log('[TranscribeScreen] ✅ Audio Blob URL (letzte) gesetzt:', blobUrl);
-            } catch (audioError) {
-              logger.error('[TranscribeScreen] ❌ Fehler beim Laden der Audio-Blob (letzte):', audioError);
+      if (params.mp3 || params.text) {
+        logger.log('[TranscribeScreen] 🔵 Priorität 2 – Lade Dateien via URL-Parameter');
+        if (params.edit === 'true') {
+          setIsEditMode(true);
+          setShowEditButton(true);
+        }
+
+        let mp3Path = null;
+
+        if (params.mp3) {
+          try {
+            const mp3Result = await loadLocalFile(params.mp3, 'mp3');
+            if (mp3Result.success) {
+              const filename = params.mp3.split(/[\\/]/).pop();
+              setAudioFile({ name: filename, path: mp3Result.file.path, url: mp3Result.file.url });
+              setAudioUrl(mp3Result.file.url);
+              mp3Path = params.mp3;
+              logger.log('[TranscribeScreen] ✅ MP3 aus URL-Param geladen:', filename);
             }
+          } catch (err) {
+            logger.error('[TranscribeScreen] ❌ Fehler beim Laden MP3 aus URL-Param:', err);
           }
         }
-      } catch (error) {
-        // Silently fail - user can still use drop areas
-        logger.log('[TranscribeScreen] Keine letzte Transkription gefunden (normal)');
+
+        if (params.text) {
+          try {
+            const textResult = await loadLocalFile(params.text, 'txt');
+            if (textResult.success) {
+              setTranscription(textResult.content);
+              logger.log('[TranscribeScreen] ✅ Text aus URL-Param geladen');
+            }
+          } catch (err) {
+            logger.error('[TranscribeScreen] ❌ Fehler beim Laden Text aus URL-Param:', err);
+          }
+        } else if (mp3Path) {
+          // Versuche automatisch {name}_s.txt zu laden
+          const transcriptionPath = mp3Path.replace(/\.mp3$/i, '') + '_s.txt';
+          try {
+            const textResult = await loadLocalFile(transcriptionPath, 'txt');
+            if (textResult.success) {
+              setTranscription(textResult.content);
+              logger.log('[TranscribeScreen] ✅ Transkription automatisch gefunden:', transcriptionPath);
+            }
+          } catch (_) {
+            logger.log('[TranscribeScreen] ℹ️ Keine automatische Transkriptionsdatei gefunden');
+          }
+        }
+
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return; // Fertig
       }
+
+      // --- Priorität 3: Admin → letzte Transkription aus DB laden ---
+      if (user.isAdmin && user.userId) {
+        logger.log('[TranscribeScreen] 🔵 Priorität 3 – Lade letzte Transkription für Admin:', user.userId);
+        try {
+          const response = await getLastTranscription(user.userId);
+          if (response.success && response.transcription) {
+            const lastTrans = response.transcription;
+            logger.log('[TranscribeScreen] ✅ Letzte Transkription gefunden:', lastTrans.id, lastTrans.mp3_filename);
+            setTranscription(lastTrans.transcription_text || '');
+            setIsTranscriptionDirty(false);
+            setSavedTranscriptionId(lastTrans.id);
+
+            if (lastTrans.mp3_filename) {
+              setAudioFile({ name: lastTrans.mp3_filename, size: 0, isFromDatabase: true });
+              try {
+                const blobUrl = await getAudioBlobUrl(lastTrans.id);
+                setAudioUrl(blobUrl);
+                logger.log('[TranscribeScreen] ✅ Audio Blob URL (letzte) gesetzt');
+              } catch (audioError) {
+                logger.warn('[TranscribeScreen] ⚠️ Audio letzte Transkription nicht in DB:', audioError.message);
+              }
+            }
+          } else {
+            logger.log('[TranscribeScreen] ℹ️ Keine letzte Transkription vorhanden – leerer State');
+          }
+        } catch (_) {
+          logger.log('[TranscribeScreen] ℹ️ Keine letzte Transkription gefunden (normal bei neuem Admin)');
+        }
+        return;
+      }
+
+      // --- Priorität 4: Normaler User ohne Parameter → leerer State ---
+      logger.log('[TranscribeScreen] ℹ️ Kein Parameter, kein Admin → leerer State, Datei-Drop bereit');
     };
-    
-    // Only run once on mount
-    if (user && user.isAdmin) {
-      loadLastTranscription();
-    }
-  }, [user]); // Only run when user changes (initial load)
-  
+
+    loadInitial();
+  }, [transcriptionId, user]); // Neu laden wenn ID oder User sich ändert
+
   // Initialize socket connection
   useEffect(() => {
     // Dynamische Backend-URL: Verwende aktuelle Origin (inkl. Port)
@@ -352,128 +370,6 @@ function TranscribeScreen() {
     return () => {
       socket.disconnect();
     };
-  }, []);
-  
-  // Parse URL parameters on mount
-  useEffect(() => {
-    const loadDefaultFiles = async () => {
-      const params = parseUrlParams();
-      
-      // Check for edit mode
-      if (params.edit === 'true') {
-        setIsEditMode(true);
-        setShowEditButton(true);
-      }
-      
-      let mp3Loaded = false;
-      let textLoaded = false;
-      let mp3Path = null;
-      
-      // Check for MP3 URL parameter
-      if (params.mp3) {
-        logger.log('✓ MP3-Parameter gefunden:', params.mp3);
-        mp3Path = params.mp3;
-        
-        try {
-          logger.log('→ Lade MP3 über Backend API...');
-          const mp3Result = await loadLocalFile(params.mp3, 'mp3');
-          
-          if (mp3Result.success) {
-            const filename = params.mp3.split(/[\\/]/).pop();
-            setAudioFile({ 
-              name: filename, 
-              path: mp3Result.file.path,
-              url: mp3Result.file.url 
-            });
-            setAudioUrl(mp3Result.file.url);
-            logger.log('✓ MP3-Datei aus Parameter geladen:', filename);
-            mp3Loaded = true;
-          } else {
-            logger.error('❌ Backend konnte MP3 nicht laden:', mp3Result.error || 'Unbekannter Fehler');
-          }
-        } catch (err) {
-          logger.error('❌ Fehler beim Laden der MP3 aus Parameter:', err);
-        }
-      }
-      
-      // Check for text URL parameter
-      if (params.text) {
-        logger.log('✓ Text-Parameter gefunden:', params.text);
-        try {
-          logger.log('→ Lade Text über Backend API...');
-          const textResult = await loadLocalFile(params.text, 'txt');
-          
-          if (textResult.success) {
-            setTranscription(textResult.content);
-            logger.log('✓ Text-Datei aus Parameter geladen:', params.text);
-            textLoaded = true;
-          } else {
-            logger.error('❌ Backend konnte Text nicht laden:', textResult.error || 'Unbekannter Fehler');
-          }
-        } catch (err) {
-          logger.error('❌ Fehler beim Laden des Texts aus Parameter:', err);
-        }
-      }
-      
-      // Wenn MP3 geladen wurde aber kein Text-Parameter, versuche automatisch {filename}_s.txt zu laden
-      if (mp3Loaded && !params.text && mp3Path) {
-        const basePath = mp3Path.replace(/\.mp3$/i, '');
-        const transcriptionPath = `${basePath}_s.txt`;
-        
-        logger.log(`✓ Versuche automatisch Transkription zu laden: ${transcriptionPath}`);
-        
-        try {
-          const textResult = await loadLocalFile(transcriptionPath, 'txt');
-          if (textResult.success) {
-            setTranscription(textResult.content);
-            logger.log('✓ Transkriptionsdatei automatisch geladen:', transcriptionPath);
-            textLoaded = true;
-          } else {
-            logger.log('⚠ Keine Transkriptionsdatei gefunden:', transcriptionPath);
-          }
-        } catch (err) {
-          logger.log('⚠ Keine Transkriptionsdatei gefunden:', transcriptionPath, err.message);
-        }
-      }
-      
-      // Wenn keine URL-Parameter vorhanden sind, lade Standard-Dateien
-      if (!params.mp3 && !params.text) {
-        // Versuche MP3-Datei zu laden
-        try {
-          const mp3Result = await loadLocalFile(DEFAULT_MP3_PATH, 'mp3');
-          if (mp3Result.success) {
-            const filename = DEFAULT_MP3_PATH.split('\\').pop();
-            setAudioFile({ 
-              name: filename, 
-              path: mp3Result.file.path,
-              url: mp3Result.file.url 
-            });
-            setAudioUrl(mp3Result.file.url);
-            logger.log('✓ Standard-MP3-Datei geladen:', filename);
-          }
-        } catch (err) {
-          logger.log('Standard-MP3-Datei nicht gefunden (normal)');
-        }
-        
-        // Versuche Text-Datei zu laden
-        try {
-          const textResult = await loadLocalFile(DEFAULT_TEXT_PATH, 'txt');
-          if (textResult.success) {
-            setTranscription(textResult.content);
-            logger.log('✓ Standard-Text-Datei geladen');
-          }
-        } catch (err) {
-          logger.log('Standard-Text-Datei nicht gefunden (normal)');
-        }
-      }
-      
-      // URL-Parameter aus Browser-URL entfernen (nachdem Dateien geladen wurden)
-      if (Object.keys(params).length > 0) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-    };
-    
-    loadDefaultFiles();
   }, []);
   
   // Handle file drop (MP3 only)
