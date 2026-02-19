@@ -259,8 +259,9 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     
     if (foundIndex !== -1) {
       const newLine = `${fullTimestamp} ${editedText}`;
-      // Nur speichern wenn der Text sich tatsächlich geändert hat
-      if (lines[foundIndex] !== newLine) {
+      // Nur speichern wenn der Text sich tatsächlich geändert hat.
+      // trimEnd() entfernt unsichtbare \r (Windows CRLF-Zeilenenden) beim Vergleich
+      if (lines[foundIndex].trimEnd() !== newLine) {
         lines[foundIndex] = newLine;
         onTextChange(lines.join('\n'));
         logger.log(`✓ Text geändert und gespeichert für ${fullTimestamp}`);
@@ -295,8 +296,9 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     
     if (foundIndex !== -1) {
       const newHeaderLine = `---------- ${editedHeaderText}`;
-      // Nur speichern wenn die Überschrift sich tatsächlich geändert hat
-      if (lines[foundIndex] !== newHeaderLine) {
+      // Nur speichern wenn die Überschrift sich tatsächlich geändert hat.
+      // trimEnd() entfernt unsichtbare \r (Windows CRLF-Zeilenenden) beim Vergleich
+      if (lines[foundIndex].trimEnd() !== newHeaderLine) {
         lines[foundIndex] = newHeaderLine;
         onTextChange(lines.join('\n'));
         logger.log(`✓ Überschrift geändert und gespeichert: "${editingHeaderKey}" → "${editedHeaderText}"`);
