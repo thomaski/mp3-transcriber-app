@@ -106,6 +106,15 @@ function TranscribeScreen() {
       setSelectedUserName(displayName);
     }
   }, [user, selectedUserId]);
+
+  // Edit-Modus automatisch aktivieren wenn Admin eine Transkription lädt
+  useEffect(() => {
+    if (user?.isAdmin && transcription) {
+      logger.log('[TranscribeScreen] Admin hat Transkription geladen → Edit-Modus wird aktiviert');
+      setIsEditMode(true);
+      setShowEditButton(true);
+    }
+  }, [user, transcription]);
   
   // Load transcription by ID from URL (if present)
   useEffect(() => {

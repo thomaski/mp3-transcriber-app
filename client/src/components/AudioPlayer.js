@@ -14,21 +14,18 @@ function AudioPlayer({ audioUrl, audioRef, audioFile }) {
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   
-  logger.log('[AudioPlayer] Rendered with:', { audioUrl, hasAudioRef: !!audioRef, audioFile: audioFile?.name });
-  
   // Update current time and sync play state
   useEffect(() => {
-    logger.log('[AudioPlayer] useEffect triggered');
     const audio = audioRef.current;
     if (!audio) {
       logger.warn('[AudioPlayer] ⚠️ No audio element ref available');
       return;
     }
     
-    logger.log('[AudioPlayer] Audio element found, setting up listeners');
+    logger.log('[AudioPlayer] Audio element gefunden, Event-Listener werden gesetzt');
     
     const updateTime = () => {
-      logger.log('[AudioPlayer] ⏱️ Time update:', audio.currentTime);
+      // Kein Log hier – timeupdate feuert sehr häufig und flutet die Konsole
       setCurrentTime(audio.currentTime);
     };
     const updateDuration = () => {
