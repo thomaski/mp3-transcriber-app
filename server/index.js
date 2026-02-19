@@ -214,8 +214,22 @@ app.get('/test-login-page', (req, res) => {
   `);
 });
 
-// Serve static files (React Frontend)
-app.use(express.static(path.join(__dirname, '../client/build')));
+// Serve static files (React Frontend) with proper caching
+// - index.html: no-cache (always check for updates)
+// - JS/CSS files: cache by hash (immutable)
+app.use(express.static(path.join(__dirname, '../client/build'), {
+  setHeaders: (res, filepath) => {
+    if (filepath.endsWith('.html')) {
+      // index.html: Always check for updates
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    } else if (filepath.match(/\.(js|css)$/)) {
+      // JS/CSS files with hash: Cache for 1 year
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  }
+}));
 
 // API Routes MÜSSEN VOR dem Catch-All stehen!
 // (bereits oben definiert)
@@ -226,6 +240,12 @@ app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) {
     return next();
   }
+  
+  // Set no-cache headers for index.html
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  
   res.sendFile(path.join(__dirname, '../client/build/index.html'));
 });
 
