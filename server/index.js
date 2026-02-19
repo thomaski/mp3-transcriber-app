@@ -221,12 +221,15 @@ app.get('/test-login-page', (req, res) => {
 app.use(express.static(path.join(__dirname, '../client/build'), {
   setHeaders: (res, filepath) => {
     if (filepath.endsWith('.html')) {
-      // index.html: Always check for updates
+      // index.html: Niemals cachen – weder Browser noch CloudFlare
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
+      res.setHeader('CDN-Cache-Control', 'no-store');           // CloudFlare-spezifisch
+      res.setHeader('Cloudflare-CDN-Cache-Control', 'no-store'); // CloudFlare-spezifisch
+      res.setHeader('Surrogate-Control', 'no-store');           // Andere CDNs
     } else if (filepath.match(/\.(js|css)$/)) {
-      // JS/CSS files with hash: Cache for 1 year
+      // JS/CSS Dateien haben Content-Hash im Dateinamen → 1 Jahr cachen (immutable)
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     }
   }
@@ -242,10 +245,13 @@ app.get('*', (req, res, next) => {
     return next();
   }
   
-  // Set no-cache headers for index.html
+  // Niemals cachen – weder Browser noch CloudFlare
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
+  res.setHeader('CDN-Cache-Control', 'no-store');
+  res.setHeader('Cloudflare-CDN-Cache-Control', 'no-store');
+  res.setHeader('Surrogate-Control', 'no-store');
   
   res.sendFile(path.join(__dirname, '../client/build/index.html'));
 });
