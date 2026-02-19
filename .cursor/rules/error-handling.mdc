@@ -1,0 +1,49 @@
+---
+alwaysApply: true
+---
+
+# Error Handling & Logging
+
+## Error Handling Best Practices
+
+### Bei async Operations
+```javascript
+try {
+  const result = await someAsyncOperation();
+  // success handling
+} catch (error) {
+  logger.error('Beschreibender Context', { error, additionalInfo });
+  // user-freundliche Fehlermeldung
+  throw new Error('Benutzerfreundliche deutsche Nachricht');
+}
+```
+
+### Aussagekräftige Error Messages
+- **Für Entwickler** (Logs): Technische Details, Stack Traces, Context
+- **Für User** (Frontend): Verständliche deutsche Nachricht ohne technische Details
+- **Niemals**: Sensitive Informationen in User-Fehlermeldungen
+
+## Logging-Strategie
+
+### Was loggen?
+- ✅ Fehler mit vollständigem Context
+- ✅ Wichtige Business-Events (Login, Upload, Transcription-Start)
+- ✅ Performance-kritische Operationen
+- ✅ API-Requests (Endpoint, User, Response-Time)
+- ❌ Passwords oder sensitive Daten
+
+### Log-Levels
+- **ERROR**: Fehler die Attention brauchen
+- **WARN**: Potentielle Probleme
+- **INFO**: Wichtige Events
+- **DEBUG**: Detaillierte Debug-Informationen (nur Development)
+
+### Im Projekt
+- Logger-Modul verwenden (wie im Projekt: `logger.js`)
+- Logs strukturiert mit Timestamps
+- Bei Produktiv-Server: Logs rotieren und archivieren
+
+## Error Recovery
+- Graceful Degradation: App sollte bei Teilausfällen weiter funktionieren
+- Fallback-Mechanismen wo sinnvoll
+- Klare Fehlerzustände im Frontend anzeigen

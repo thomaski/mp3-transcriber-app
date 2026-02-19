@@ -15,10 +15,11 @@ import ProgressModal from './ProgressModal';
 import FileSelectionModal from './FileSelectionModal';
 import LiveOutputModal from './LiveOutputModal';
 import UserSelectorModal from './UserSelectorModal';
-import { uploadFile, loadLocalFile, transcribeLocal, summarizeLocal, saveTranscription } from '../services/api';
+import { uploadFile, loadLocalFile, transcribeLocal, summarizeLocal, saveTranscription, getTranscription } from '../services/api';
 import { getLastTranscription } from '../services/userService';
 import { parseUrlParams, parseTimestamp } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
+import logger from '../utils/logger';
 
 // Default file paths (wenn keine URL-Parameter angegeben sind)
 const DEFAULT_MP3_PATH = 'D:\\Dokumente\\HiDrive\\public\\Durchgaben\\x_test\\newsletter_2020-03_Corona-1.mp3';
@@ -68,7 +69,6 @@ function TranscribeScreen() {
         e.preventDefault();
         setShowEditButton(prev => !prev);
         setIsEditMode(prev => !prev);
-        console.log(`✓ Edit-Button ${!showEditButton ? 'sichtbar' : 'versteckt'} (Ctrl+E)`);
       }
       
       // Esc: Hide Edit Button & Exit Edit Mode
@@ -85,7 +85,6 @@ function TranscribeScreen() {
           e.preventDefault();
           setShowEditButton(false);
           setIsEditMode(false);
-          console.log('✓ Edit-Button versteckt & Edit-Modus beendet (Esc)');
         }
       }
     };
@@ -100,41 +99,84 @@ function TranscribeScreen() {
   // Auto-select current user if not admin
   useEffect(() => {
     if (user && !user.isAdmin && !selectedUserId) {
-      console.log('[TranscribeScreen] Auto-selecting current user:', user.username);
       const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username;
       setSelectedUserId(user.userId);
       setSelectedUserName(displayName);
     }
   }, [user, selectedUserId]);
   
-  // Load last transcription on mount (for admins)
+  // Load transcription by ID from URL (if present)
+  useEffect(() => {
+    const loadTranscriptionById = async () => {
+      if (!transcriptionId) return;
+      
+      // Skip if already loaded something
+      if (audioFile || transcription) return;
+      
+      try {
+        logger.log('[TranscribeScreen] 🔵 Lade Transkription mit ID:', transcriptionId);
+        const response = await getTranscription(transcriptionId);
+        
+        if (response.success && response.transcription) {
+          const trans = response.transcription;
+          logger.log('[TranscribeScreen] ✅ Transkription geladen:', trans.id, trans.mp3_filename);
+          
+          // Set transcription text
+          setTranscription(trans.transcription_text || '');
+          
+          // Set saved transcription info
+          setSavedTranscriptionId(trans.id);
+          setSelectedUserId(trans.user_id);
+          
+          // Set audio file info
+          if (trans.mp3_filename) {
+            setAudioFile({
+              name: trans.mp3_filename,
+              size: 0,
+              isFromDatabase: true
+            });
+            
+            // Get audio stream URL from backend
+            const backendUrl = process.env.REACT_APP_BACKEND_URL || window.location.origin;
+            const audioStreamUrl = `${backendUrl}/api/transcriptions/${trans.id}/audio`;
+            setAudioUrl(audioStreamUrl);
+            logger.log('[TranscribeScreen] 🎵 Audio URL gesetzt:', audioStreamUrl);
+          }
+        }
+      } catch (error) {
+        logger.error('[TranscribeScreen] ❌ Fehler beim Laden der Transkription:', error);
+        setError(`Fehler beim Laden der Transkription: ${error.message}`);
+      }
+    };
+    
+    loadTranscriptionById();
+  }, [transcriptionId]); // Run when transcriptionId changes
+  
+  // Load last transcription on mount (for admins, only if no transcriptionId in URL)
   useEffect(() => {
     const loadLastTranscription = async () => {
       // Only for admins, only if no URL params are present, and only once
       if (!user || !user.isAdmin || !user.userId) return;
       
+      // Skip if transcriptionId is in URL
+      if (transcriptionId) return;
+      
       const params = parseUrlParams();
       const hasUrlParams = params.mp3 || params.txt || params.edit;
       
       // Skip if URL params are present (those take precedence)
-      if (hasUrlParams) {
-        console.log('[TranscribeScreen] URL params present, skipping auto-load');
-        return;
-      }
+      if (hasUrlParams) return;
       
       // Skip if already loaded something
-      if (audioFile || transcription) {
-        console.log('[TranscribeScreen] Content already loaded, skipping auto-load');
-        return;
-      }
+      if (audioFile || transcription) return;
       
       try {
-        console.log('[TranscribeScreen] Loading last transcription for admin:', user.userId);
+        logger.log('[TranscribeScreen] Lade letzte Transkription für Admin:', user.userId);
         const response = await getLastTranscription(user.userId);
         
         if (response.success && response.transcription) {
           const lastTrans = response.transcription;
-          console.log('[TranscribeScreen] Last transcription found:', lastTrans.id, lastTrans.mp3_filename);
+          logger.log('[TranscribeScreen] Letzte Transkription gefunden:', lastTrans.id, lastTrans.mp3_filename);
           
           // Set transcription text
           setTranscription(lastTrans.transcription_text || '');
@@ -155,14 +197,10 @@ function TranscribeScreen() {
             const audioStreamUrl = `${backendUrl}/api/transcriptions/${lastTrans.id}/audio`;
             setAudioUrl(audioStreamUrl);
           }
-          
-          console.log('[TranscribeScreen] ✅ Last transcription loaded successfully');
-        } else {
-          console.log('[TranscribeScreen] No last transcription found, showing drop areas');
         }
       } catch (error) {
-        console.error('[TranscribeScreen] ❌ Error loading last transcription:', error);
         // Silently fail - user can still use drop areas
+        logger.log('[TranscribeScreen] Keine letzte Transkription gefunden (normal)');
       }
     };
     
@@ -184,11 +222,11 @@ function TranscribeScreen() {
     socketRef.current = socket;
     
     socket.on('connect', () => {
-      console.log('✓ Connected to server:', socket.id, 'URL:', backendUrl);
+      logger.log('✓ Connected to server:', socket.id, 'URL:', backendUrl);
     });
     
     socket.on('disconnect', () => {
-      console.log('✗ Disconnected from server');
+      logger.log('✗ Disconnected from server');
     });
     
     // Listen to transcription progress
@@ -242,7 +280,7 @@ function TranscribeScreen() {
     
     // Listen to transcription result (WSL2)
     socket.on('transcribe:result', async (data) => {
-      console.log('✓ Transkription empfangen via Socket:', data.filename);
+      logger.log('✓ Transkription empfangen via Socket:', data.filename);
       setTranscription(data.transcription);
       setIsProcessing(false);
       
@@ -252,7 +290,7 @@ function TranscribeScreen() {
         const mp3StreamUrl = `${backendUrl}/api/files/stream?path=${encodeURIComponent(`D:\\Projekte_KI\\pyenv_1_transcode_durchgabe\\audio\\${data.mp3Filename}`)}`;
         setAudioUrl(mp3StreamUrl);
         setAudioFile({ name: data.mp3Filename });
-        console.log(`✓ MP3 im Player geladen: ${data.mp3Filename}`);
+        logger.log(`✓ MP3 im Player geladen: ${data.mp3Filename}`);
       }
       
       // Speichere Transkription automatisch
@@ -278,7 +316,7 @@ function TranscribeScreen() {
     
     // Listen to summarization result (WSL2)
     socket.on('summarize:result', async (data) => {
-      console.log('✓ Zusammenfassung empfangen via Socket:', data.filename);
+      logger.log('✓ Zusammenfassung empfangen via Socket:', data.filename);
       setTranscription(data.transcription);
       setIsProcessing(false);
       
@@ -308,14 +346,12 @@ function TranscribeScreen() {
       
       // Check for MP3 URL parameter
       if (params.mp3) {
-        console.log('✓ MP3-Parameter gefunden:', params.mp3);
+        logger.log('✓ MP3-Parameter gefunden:', params.mp3);
         mp3Path = params.mp3;
         
         try {
-          // Versuche MP3 lokal zu laden
-          console.log('→ Lade MP3 über Backend API...');
+          logger.log('→ Lade MP3 über Backend API...');
           const mp3Result = await loadLocalFile(params.mp3, 'mp3');
-          console.log('← Backend-Antwort:', mp3Result);
           
           if (mp3Result.success) {
             const filename = params.mp3.split(/[\\/]/).pop();
@@ -325,33 +361,32 @@ function TranscribeScreen() {
               url: mp3Result.file.url 
             });
             setAudioUrl(mp3Result.file.url);
-            console.log('✓ MP3-Datei aus Parameter geladen:', filename);
+            logger.log('✓ MP3-Datei aus Parameter geladen:', filename);
             mp3Loaded = true;
           } else {
-            console.error('❌ Backend konnte MP3 nicht laden:', mp3Result.error || 'Unbekannter Fehler');
+            logger.error('❌ Backend konnte MP3 nicht laden:', mp3Result.error || 'Unbekannter Fehler');
           }
         } catch (err) {
-          console.error('❌ Fehler beim Laden der MP3 aus Parameter:', err);
+          logger.error('❌ Fehler beim Laden der MP3 aus Parameter:', err);
         }
       }
       
       // Check for text URL parameter
       if (params.text) {
-        console.log('✓ Text-Parameter gefunden:', params.text);
+        logger.log('✓ Text-Parameter gefunden:', params.text);
         try {
-          console.log('→ Lade Text über Backend API...');
+          logger.log('→ Lade Text über Backend API...');
           const textResult = await loadLocalFile(params.text, 'txt');
-          console.log('← Backend-Antwort:', textResult);
           
           if (textResult.success) {
             setTranscription(textResult.content);
-            console.log('✓ Text-Datei aus Parameter geladen:', params.text);
+            logger.log('✓ Text-Datei aus Parameter geladen:', params.text);
             textLoaded = true;
           } else {
-            console.error('❌ Backend konnte Text nicht laden:', textResult.error || 'Unbekannter Fehler');
+            logger.error('❌ Backend konnte Text nicht laden:', textResult.error || 'Unbekannter Fehler');
           }
         } catch (err) {
-          console.error('❌ Fehler beim Laden des Texts aus Parameter:', err);
+          logger.error('❌ Fehler beim Laden des Texts aus Parameter:', err);
         }
       }
       
@@ -360,44 +395,39 @@ function TranscribeScreen() {
         const basePath = mp3Path.replace(/\.mp3$/i, '');
         const transcriptionPath = `${basePath}_s.txt`;
         
-        console.log(`✓ Versuche automatisch Transkription zu laden: ${transcriptionPath}`);
+        logger.log(`✓ Versuche automatisch Transkription zu laden: ${transcriptionPath}`);
         
         try {
           const textResult = await loadLocalFile(transcriptionPath, 'txt');
           if (textResult.success) {
             setTranscription(textResult.content);
-            console.log('✓ Transkriptionsdatei automatisch geladen:', transcriptionPath);
+            logger.log('✓ Transkriptionsdatei automatisch geladen:', transcriptionPath);
             textLoaded = true;
           } else {
-            console.log('⚠ Keine Transkriptionsdatei gefunden:', transcriptionPath);
+            logger.log('⚠ Keine Transkriptionsdatei gefunden:', transcriptionPath);
           }
         } catch (err) {
-          console.log('⚠ Keine Transkriptionsdatei gefunden:', transcriptionPath, err.message);
+          logger.log('⚠ Keine Transkriptionsdatei gefunden:', transcriptionPath, err.message);
         }
       }
       
       // Wenn keine URL-Parameter vorhanden sind, lade Standard-Dateien
       if (!params.mp3 && !params.text) {
-        console.log('Keine URL-Parameter gefunden, lade Standard-Dateien...');
-        
         // Versuche MP3-Datei zu laden
         try {
           const mp3Result = await loadLocalFile(DEFAULT_MP3_PATH, 'mp3');
           if (mp3Result.success) {
-            // Extrahiere den Dateinamen aus dem Pfad
             const filename = DEFAULT_MP3_PATH.split('\\').pop();
             setAudioFile({ 
               name: filename, 
               path: mp3Result.file.path,
               url: mp3Result.file.url 
             });
-            setAudioUrl(mp3Result.file.url); // Backend gibt Stream-URL zurück
-            console.log('✓ Standard-MP3-Datei geladen:', mp3Result.file.path);
-            console.log('  Dateiname:', filename);
-            console.log('  Stream-URL:', mp3Result.file.url);
+            setAudioUrl(mp3Result.file.url);
+            logger.log('✓ Standard-MP3-Datei geladen:', filename);
           }
         } catch (err) {
-          console.log('Standard-MP3-Datei nicht gefunden:', DEFAULT_MP3_PATH);
+          logger.log('Standard-MP3-Datei nicht gefunden (normal)');
         }
         
         // Versuche Text-Datei zu laden
@@ -405,17 +435,16 @@ function TranscribeScreen() {
           const textResult = await loadLocalFile(DEFAULT_TEXT_PATH, 'txt');
           if (textResult.success) {
             setTranscription(textResult.content);
-            console.log('✓ Standard-Text-Datei geladen:', textResult.path);
+            logger.log('✓ Standard-Text-Datei geladen');
           }
         } catch (err) {
-          console.log('Standard-Text-Datei nicht gefunden:', DEFAULT_TEXT_PATH);
+          logger.log('Standard-Text-Datei nicht gefunden (normal)');
         }
       }
       
       // URL-Parameter aus Browser-URL entfernen (nachdem Dateien geladen wurden)
       if (Object.keys(params).length > 0) {
         window.history.replaceState({}, document.title, window.location.pathname);
-        console.log('✓ URL-Parameter aus Browser-URL entfernt');
       }
     };
     
@@ -429,13 +458,7 @@ function TranscribeScreen() {
     const file = files[0];
     const fileType = file.name.split('.').pop().toLowerCase();
     
-    console.log('[TranscribeScreen] ========================================');
-    console.log('[TranscribeScreen] 🎵 MP3 FILE DROP:');
-    console.log('[TranscribeScreen] ========================================');
-    console.log('[TranscribeScreen] File name:', file.name);
-    console.log('[TranscribeScreen] File type:', fileType);
-    console.log('[TranscribeScreen] File size:', file.size, 'bytes');
-    console.log('[TranscribeScreen] ========================================');
+    logger.log('[TranscribeScreen] 🎵 MP3 FILE DROP:', file.name, fileType, file.size, 'bytes');
     
     try {
       setError(null);
@@ -445,13 +468,12 @@ function TranscribeScreen() {
         setIsProcessing(true);
         setProgress({ step: 'upload', message: 'Lade Datei hoch...', progress: 0 });
         
-        console.log('[TranscribeScreen] Uploading MP3:', file.name);
+        logger.log('[TranscribeScreen] Uploading MP3:', file.name);
         const uploadResult = await uploadFile(file);
-        console.log('[TranscribeScreen] Upload result:', uploadResult);
+        logger.log('[TranscribeScreen] Upload result:', uploadResult);
         
         // Create a Blob URL for the audio player (local playback)
         const blobUrl = URL.createObjectURL(file);
-        console.log('[TranscribeScreen] Created Blob URL:', blobUrl);
         
         // Store file info with Blob URL and buffer reference
         const audioFileData = {
@@ -465,12 +487,7 @@ function TranscribeScreen() {
         setAudioFile(audioFileData);
         setAudioUrl(blobUrl);
         
-        console.log('[TranscribeScreen] ✅ MP3 gespeichert in State:', audioFileData);
-        console.log('[TranscribeScreen] Current selectedUserId:', selectedUserId);
-        console.log('[TranscribeScreen] Current transcription length:', transcription?.length || 0);
-        console.log('[TranscribeScreen] ========================================');
-        
-        console.log('✓ MP3 hochgeladen und geladen:', file.name);
+        logger.log('[TranscribeScreen] ✅ MP3 gespeichert:', file.name);
         
         setIsProcessing(false);
         setProgress({ step: '', message: '', progress: 0 });
@@ -478,7 +495,7 @@ function TranscribeScreen() {
         setError('Nur MP3-Dateien werden hier unterstützt');
       }
     } catch (err) {
-      console.error('File drop error:', err);
+      logger.error('File drop error:', err);
       setError(err.message || 'Fehler beim Hochladen der Datei');
       setIsProcessing(false);
     }
@@ -486,48 +503,25 @@ function TranscribeScreen() {
   
   // Handle text file drop (in TranscriptView)
   const handleTextFileDrop = async (text) => {
-    console.log('[TranscribeScreen] ========================================');
-    console.log('[TranscribeScreen] 📄 handleTextFileDrop called');
-    console.log('[TranscribeScreen] ========================================');
-    console.log('[TranscribeScreen] Text length:', text?.length);
-    console.log('[TranscribeScreen] Current selectedUserId:', selectedUserId);
-    console.log('[TranscribeScreen] Current selectedUserName:', selectedUserName);
-    console.log('[TranscribeScreen] Current audioFile:', audioFile);
-    console.log('[TranscribeScreen] ========================================');
+    logger.log('[TranscribeScreen] 📄 handleTextFileDrop:', text?.length, 'Zeichen');
     
     setTranscription(text);
-    console.log('[TranscribeScreen] ✅ Text in State gesetzt');
     
-    // Automatisches Speichern wenn:
-    // 1. User ausgewählt ist
-    // 2. MP3 geladen ist
-    // 3. Transkription vorhanden ist
+    // Automatisches Speichern wenn User, MP3 und Text vorhanden sind
     if (selectedUserId && audioFile && text && text.trim()) {
-      console.log('[TranscribeScreen] 🚀 AUTO-SAVE: Alle Bedingungen erfüllt, speichere automatisch...');
-      console.log('[TranscribeScreen]   ✓ User ausgewählt:', selectedUserId, selectedUserName);
-      console.log('[TranscribeScreen]   ✓ MP3 geladen:', audioFile.name);
-      console.log('[TranscribeScreen]   ✓ Transkription vorhanden:', text.length, 'Zeichen');
-      
-      // Prüfe ob Summary vorhanden
       const hasSummary = text.includes('Gesamtzusammenfassung:');
-      console.log('[TranscribeScreen]   ✓ Has Summary:', hasSummary);
+      logger.log('[TranscribeScreen] 🚀 AUTO-SAVE gestartet, hasSummary:', hasSummary);
       
-      // Automatisch speichern
       const saveResult = await saveTranscriptionWithMp3(text, hasSummary);
       
       if (saveResult) {
-        console.log('[TranscribeScreen] ✅ AUTO-SAVE erfolgreich!');
+        logger.log('[TranscribeScreen] ✅ AUTO-SAVE erfolgreich!');
       } else {
-        console.error('[TranscribeScreen] ❌ AUTO-SAVE fehlgeschlagen!');
+        logger.error('[TranscribeScreen] ❌ AUTO-SAVE fehlgeschlagen!');
       }
     } else {
-      console.warn('[TranscribeScreen] ⚠️ AUTO-SAVE übersprungen - Bedingungen nicht erfüllt:');
-      console.warn('[TranscribeScreen]   selectedUserId:', selectedUserId ? '✓' : '❌ FEHLT');
-      console.warn('[TranscribeScreen]   audioFile:', audioFile ? '✓' : '❌ FEHLT');
-      console.warn('[TranscribeScreen]   text:', (text && text.trim()) ? '✓' : '❌ FEHLT');
-      console.warn('[TranscribeScreen] 💡 Bitte klicken Sie den "💾 Transkription in Datenbank speichern" Button');
+      logger.warn('[TranscribeScreen] ⚠️ AUTO-SAVE übersprungen - Bedingungen nicht erfüllt');
     }
-    console.log('[TranscribeScreen] ========================================');
   };
   
   // Handle timestamp click
@@ -546,110 +540,62 @@ function TranscribeScreen() {
   
   // Helper function to save transcription with MP3 data
   const saveTranscriptionWithMp3 = async (transcriptionText, hasSummary = false) => {
-    console.log('[TranscribeScreen] 💾 saveTranscriptionWithMp3 called');
-    console.log('[TranscribeScreen] Selected User ID:', selectedUserId);
-    console.log('[TranscribeScreen] Selected User Name:', selectedUserName);
-    console.log('[TranscribeScreen] Audio File:', audioFile);
-    console.log('[TranscribeScreen] Transcription length:', transcriptionText?.length);
-    console.log('[TranscribeScreen] Has Summary:', hasSummary);
-    
     if (!selectedUserId) {
-      console.error('❌ [TranscribeScreen] Kein User ausgewählt, Speicherung wird übersprungen.');
+      logger.error('❌ [TranscribeScreen] Kein User ausgewählt, Speicherung übersprungen.');
       setError('⚠️ Kein Benutzer ausgewählt! Bitte wählen Sie einen Benutzer aus.');
       return null;
     }
     
     if (!audioFile) {
-      console.error('❌ [TranscribeScreen] Keine MP3-Datei geladen, Speicherung wird übersprungen.');
+      logger.error('❌ [TranscribeScreen] Keine MP3-Datei geladen, Speicherung übersprungen.');
       setError('⚠️ Keine MP3-Datei geladen!');
       return null;
     }
     
     if (!transcriptionText || !transcriptionText.trim()) {
-      console.error('❌ [TranscribeScreen] Keine Transkription vorhanden!');
+      logger.error('❌ [TranscribeScreen] Keine Transkription vorhanden!');
       setError('⚠️ Keine Transkription vorhanden!');
       return null;
     }
     
     try {
-      console.log('→ [TranscribeScreen] Speichere Transkription für User:', selectedUserId, selectedUserName);
-      console.log('  MP3:', audioFile.name);
-      console.log('  Has Summary:', hasSummary);
+      logger.log('→ [TranscribeScreen] Speichere für User:', selectedUserId, '| MP3:', audioFile.name, '| hasSummary:', hasSummary);
       
-      // Verwende die original File aus dem audioFile-Objekt
       let mp3File = null;
       if (audioFile.originalFile) {
-        console.log('  Using originalFile as mp3File');
         mp3File = audioFile.originalFile;
-        console.log('  MP3 File size:', mp3File.size, 'bytes');
       } else {
-        console.warn('  ⚠️ No originalFile found, saving without MP3 file');
+        logger.warn('⚠️ No originalFile found, saving without MP3 file');
       }
       
       const saveData = {
-        target_user_id: selectedUserId,  // Backend erwartet target_user_id
+        target_user_id: selectedUserId,
         mp3_filename: audioFile.name,
-        mp3_file: mp3File,  // File-Objekt statt Buffer-Array
+        mp3_file: mp3File,
         transcription_text: transcriptionText,
         has_summary: hasSummary
       };
       
-      console.log('  Save data prepared:', {
-        target_user_id: saveData.target_user_id,
-        mp3_filename: saveData.mp3_filename,
-        mp3_file_size: saveData.mp3_file?.size || 0,
-        transcription_text_length: saveData.transcription_text?.length || 0,
-        has_summary: saveData.has_summary
-      });
-      
-      console.log('  Calling saveTranscription API...');
       const saveResult = await saveTranscription(saveData);
-      
-      console.log('✅ [TranscribeScreen] Transkription gespeichert:', saveResult);
-      console.log('  Response:', JSON.stringify(saveResult, null, 2));
       
       if (saveResult.success) {
         setSavedTranscriptionId(saveResult.transcriptionId || saveResult.id);
         setSaveSuccess(true);
         
-        console.log('  ✅ Save successful! Transcription ID:', saveResult.transcriptionId || saveResult.id);
-        console.log('  Action:', saveResult.action); // 'created', 'updated', or 'unchanged'
-        console.log('  MP3 Changed:', saveResult.mp3_changed);
-        
-        if (saveResult.action === 'unchanged') {
-          console.log('  ℹ️ Keine Änderungen (MP3-Hash ist identisch, keine Updates erforderlich)');
-        } else if (saveResult.action === 'updated') {
-          console.log('  ♻️ Transkription wurde aktualisiert (UPDATE)');
-          if (saveResult.mp3_changed) {
-            console.log('    └─ MP3-Datei wurde aktualisiert (Hash geändert)');
-          } else {
-            console.log('    └─ Nur Text/Summary aktualisiert (MP3-Hash unverändert)');
-          }
-        } else {
-          console.log('  ➕ Neue Transkription wurde erstellt (INSERT)');
-        }
+        logger.log('✅ [TranscribeScreen] Gespeichert! ID:', saveResult.transcriptionId || saveResult.id, '| Action:', saveResult.action);
         
         // Zeige Erfolgsmeldung für 3 Sekunden
-        setTimeout(() => {
-          console.log('  Hiding success message after 3 seconds');
-          setSaveSuccess(false);
-        }, 3000);
+        setTimeout(() => setSaveSuccess(false), 3000);
         
         return saveResult;
       } else {
-        console.error('  ❌ Save failed:', saveResult.error);
+        logger.error('❌ Save failed:', saveResult.error);
         setError(`Fehler beim Speichern: ${saveResult.error}`);
         return null;
       }
       
     } catch (error) {
-      console.error('❌ [TranscribeScreen] Fehler beim Speichern der Transkription:', error);
-      console.error('  Error name:', error.name);
-      console.error('  Error message:', error.message);
-      console.error('  Error stack:', error.stack);
-      console.error('  Error response:', error.response);
-      console.error('  Error response data:', error.response?.data);
-      
+      logger.error('❌ [TranscribeScreen] Fehler beim Speichern:', error.message, error.response?.data);
       setError(`Fehler beim Speichern: ${error.response?.data?.error || error.message}`);
       return null;
     }
@@ -657,14 +603,47 @@ function TranscribeScreen() {
   
   // Manual save function (for manually loaded transcriptions)
   const handleManualSave = async () => {
-    console.log('[TranscribeScreen] 💾 handleManualSave called (manual save button clicked)');
+    logger.log('[TranscribeScreen] 💾 handleManualSave aufgerufen');
     const hasSummary = transcription && transcription.includes('Gesamtzusammenfassung:');
     const result = await saveTranscriptionWithMp3(transcription, hasSummary);
-    if (result) {
-      console.log('[TranscribeScreen] ✅ Manual save successful');
-    } else {
-      console.error('[TranscribeScreen] ❌ Manual save failed');
+    if (!result) {
+      logger.error('[TranscribeScreen] ❌ Manual save fehlgeschlagen');
     }
+  };
+  
+  // Smart Save - Intelligente Speicher-Logik
+  const handleSmartSave = async () => {
+    logger.log('[TranscribeScreen] 💾 handleSmartSave aufgerufen', {
+      savedTranscriptionId,
+      selectedUserId,
+      isAdmin: user?.isAdmin
+    });
+
+    // Fall 1: Transkription ist bereits mit einer ID assoziiert → Update
+    if (savedTranscriptionId) {
+      logger.log('[TranscribeScreen] ✅ Update existierende Transkription:', savedTranscriptionId);
+      const hasSummary = transcription && transcription.includes('Gesamtzusammenfassung:');
+      const result = await saveTranscriptionWithMp3(transcription, hasSummary);
+      if (!result) {
+        logger.error('[TranscribeScreen] ❌ Update fehlgeschlagen');
+      }
+      return;
+    }
+
+    // Fall 2: Keine ID, aber User bereits ausgewählt → Direkt speichern
+    if (selectedUserId) {
+      logger.log('[TranscribeScreen] ✅ Neue Transkription für bereits ausgewählten User:', selectedUserId);
+      const hasSummary = transcription && transcription.includes('Gesamtzusammenfassung:');
+      const result = await saveTranscriptionWithMp3(transcription, hasSummary);
+      if (!result) {
+        logger.error('[TranscribeScreen] ❌ Save fehlgeschlagen');
+      }
+      return;
+    }
+
+    // Fall 3: Keine ID und kein User → User-Auswahl Modal öffnen
+    logger.log('[TranscribeScreen] 📋 Öffne User-Auswahl Modal');
+    setShowUserModal(true);
   };
   
   // Handle reset - clear all loaded files
@@ -692,7 +671,7 @@ function TranscribeScreen() {
       setSelectedUserName(displayName);
     }
     
-    console.log('✓ Dateien zurückgesetzt. Beide Drop-Areas sind jetzt aktiv.');
+    logger.log('✓ Dateien zurückgesetzt.');
   };
   
   // ============================================================================
@@ -703,7 +682,7 @@ function TranscribeScreen() {
   const handleTranscribeLocal = async () => {
     // EINFACHE LOGIK: MP3 vorhanden? Direkt verwenden! Sonst Modal.
     if (audioFile && audioFile.name) {
-      console.log('✓ Starte Transkription für:', audioFile.name);
+      logger.log('✓ Starte Transkription für:', audioFile.name);
       
       // Reset live output states
       setLiveOutputs([]);
@@ -717,7 +696,7 @@ function TranscribeScreen() {
       try {
         await transcribeLocal(audioFile.name, socketRef.current?.id);
       } catch (err) {
-        console.error('✗ Transkription fehlgeschlagen:', err);
+        logger.error('✗ Transkription fehlgeschlagen:', err);
         setError(err.message);
         setHasLiveError(true);
         setIsProcessing(false);
@@ -730,7 +709,7 @@ function TranscribeScreen() {
       }
     } else {
       // Keine MP3 geladen → Modal öffnen
-      console.log('✓ Keine MP3 geladen, öffne Dateiauswahl');
+      logger.log('✓ Keine MP3 geladen, öffne Dateiauswahl');
       setFileModalType('mp3');
       setShowFileModal(true);
     }
@@ -744,7 +723,7 @@ function TranscribeScreen() {
     
     if (hasTranscriptionWithoutSummary) {
       // Transkription ohne Summary vorhanden → direkt verwenden
-      console.log('✓ Verwende aktuelle Transkription (ohne Summary) für lokale Zusammenfassung');
+      logger.log('✓ Verwende aktuelle Transkription (ohne Summary) für lokale Zusammenfassung');
       
       // Reset live output states
       setLiveOutputs([]);
@@ -758,9 +737,9 @@ function TranscribeScreen() {
       try {
         // Sende die aktuelle Transkription direkt an das Backend
         const response = await summarizeLocal(null, socketRef.current?.id, transcription);
-        console.log('✓ Lokale Zusammenfassung gestartet:', response);
+        logger.log('✓ Lokale Zusammenfassung gestartet:', response);
       } catch (err) {
-        console.error('✗ Lokale Zusammenfassung fehlgeschlagen:', err);
+        logger.error('✗ Lokale Zusammenfassung fehlgeschlagen:', err);
         setError(err.message);
         setHasLiveError(true);
         setIsProcessing(false);
@@ -774,9 +753,9 @@ function TranscribeScreen() {
     } else {
       // Keine Transkription oder bereits Summary vorhanden → zeige Auswahl-Dialog
       if (hasSummary) {
-        console.log('✓ Transkription hat bereits Summary, öffne Dateiauswahl für andere Datei');
+        logger.log('✓ Transkription hat bereits Summary, öffne Dateiauswahl');
       } else {
-        console.log('✓ Keine Transkription vorhanden, öffne Dateiauswahl');
+        logger.log('✓ Keine Transkription vorhanden, öffne Dateiauswahl');
       }
       setFileModalType('txt');
       setShowFileModal(true);
@@ -785,7 +764,7 @@ function TranscribeScreen() {
   
   // Handle file selection from modal
   const handleFileSelect = async (filename) => {
-    console.log(`✓ Datei ausgewählt: ${filename} (Typ: ${fileModalType})`);
+    logger.log(`✓ Datei ausgewählt: ${filename} (Typ: ${fileModalType})`);
     
     // Reset live output states
     setLiveOutputs([]);
@@ -805,7 +784,7 @@ function TranscribeScreen() {
         // Load the result
         if (result.success) {
           setTranscription(result.transcription);
-          console.log(`✓ Transkription abgeschlossen: ${result.filename}`);
+          logger.log(`✓ Transkription abgeschlossen: ${result.filename}`);
           
           // MP3 im Player laden
           if (result.mp3Filename) {
@@ -813,7 +792,7 @@ function TranscribeScreen() {
             const mp3StreamUrl = `${backendUrl}/api/files/stream?path=${encodeURIComponent(`D:\\Projekte_KI\\pyenv_1_transcode_durchgabe\\audio\\${result.mp3Filename}`)}`;
             setAudioUrl(mp3StreamUrl);
             setAudioFile({ name: result.mp3Filename });
-            console.log(`✓ MP3 im Player geladen: ${result.mp3Filename}`);
+            logger.log(`✓ MP3 im Player geladen: ${result.mp3Filename}`);
           }
         }
         
@@ -836,7 +815,7 @@ function TranscribeScreen() {
         // Load the result
         if (result.success) {
           setTranscription(result.transcription);
-          console.log(`✓ Zusammenfassung abgeschlossen: ${result.filename}`);
+          logger.log(`✓ Zusammenfassung abgeschlossen: ${result.filename}`);
         }
         
         setIsProcessing(false);
@@ -850,7 +829,7 @@ function TranscribeScreen() {
       }
       
     } catch (err) {
-      console.error('Lokale Verarbeitung fehlgeschlagen:', err);
+      logger.error('Lokale Verarbeitung fehlgeschlagen:', err);
       setHasLiveError(true);
       setIsProcessing(false);
       
@@ -947,47 +926,6 @@ function TranscribeScreen() {
           </div>
         )}
         
-        {/* User Selector - Button to open modal */}
-        {(audioUrl || transcription) && (
-          <div className="mb-6">
-            <div className="bg-white rounded-lg p-4 border border-gray-300 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Transkription speichern für Benutzer:
-                  </label>
-                  {selectedUserId ? (
-                    <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-                      <div>
-                        <p className="text-sm text-gray-600">Ausgewählt:</p>
-                        <p className="font-semibold text-gray-900">{selectedUserName}</p>
-                      </div>
-                      <button
-                        onClick={() => setShowUserModal(true)}
-                        className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition font-medium"
-                      >
-                        Ändern
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setShowUserModal(true)}
-                      className="w-full px-4 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition font-medium shadow-md hover:shadow-lg"
-                    >
-                      Benutzer auswählen
-                    </button>
-                  )}
-                </div>
-              </div>
-              {!selectedUserId && (
-                <p className="mt-2 text-xs text-gray-500">
-                  💡 Bitte wählen Sie einen Benutzer aus, für den die Transkription gespeichert werden soll
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-        
         {/* Text Drop Zone (always below MP3/Player) */}
         {!transcription && (
           <div className="mb-6">
@@ -1019,50 +957,6 @@ function TranscribeScreen() {
           </div>
         )}
         
-        {/* Manual Save Button - for manually loaded transcriptions */}
-        {transcription && selectedUserId && !saveSuccess && !isProcessing && (
-          <div className="mb-6">
-            <button
-              onClick={handleManualSave}
-              className="w-full px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition flex items-center justify-center space-x-2"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-              </svg>
-              <span>💾 Transkription in Datenbank speichern</span>
-            </button>
-            <p className="mt-2 text-xs text-gray-500 text-center">
-              Klicken Sie hier, um die Transkription permanent für <span className="font-semibold">{selectedUserName}</span> zu speichern
-            </p>
-          </div>
-        )}
-        
-        {/* Associated User Info - zeigt den User an, für den diese Transkription gespeichert ist/wird */}
-        {(transcription || audioFile) && selectedUserId && !saveSuccess && savedTranscriptionId && (
-          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center space-x-3">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-medium text-blue-800">
-                  Diese Transkription ist assoziiert mit:
-                </h3>
-                <p className="mt-1 text-sm text-blue-700">
-                  <span className="font-semibold">{selectedUserName}</span>
-                  {savedTranscriptionId && (
-                    <span className="ml-2 text-xs font-mono bg-blue-100 px-2 py-1 rounded">
-                      ID: {savedTranscriptionId}
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-        
         {/* Control Panel */}
         <div className="mb-6">
           <ControlPanel
@@ -1076,6 +970,10 @@ function TranscribeScreen() {
             onToggleEdit={() => setIsEditMode(!isEditMode)}
             onReset={handleReset}
             isAdmin={user?.isAdmin || false}
+            onSmartSave={handleSmartSave}
+            saveSuccess={saveSuccess}
+            savedTranscriptionId={savedTranscriptionId}
+            selectedUserName={selectedUserName}
           />
         </div>
         
@@ -1132,7 +1030,6 @@ function TranscribeScreen() {
         isComplete={isLiveComplete}
         hasError={hasLiveError}
         onClose={() => {
-          console.log('✓ Live Output Modal geschlossen');
           setShowLiveOutput(false);
           setIsProcessing(false);
         }}
@@ -1142,22 +1039,22 @@ function TranscribeScreen() {
       <UserSelectorModal
         isOpen={showUserModal}
         onClose={() => setShowUserModal(false)}
-        onSelectUser={(userId, userName) => {
-          console.log('[TranscribeScreen] ========================================');
-          console.log('[TranscribeScreen] 👤 USER SELECTED:');
-          console.log('[TranscribeScreen] ========================================');
-          console.log('[TranscribeScreen] User ID:', userId);
-          console.log('[TranscribeScreen] User Name:', userName);
-          console.log('[TranscribeScreen] Previous User ID:', selectedUserId);
-          console.log('[TranscribeScreen] Previous User Name:', selectedUserName);
-          
+        onSelectUser={async (userId, userName) => {
+          logger.log('[TranscribeScreen] 👤 User ausgewählt:', userId, userName);
           setSelectedUserId(userId);
           setSelectedUserName(userName);
           
-          console.log('[TranscribeScreen] ✅ User State aktualisiert');
-          console.log('[TranscribeScreen] Current audioFile:', audioFile);
-          console.log('[TranscribeScreen] Current transcription length:', transcription?.length || 0);
-          console.log('[TranscribeScreen] ========================================');
+          // Automatisches Speichern nach User-Auswahl
+          if (transcription && !savedTranscriptionId) {
+            logger.log('[TranscribeScreen] 💾 Automatisches Speichern nach User-Auswahl');
+            setShowUserModal(false);
+            
+            // Kurze Verzögerung damit der User die Auswahl sieht
+            setTimeout(async () => {
+              const hasSummary = transcription.includes('Gesamtzusammenfassung:');
+              await saveTranscriptionWithMp3(transcription, hasSummary);
+            }, 300);
+          }
         }}
         currentUser={user}
       />

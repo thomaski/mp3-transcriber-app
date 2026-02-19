@@ -4,6 +4,62 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert
 
 ---
 
+## [2.1.0] - 2026-02-19
+
+### 🎨 **UI/UX Verbesserungen & Vereinfachungen**
+
+#### **TranscribeScreen - Vereinfachte Speicher-Logik**
+- ❌ **Entfernt:** Komplexer "Transkription speichern für Benutzer" Block
+- ❌ **Entfernt:** Separate "Transkription in Datenbank speichern" Button
+- ✅ **Neu:** Einzelner intelligenter "💾 Transkription speichern" Button mit Auto-Logik:
+  - Wenn ID vorhanden → Direkt Update in DB
+  - Wenn User ausgewählt → Direkt für User speichern
+  - Wenn kein User → User-Auswahl Modal öffnen → Auto-Save nach Auswahl
+
+#### **ControlPanel - Optimiertes Button-Layout**
+- Buttons jetzt in einer übersichtlichen Zeile angeordnet
+- **Links:** Admin-Buttons (Transcribe MP3, Summarize) + Transkription speichern
+- **Rechts:** Neue Datei laden, Edit-Modus Toggle
+- Status-Anzeige unter Buttons: Audio, Transkription, Verarbeitungsstatus
+- Success-Info nach Speichern: "✅ Gespeichert für: [Username] ID: [xyz]"
+
+#### **Dashboard - Rollenbasierte Anzeige**
+- "MP3 Transkribieren" Kachel nur noch für Admins sichtbar
+- Normale User sehen nur für sie relevante Funktionen
+
+#### **UserManagement - Layout-Optimierung**
+- Grid-Layout angepasst: `grid-cols-2` statt `grid-cols-[1fr_420px]`
+- Beide Spalten jetzt gleich breit (50/50) für bessere Zentrierung
+- Zusätzliche Container-Begrenzung: `max-w-6xl mx-auto`
+- MP3-Transkriptionen aufsteigend sortiert nach Dateinamen (A-Z)
+
+#### **Public Access - Verbesserter Flow**
+- Nach Public Access Verifikation direkt zu `/my-transcriptions` statt Dashboard
+- `PublicMp3View` leitet jetzt automatisch zur TranscribeScreen mit geladener Transkription weiter
+- Keine separate "Public View" mehr - direkt vollwertige TranscribeScreen
+
+#### **MyTranscriptions - Neue Seite**
+- Clickbare MP3-Transkriptionen in User-Liste
+- Navigation zu spezifischer Transkription: `/transcribe/:transcriptionId`
+- Übersichtliche Tabelle mit ID, MP3-Datei, Summary-Status, Erstelldatum
+
+### 🔧 **Backend Improvements**
+
+#### **Cache-Control Headers**
+- `index.html`: `no-cache, no-store, must-revalidate` (nie cachen)
+- JS/CSS Bundles: `public, max-age=31536000, immutable` (1 Jahr cachen)
+- Verhindert Browser-Cache-Probleme nach Deployments
+
+#### **Lazy Loading**
+- `UserManagement` Component wird jetzt lazy geladen (`React.lazy`)
+- Verhindert Tree-Shaking-Probleme bei Admin-only Components
+- Bessere Performance durch Code-Splitting
+
+### 📝 **Dokumentation**
+- CHANGELOG.md aktualisiert mit allen Änderungen vom 2026-02-19
+
+---
+
 ## [2.0.0] - 2026-02-18
 
 ### 🎉 **Major Release: PostgreSQL Migration & Neue Features**

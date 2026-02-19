@@ -4,25 +4,25 @@
  */
 
 import axios from 'axios';
+import logger from '../utils/logger';
 
 // Use relative /api path (works with reverse proxy)
 const API_URL = '/api/public';
 
 /**
  * Check ID type (user or MP3)
+ * @param {string} id - Public access ID
+ * @returns {Promise<Object>} ID type info
  */
 export async function checkId(id) {
-  console.log('[publicAccessService] checkId called with:', id);
+  logger.log('[publicAccessService] checkId aufgerufen:', id);
   try {
-    const url = `${API_URL}/check/${id}`;
-    console.log('[publicAccessService] GET request to:', url);
-    const response = await axios.get(url);
-    console.log('[publicAccessService] checkId response:', response.data);
+    const response = await axios.get(`${API_URL}/check/${id}`);
+    logger.log('[publicAccessService] checkId Ergebnis:', response.data?.type);
     return response.data;
   } catch (error) {
-    console.error('[publicAccessService] checkId error:', error);
+    logger.error('[publicAccessService] checkId Fehler:', error.response?.data || error.message);
     if (error.response) {
-      console.error('[publicAccessService] Error response:', error.response.data);
       throw error.response.data;
     }
     throw error;
@@ -33,65 +33,45 @@ export const checkIdType = checkId; // Alias
 
 /**
  * Verify password for ID
+ * @param {string} id - Public access ID
+ * @param {string} password - Access password (NIEMALS loggen!)
+ * @returns {Promise<Object>} Auth token and access data
  */
 export async function verifyPassword(id, password) {
-  console.log('[publicAccessService] 🔐🔐🔐 verifyPassword called 🔐🔐🔐');
-  console.log('[publicAccessService] ID:', id);
-  console.log('[publicAccessService] Password:', password);
-  console.log('[publicAccessService] Password length:', password?.length);
+  // Passwort NIEMALS loggen - nur die ID
+  logger.log('[publicAccessService] verifyPassword aufgerufen für ID:', id);
   
   try {
-    const url = `${API_URL}/verify/${id}`;
-    console.log('[publicAccessService] 📡 Sending POST request to:', url);
-    console.log('[publicAccessService] Request body:', { password });
+    const response = await axios.post(`${API_URL}/verify/${id}`, { password });
     
-    const response = await axios.post(url, { password });
-    
-    console.log('[publicAccessService] ✅✅✅ Response received ✅✅✅');
-    console.log('[publicAccessService] Response status:', response.status);
-    console.log('[publicAccessService] Response headers:', response.headers);
-    console.log('[publicAccessService] Response data:', JSON.stringify(response.data, null, 2));
-    console.log('[publicAccessService] Response.data.success:', response.data.success);
-    console.log('[publicAccessService] Response.data.type:', response.data.type);
-    console.log('[publicAccessService] Response.data.token:', response.data.token ? `EXISTS (${response.data.token.length} chars)` : 'MISSING');
-    console.log('[publicAccessService] Response.data.user:', response.data.user ? 'EXISTS' : 'MISSING');
-    
-    if (response.data.user) {
-      console.log('[publicAccessService] User details:', JSON.stringify(response.data.user, null, 2));
-    }
-    
+    logger.log('[publicAccessService] ✅ verifyPassword erfolgreich, type:', response.data?.type);
     return response.data;
   } catch (error) {
-    console.error('[publicAccessService] ❌❌❌ verifyPassword ERROR ❌❌❌');
-    console.error('[publicAccessService] Error:', error);
-    console.error('[publicAccessService] Error message:', error.message);
+    logger.error('[publicAccessService] ❌ verifyPassword Fehler:', error.response?.data || error.message);
     
     if (error.response) {
-      console.error('[publicAccessService] Error response status:', error.response.status);
-      console.error('[publicAccessService] Error response data:', JSON.stringify(error.response.data, null, 2));
       throw error.response.data;
     }
     
-    console.error('[publicAccessService] Network error or no response');
     throw error;
   }
 }
 
 /**
  * Get all MP3s for a user (public access)
+ * @param {string} userId - User ID
+ * @param {string} password - Access password
+ * @returns {Promise<Object>} MP3 list
  */
 export async function getUserMp3List(userId, password) {
-  console.log('[publicAccessService] getUserMp3List called with userId:', userId, 'password length:', password?.length);
+  logger.log('[publicAccessService] getUserMp3List aufgerufen, userId:', userId);
   try {
-    const url = `${API_URL}/user/${userId}?pw=${encodeURIComponent(password)}`;
-    console.log('[publicAccessService] GET request to:', url);
-    const response = await axios.get(url);
-    console.log('[publicAccessService] getUserMp3List response:', response.data);
+    const response = await axios.get(`${API_URL}/user/${userId}?pw=${encodeURIComponent(password)}`);
+    logger.log('[publicAccessService] getUserMp3List: ', response.data?.mp3s?.length || 0, 'MP3s geladen');
     return response.data;
   } catch (error) {
-    console.error('[publicAccessService] getUserMp3List error:', error);
+    logger.error('[publicAccessService] getUserMp3List Fehler:', error.response?.data || error.message);
     if (error.response) {
-      console.error('[publicAccessService] Error response:', error.response.data);
       throw error.response.data;
     }
     throw error;
@@ -102,19 +82,19 @@ export const getUserMp3sPublic = getUserMp3List; // Alias
 
 /**
  * Get single MP3 transcription (public access)
+ * @param {string} mp3Id - MP3 ID
+ * @param {string} password - Access password
+ * @returns {Promise<Object>} Transcription data
  */
 export async function getMp3Transcription(mp3Id, password) {
-  console.log('[publicAccessService] getMp3Transcription called with mp3Id:', mp3Id, 'password length:', password?.length);
+  logger.log('[publicAccessService] getMp3Transcription aufgerufen, mp3Id:', mp3Id);
   try {
-    const url = `${API_URL}/mp3/${mp3Id}?pw=${encodeURIComponent(password)}`;
-    console.log('[publicAccessService] GET request to:', url);
-    const response = await axios.get(url);
-    console.log('[publicAccessService] getMp3Transcription response:', response.data);
+    const response = await axios.get(`${API_URL}/mp3/${mp3Id}?pw=${encodeURIComponent(password)}`);
+    logger.log('[publicAccessService] ✅ getMp3Transcription erfolgreich');
     return response.data;
   } catch (error) {
-    console.error('[publicAccessService] getMp3Transcription error:', error);
+    logger.error('[publicAccessService] getMp3Transcription Fehler:', error.response?.data || error.message);
     if (error.response) {
-      console.error('[publicAccessService] Error response:', error.response.data);
       throw error.response.data;
     }
     throw error;

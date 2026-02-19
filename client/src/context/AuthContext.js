@@ -5,6 +5,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { checkAuth, login as loginApi, logout as logoutApi, getCurrentUser } from '../services/authService';
+import logger from '../utils/logger';
 
 const AuthContext = createContext(null);
 
@@ -20,7 +21,7 @@ function cleanupOldAuthData() {
   const storedVersion = localStorage.getItem(AUTH_VERSION_KEY);
   
   if (storedVersion !== AUTH_VERSION) {
-    console.log('🧹 Migriere Auth-System auf Version', AUTH_VERSION);
+    logger.log('🧹 Migriere Auth-System auf Version', AUTH_VERSION);
     
     // Alle Cookies löschen
     document.cookie.split(";").forEach((c) => {
@@ -36,7 +37,7 @@ function cleanupOldAuthData() {
     
     // Version updaten
     localStorage.setItem(AUTH_VERSION_KEY, AUTH_VERSION);
-    console.log('✅ Auth-System migriert!');
+    logger.log('✅ Auth-System migriert!');
   }
 }
 
@@ -53,75 +54,61 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function checkAuthStatus() {
-    console.log('[AuthContext] 🔍🔍🔍 checkAuthStatus called 🔍🔍🔍');
+    logger.log('[AuthContext] checkAuthStatus aufgerufen');
     
     try {
       // Wenn kein Token vorhanden, direkt abbrechen
       const token = localStorage.getItem('authToken');
-      console.log('[AuthContext] Checking for authToken in localStorage...');
-      console.log('[AuthContext] authToken exists:', !!token);
+      logger.log('[AuthContext] authToken vorhanden:', !!token);
       
-      if (token) {
-        console.log('[AuthContext] authToken found (first 20 chars):', token.substring(0, 20) + '...');
-        console.log('[AuthContext] authToken length:', token.length);
-      } else {
-        console.log('[AuthContext] ❌ No authToken found in localStorage');
-        console.log('[AuthContext] LocalStorage contents:', JSON.stringify(localStorage));
+      if (!token) {
+        logger.log('[AuthContext] Kein Token - nicht eingeloggt');
         setUser(null);
         setLoading(false);
         return;
       }
       
-      console.log('[AuthContext] 📡 Calling checkAuth API...');
       const response = await checkAuth();
-      console.log('[AuthContext] checkAuth response:', JSON.stringify(response, null, 2));
-      console.log('[AuthContext] response.success:', response.success);
-      console.log('[AuthContext] response.authenticated:', response.authenticated);
+      logger.log('[AuthContext] checkAuth Ergebnis: authenticated =', response.authenticated);
       
       if (response.success && response.authenticated) {
-        console.log('[AuthContext] ✅ User authenticated!');
-        console.log('[AuthContext] User data:', JSON.stringify(response.user, null, 2));
+        logger.log('[AuthContext] ✅ Benutzer authentifiziert:', response.user?.username);
         setUser(response.user);
       } else {
         // Token ungültig → entfernen
-        console.warn('[AuthContext] ⚠️ Token invalid, removing...');
+        logger.warn('[AuthContext] ⚠️ Token ungültig, wird entfernt');
         localStorage.removeItem('authToken');
         setUser(null);
       }
     } catch (error) {
       // Bei Fehler: Token entfernen
-      console.error('[AuthContext] ❌ Auth check error:', error);
-      console.error('[AuthContext] Error message:', error.message);
-      console.error('[AuthContext] Error stack:', error.stack);
+      logger.error('[AuthContext] ❌ Auth-Check Fehler:', error.message);
       localStorage.removeItem('authToken');
       setUser(null);
     } finally {
-      console.log('[AuthContext] checkAuthStatus complete, setting loading=false');
       setLoading(false);
     }
   }
 
   async function login(username, password) {
-    console.log('🔐 AuthContext.login aufgerufen:', { username });
+    logger.log('🔐 [AuthContext] login aufgerufen für:', username);
     setError(null);
     setLoading(true);
     
     try {
-      console.log('📡 Rufe loginApi auf...');
       const response = await loginApi(username, password);
-      console.log('✅ loginApi Response:', response);
       
       if (response.success) {
         setUser(response.user);
-        console.log('✅ User gesetzt:', response.user);
+        logger.log('✅ [AuthContext] Login erfolgreich:', response.user?.username);
         return { success: true, user: response.user };
       } else {
         setError(response.error);
-        console.error('❌ Login nicht erfolgreich:', response.error);
+        logger.warn('[AuthContext] Login abgelehnt:', response.error);
         return { success: false, error: response.error };
       }
     } catch (error) {
-      console.error('❌ AuthContext.login Fehler:', error);
+      logger.error('❌ [AuthContext] Login Fehler:', error.message);
       const errorMessage = error.response?.data?.error || 'Login fehlgeschlagen. Bitte versuchen Sie es erneut.';
       setError(errorMessage);
       return { success: false, error: errorMessage };
@@ -136,8 +123,8 @@ export function AuthProvider({ children }) {
       setUser(null);
       return { success: true };
     } catch (error) {
-      console.error('Logout error:', error);
-      // Clear user anyway
+      logger.error('[AuthContext] Logout Fehler:', error.message);
+      // User trotzdem ausloggen
       setUser(null);
       return { success: true };
     }
@@ -150,7 +137,7 @@ export function AuthProvider({ children }) {
         setUser(response.user);
       }
     } catch (error) {
-      console.error('Refresh user error:', error);
+      logger.error('[AuthContext] refreshUser Fehler:', error.message);
     }
   }
 

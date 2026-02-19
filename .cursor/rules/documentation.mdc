@@ -1,0 +1,85 @@
+---
+globs: *.js,*.jsx
+---
+
+# Dokumentation Guidelines
+
+## Grundprinzip
+> **Guter Code dokumentiert sich selbst - Kommentare erklären das WARUM, nicht das WAS**
+
+## Wann dokumentieren?
+
+### ✅ IMMER dokumentieren
+- **Komplexe Algorithmen**: Warum wurde dieser Ansatz gewählt?
+- **Business-Logik**: Regeln und Einschränkungen erklären
+- **Workarounds**: Warum wurde dieser "Hack" nötig?
+- **API-Endpoints**: Parameter, Return-Werte, Error-Cases
+- **Public Functions/Methods**: Zweck, Parameter, Return, Side-Effects
+
+### ❌ NICHT dokumentieren
+- Offensichtlichen Code: `i++; // increment i` ← überflüssig
+- Code der sich selbst erklärt durch gute Namen
+- Redundante Informationen
+
+## Dokumentations-Format
+
+### Funktions-Dokumentation
+```javascript
+/**
+ * Generiert einen Transkriptions-Job für eine MP3-Datei
+ * 
+ * @param {string} userId - ID des Users der den Job erstellt
+ * @param {string} filePath - Pfad zur MP3-Datei
+ * @param {Object} options - Optionale Einstellungen
+ * @param {string} options.language - Sprache für Transkription (default: 'de')
+ * @returns {Promise<Object>} Job-Objekt mit ID und Status
+ * @throws {Error} Wenn Datei nicht existiert oder User keine Rechte hat
+ */
+async function createTranscriptionJob(userId, filePath, options = {}) {
+  // Implementation...
+}
+```
+
+### Inline-Kommentare
+```javascript
+// WARUM: PostgreSQL array-Operationen sind in diesem Fall 
+// schneller als separate Queries
+const tags = await db.query('SELECT * FROM tags WHERE id = ANY($1)', [tagIds]);
+
+// WORKAROUND: Sonix API gibt manchmal leeren String statt null zurück
+const result = response.data || null;
+
+// TODO: Refactoring in separate Funktion wenn mehr als 3 Provider
+if (provider === 'sonix') { ... }
+```
+
+## Dokumentations-Sprache
+- **Kommentare**: Deutsch (wie im Projekt)
+- **Variable/Function-Namen**: Englisch (Standard)
+- **Error Messages für User**: Deutsch
+- **Error Messages für Entwickler**: Deutsch oder Englisch
+
+## README & Docs
+Projektdokumentation up-to-date halten:
+- **README.md**: Setup, Installation, Quick Start
+- **ARCHITECTURE.md**: System-Überblick, Komponenten
+- **CHANGELOG.md**: Versionen und Änderungen
+- **API-Docs**: Wenn API für andere Entwickler
+
+## Code-Kommentare vs. Git Commits
+- **Kommentare**: Erklären WARUM im Code-Context
+- **Commits**: Erklären WAS und WARUM geändert wurde
+- Beides ist wichtig, aber unterschiedliche Zwecke
+
+## TODOs und FIXMEs
+```javascript
+// TODO: Email-Benachrichtigung implementieren wenn Job fertig
+// FIXME: Memory Leak bei großen Files beheben
+// HACK: Temporärer Workaround bis Bug in Library gefixt ist
+// NOTE: Diese Funktion wird von Cronjob alle 5 Minuten aufgerufen
+```
+
+## Documentation Debt
+- Bestehenden undokumentierten Code nicht anfassen müssen
+- Aber: Wenn Code geändert wird, auch Doku aktualisieren
+- Neue komplexe Features: IMMER dokumentieren

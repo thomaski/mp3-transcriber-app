@@ -1,0 +1,63 @@
+---
+alwaysApply: true
+---
+
+# Testing Guidelines
+
+## Wann testen?
+- ✅ Nach jedem neuen Feature
+- ✅ Nach Bugfixes (Bug sollte vorher reproduzierbar sein)
+- ✅ Nach Refactorings
+- ✅ Vor jedem Git Commit
+- ✅ Nach Dependencies-Updates
+
+## Test-Ebenen
+
+### 1. Frontend-Tests
+**Was testen:**
+- ✅ GUI ist erreichbar und lädt
+- ✅ User-Menü wird korrekt angezeigt (für verschiedene User)
+- ✅ Formulare: Validierung, Submit, Fehlermeldungen
+- ✅ Buttons und Links funktionieren
+- ✅ Uploads funktionieren (File-Selection, Progress, Success/Error)
+- ✅ Responsive Design (verschiedene Bildschirmgrößen)
+
+**Browser Testing:**
+- Hauptbrowser testen (Chrome, Firefox, Edge)
+- Mobile-Ansicht prüfen wenn relevant
+
+### 2. Backend-Tests
+**Was testen:**
+- ✅ API-Endpoints: Erfolgreiche Requests
+- ✅ API-Endpoints: Error-Handling (falsche Parameter, fehlende Auth)
+- ✅ Datenbank-Operationen: CRUD funktioniert
+- ✅ Authentication & Authorization
+- ✅ File-Upload Handling
+- ✅ Rate Limiting funktioniert
+
+**Tools:**
+- Manuell mit Browser DevTools
+- API-Testing mit Postman/Insomnia oder curl
+- Automatisierte Tests mit Jest/Mocha (wenn vorhanden)
+
+### 3. Integration-Tests
+**End-to-End User-Flows testen:**
+- Login → Dashboard → Feature → Logout
+- Upload → Processing → Result Display
+- Fehlerszenarien durchspielen
+
+## Test-Credentials & Backend-Server
+→ Siehe `.cursor/rules/test-credentials.mdc` (lokal, nicht in Git)
+
+## Test-Dokumentation
+Nach Tests dokumentieren:
+- ✅ Was wurde getestet
+- ✅ Ergebnis (funktioniert / funktioniert nicht)
+- ⚠️ Gefundene Probleme
+- 📝 Nächste Schritte
+
+## Testing-Prinzipien
+- **Realistic**: Tests sollten reale User-Szenarien abdecken
+- **Reproducible**: Tests müssen wiederholbar sein
+- **Fast**: Tests sollten schnell ausführbar sein
+- **Isolated**: Tests sollten unabhängig voneinander sein

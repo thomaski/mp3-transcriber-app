@@ -5,6 +5,7 @@
 
 import React, { useCallback, useState, useRef } from 'react';
 import { FaCloudUploadAlt, FaFileAudio, FaFolderOpen } from 'react-icons/fa';
+import logger from '../utils/logger';
 
 function DropZone({ onDrop }) {
   const [isDragActive, setIsDragActive] = useState(false);
@@ -18,8 +19,6 @@ function DropZone({ onDrop }) {
     e.stopPropagation();
     dragCounter.current++;
     
-    console.log('🎵 NATIVE - Drag Enter, counter:', dragCounter.current);
-    
     // NUR visuelles Feedback, keine Größenänderung
     if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
       setIsDragActive(true);
@@ -30,8 +29,6 @@ function DropZone({ onDrop }) {
     e.preventDefault();
     e.stopPropagation();
     dragCounter.current--;
-    
-    console.log('🎵 NATIVE - Drag Leave, counter:', dragCounter.current);
     
     if (dragCounter.current === 0) {
       setIsDragActive(false);
@@ -50,13 +47,6 @@ function DropZone({ onDrop }) {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('🎵 NATIVE - Drop Event!');
-    console.log('📊 dataTransfer:', e.dataTransfer);
-    console.log('📊 dataTransfer.files:', e.dataTransfer.files);
-    console.log('📊 dataTransfer.files.length:', e.dataTransfer.files ? e.dataTransfer.files.length : 'undefined');
-    console.log('📊 dataTransfer.items:', e.dataTransfer.items);
-    console.log('📊 dataTransfer.types:', e.dataTransfer.types);
-    
     // State sofort zurücksetzen
     setIsDragActive(false);
     setIsDragReject(false);
@@ -64,7 +54,6 @@ function DropZone({ onDrop }) {
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const files = Array.from(e.dataTransfer.files);
-      console.log('📦 Dropped files:', files);
       
       // Filtere nur MP3-Dateien
       const mp3Files = files.filter(file => 
@@ -72,35 +61,28 @@ function DropZone({ onDrop }) {
       );
       
       if (mp3Files.length > 0) {
-        console.log('✅ Valid MP3 file:', mp3Files[0]);
         onDrop([mp3Files[0]]);
       } else {
-        console.log('❌ No valid MP3 files found');
+        logger.warn('[DropZone] Keine gültigen MP3-Dateien gefunden');
         alert('Bitte nur MP3-Dateien hochladen!');
       }
     } else {
-      console.error('❌ PROBLEM: dataTransfer.files ist leer oder undefined!');
-      console.log('🔍 Versuche dataTransfer.items...');
-      
       // Fallback: Versuche items API
       if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-        console.log('✅ items API verfügbar, verwende items');
         const items = Array.from(e.dataTransfer.items);
         const fileItems = items.filter(item => item.kind === 'file');
         
         if (fileItems.length > 0) {
           const file = fileItems[0].getAsFile();
-          console.log('📦 File von items:', file);
           
           if (file && file.name.toLowerCase().endsWith('.mp3')) {
-            console.log('✅ Valid MP3 file via items:', file);
             onDrop([file]);
           } else {
             alert('Bitte nur MP3-Dateien hochladen!');
           }
         }
       } else {
-        console.error('❌ KRITISCH: Weder files noch items verfügbar!');
+        logger.error('[DropZone] Weder files noch items verfügbar!');
         alert('Drag & Drop funktioniert nicht auf diesem Browser. Bitte den "Datei durchsuchen"-Button verwenden.');
       }
     }
@@ -109,13 +91,12 @@ function DropZone({ onDrop }) {
     try {
       e.dataTransfer.clearData();
     } catch (err) {
-      console.log('⚠️ clearData() nicht verfügbar:', err);
+      logger.debug('[DropZone] clearData() nicht verfügbar:', err.message);
     }
   }, [onDrop]);
 
   const handleDragEnd = useCallback((e) => {
     e.preventDefault();
-    console.log('🎵 NATIVE - Drag End (Cleanup)');
     
     // Vollständiger State-Reset
     setIsDragActive(false);
@@ -124,7 +105,6 @@ function DropZone({ onDrop }) {
   }, []);
 
   const handleClick = useCallback(() => {
-    console.log('🖱️ Click on DropZone');
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
@@ -133,21 +113,17 @@ function DropZone({ onDrop }) {
   const handleFileInputChange = useCallback((e) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      console.log('📂 File input selected:', files);
       onDrop(files);
     }
   }, [onDrop]);
 
   const handleBrowseClick = useCallback((e) => {
     e.stopPropagation();
-    console.log('🔘 Browse button clicked');
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   }, []);
 
-  console.log('🎵 DropZone - isDragActive:', isDragActive, 'isDragReject:', isDragReject);
-  
   return (
     <div
       onDragEnter={handleDragEnter}

@@ -12,6 +12,7 @@ const dotenv = require('dotenv');
 const path = require('path');
 const fs = require('fs');
 const config = require('../config');
+const logger = require('../logger');
 
 // Load environment variables
 dotenv.config();
@@ -75,7 +76,7 @@ app.use(cors({
 app.use(express.json({ limit: '150mb' })); // Erhöht von default 100kb auf 150mb
 app.use(express.urlencoded({ extended: true, limit: '150mb' }));
 
-console.log('✅ Body Parser configured with 150MB limit for MP3 data');
+logger.log('SERVER', '✅ Body Parser configured with 150MB limit for MP3 data');
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = process.env.UPLOAD_DIR || './uploads';
@@ -94,14 +95,14 @@ app.set('io', io);
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log(`✓ Client connected: ${socket.id}`);
+  logger.log('SOCKET', `✓ Client connected: ${socket.id}`);
   
   socket.on('disconnect', () => {
-    console.log(`✗ Client disconnected: ${socket.id}`);
+    logger.log('SOCKET', `✗ Client disconnected: ${socket.id}`);
   });
   
   socket.on('error', (error) => {
-    console.error('Socket error:', error);
+    logger.error('SOCKET', 'Socket error:', error);
   });
 });
 
@@ -251,7 +252,7 @@ app.get('*', (req, res, next) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  logger.error('SERVER', 'Error:', err);
   res.status(err.status || 500).json({
     error: err.message || 'Internal Server Error',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
@@ -265,29 +266,29 @@ const HOST = process.env.HOST || '0.0.0.0'; // Lausche auf allen Interfaces
 // Initialize database and start server
 (async () => {
   try {
-    console.log('\n' + '═'.repeat(80));
-    console.log('  🔧 Initializing MP3 Transcriber Server...');
-    console.log('═'.repeat(80));
+    logger.log('SERVER', '\n' + '═'.repeat(80));
+    logger.log('SERVER', '  🔧 Initializing MP3 Transcriber Server...');
+    logger.log('SERVER', '═'.repeat(80));
     
     // Initialize PostgreSQL database (async)
     await initDatabase();
-    console.log('  ✅ PostgreSQL database initialized');
+    logger.log('SERVER', '  ✅ PostgreSQL database initialized');
     
     // Start server
     server.listen(PORT, HOST, () => {
-      console.log('\n' + '═'.repeat(80));
-      console.log(`  🚀 MP3 Transcriber Server läuft auf ${HOST}:${PORT}`);
-      console.log(`  📡 Netzwerk-Zugriff: http://192.168.178.20:${PORT}`);
-      console.log('═'.repeat(80));
-      console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`  Database: PostgreSQL (${process.env.POSTGRES_DB})`);
-      console.log(`  Uploads: In-Memory → Database (BYTEA)`);
-      console.log(`  Whisper Endpoint: ${process.env.RUNPOD_WHISPER_ENDPOINT || 'nicht konfiguriert'}`);
-      console.log(`  Llama Endpoint: ${process.env.RUNPOD_LLAMA_ENDPOINT || 'nicht konfiguriert'}`);
-      console.log('═'.repeat(80) + '\n');
+      logger.log('SERVER', '\n' + '═'.repeat(80));
+      logger.log('SERVER', `  🚀 MP3 Transcriber Server läuft auf ${HOST}:${PORT}`);
+      logger.log('SERVER', `  📡 Netzwerk-Zugriff: http://192.168.178.20:${PORT}`);
+      logger.log('SERVER', '═'.repeat(80));
+      logger.log('SERVER', `  Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.log('SERVER', `  Database: PostgreSQL (${process.env.POSTGRES_DB})`);
+      logger.log('SERVER', `  Uploads: In-Memory → Database (BYTEA)`);
+      logger.log('SERVER', `  Whisper Endpoint: ${process.env.RUNPOD_WHISPER_ENDPOINT || 'nicht konfiguriert'}`);
+      logger.log('SERVER', `  Llama Endpoint: ${process.env.RUNPOD_LLAMA_ENDPOINT || 'nicht konfiguriert'}`);
+      logger.log('SERVER', '═'.repeat(80) + '\n');
     });
   } catch (error) {
-    console.error('❌ Server initialization failed:', error);
+    logger.error('SERVER', '❌ Server initialization failed:', error);
     process.exit(1);
   }
 })();

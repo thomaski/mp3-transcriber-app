@@ -4,15 +4,16 @@
  */
 
 import apiClient from './apiClient';
+import logger from '../utils/logger';
 
 /**
  * Get all users
  * @returns {Promise<Object>} Users list
  */
 export async function getAllUsers() {
-  console.log('[userService] getAllUsers called');
+  logger.log('[userService] getAllUsers aufgerufen');
   const response = await apiClient.get('/users');
-  console.log('[userService] getAllUsers response:', response.data);
+  logger.log('[userService] getAllUsers: ', response.data?.users?.length || 0, 'Benutzer geladen');
   return response.data;
 }
 
@@ -22,9 +23,8 @@ export async function getAllUsers() {
  * @returns {Promise<Object>} User data
  */
 export async function getUser(userId) {
-  console.log('[userService] getUser called:', userId);
+  logger.log('[userService] getUser aufgerufen:', userId);
   const response = await apiClient.get(`/users/${userId}`);
-  console.log('[userService] getUser response:', response.data);
   return response.data;
 }
 
@@ -34,9 +34,10 @@ export async function getUser(userId) {
  * @returns {Promise<Object>} Created user
  */
 export async function createUser(userData) {
-  console.log('[userService] createUser called:', { ...userData, password: '***' });
+  // Passwort NIEMALS loggen!
+  logger.log('[userService] createUser aufgerufen:', { ...userData, password: '***' });
   const response = await apiClient.post('/users', userData);
-  console.log('[userService] createUser response:', response.data);
+  logger.log('[userService] ✅ Benutzer erstellt:', response.data?.user?.username);
   return response.data;
 }
 
@@ -47,9 +48,10 @@ export async function createUser(userData) {
  * @returns {Promise<Object>} Updated user
  */
 export async function updateUser(userId, userData) {
-  console.log('[userService] updateUser called:', userId, userData.password ? { ...userData, password: '***' } : userData);
+  // Passwort NIEMALS loggen!
+  logger.log('[userService] updateUser aufgerufen:', userId, userData.password ? { ...userData, password: '***' } : userData);
   const response = await apiClient.put(`/users/${userId}`, userData);
-  console.log('[userService] updateUser response:', response.data);
+  logger.log('[userService] ✅ Benutzer aktualisiert:', userId);
   return response.data;
 }
 
@@ -59,9 +61,9 @@ export async function updateUser(userId, userData) {
  * @returns {Promise<Object>} Success message
  */
 export async function deleteUser(userId) {
-  console.log('[userService] deleteUser called:', userId);
+  logger.log('[userService] deleteUser aufgerufen:', userId);
   const response = await apiClient.delete(`/users/${userId}`);
-  console.log('[userService] deleteUser response:', response.data);
+  logger.log('[userService] ✅ Benutzer gelöscht:', userId);
   return response.data;
 }
 
@@ -71,9 +73,8 @@ export async function deleteUser(userId) {
  * @returns {Promise<Object>} Transcriptions list
  */
 export async function getUserTranscriptions(userId) {
-  console.log('[userService] getUserTranscriptions called:', userId);
+  logger.log('[userService] getUserTranscriptions aufgerufen:', userId);
   const response = await apiClient.get(`/users/${userId}/transcriptions`);
-  console.log('[userService] getUserTranscriptions response:', response.data);
   return response.data;
 }
 
@@ -84,9 +85,8 @@ export async function getUserTranscriptions(userId) {
  * @returns {Promise<Object>} Success response
  */
 export async function updateUploadDirectory(userId, directory) {
-  console.log('[userService] updateUploadDirectory called:', userId, directory);
+  logger.log('[userService] updateUploadDirectory aufgerufen:', userId);
   const response = await apiClient.patch(`/users/${userId}/upload-directory`, { directory });
-  console.log('[userService] updateUploadDirectory response:', response.data);
   return response.data;
 }
 
@@ -96,9 +96,8 @@ export async function updateUploadDirectory(userId, directory) {
  * @returns {Promise<Object>} Directory path
  */
 export async function getUploadDirectory(userId) {
-  console.log('[userService] getUploadDirectory called:', userId);
+  logger.log('[userService] getUploadDirectory aufgerufen:', userId);
   const response = await apiClient.get(`/users/${userId}/upload-directory`);
-  console.log('[userService] getUploadDirectory response:', response.data);
   return response.data;
 }
 
@@ -108,9 +107,8 @@ export async function getUploadDirectory(userId) {
  * @returns {Promise<Object>} Last transcription
  */
 export async function getLastTranscription(userId) {
-  console.log('[userService] getLastTranscription called:', userId);
+  logger.log('[userService] getLastTranscription aufgerufen:', userId);
   const response = await apiClient.get(`/users/${userId}/last-transcription`);
-  console.log('[userService] getLastTranscription response:', response.data);
   return response.data;
 }
 

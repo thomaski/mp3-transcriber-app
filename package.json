@@ -1,6 +1,6 @@
 {
   "name": "mp3-transcriber-app",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "Full-Stack-Webapp für MP3-Transkription und -Zusammenfassung mit React und Node.js",
   "main": "server/index.js",
   "scripts": {

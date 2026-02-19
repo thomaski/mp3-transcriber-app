@@ -4,6 +4,7 @@
  */
 
 import apiClient from './apiClient';
+import logger from '../utils/logger';
 
 /**
  * Login with username and password
@@ -12,33 +13,21 @@ import apiClient from './apiClient';
  * @returns {Promise<Object>} User data and token
  */
 export async function login(username, password) {
-  console.log('\n═══════════════════════════════════════════════════════════════════════════════');
-  console.log('🔐 [FRONTEND] authService.login aufgerufen:', { username });
-  console.log('📡 [FRONTEND] API Request URL:', `${window.location.origin}/api/auth/login`);
-  console.log('═══════════════════════════════════════════════════════════════════════════════');
+  logger.log('🔐 [authService] login aufgerufen für Benutzer:', username);
   
   try {
-    console.log('📤 [FRONTEND] Sende POST Request...');
     const response = await apiClient.post('/auth/login', { username, password });
-    console.log('✅ [FRONTEND] Login Response Status:', response.status);
-    console.log('✅ [FRONTEND] Login Response Data:', response.data);
+    logger.log('✅ [authService] Login erfolgreich, Status:', response.status);
     
     // Store token in localStorage
     if (response.data.success && response.data.token) {
       localStorage.setItem('authToken', response.data.token);
-      console.log('💾 [FRONTEND] Token gespeichert in localStorage');
-      console.log('═══════════════════════════════════════════════════════════════════════════════\n');
+      logger.log('💾 [authService] Token in localStorage gespeichert');
     }
     
     return response.data;
   } catch (error) {
-    console.error('\n❌❌❌ [FRONTEND] LOGIN FEHLER ❌❌❌');
-    console.error('Error:', error);
-    console.error('Error Message:', error.message);
-    console.error('Error Response Status:', error.response?.status);
-    console.error('Error Response Data:', error.response?.data);
-    console.error('Error Config:', error.config);
-    console.error('═══════════════════════════════════════════════════════════════════════════════\n');
+    logger.error('❌ [authService] Login fehlgeschlagen:', error.response?.data || error.message);
     throw error;
   }
 }
@@ -75,28 +64,17 @@ export async function getCurrentUser() {
  * @returns {Promise<Object>} Auth status
  */
 export async function checkAuth() {
-  console.log('[authService] 🔍🔍🔍 checkAuth called 🔍🔍🔍');
-  console.log('[authService] Checking for authToken in localStorage...');
+  logger.log('[authService] checkAuth aufgerufen');
   
   const token = localStorage.getItem('authToken');
-  console.log('[authService] authToken exists:', !!token);
-  
-  if (token) {
-    console.log('[authService] authToken preview (first 20 chars):', token.substring(0, 20) + '...');
-  } else {
-    console.log('[authService] ❌ No authToken found!');
-  }
-  
-  console.log('[authService] 📡 Sending GET request to /auth/check');
+  logger.log('[authService] authToken vorhanden:', !!token);
   
   try {
     const response = await apiClient.get('/auth/check');
-    console.log('[authService] ✅ checkAuth response status:', response.status);
-    console.log('[authService] checkAuth response data:', JSON.stringify(response.data, null, 2));
+    logger.log('[authService] ✅ checkAuth erfolgreich, Status:', response.status);
     return response.data;
   } catch (error) {
-    console.error('[authService] ❌ checkAuth error:', error);
-    console.error('[authService] Error response:', error.response?.data);
+    logger.error('[authService] ❌ checkAuth fehlgeschlagen:', error.response?.data || error.message);
     throw error;
   }
 }

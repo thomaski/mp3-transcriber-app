@@ -1,6 +1,7 @@
 // ============================================================================
 // Utility Helper Functions
 // ============================================================================
+import logger from './logger';
 
 /**
  * Parse URL query parameters
@@ -113,7 +114,7 @@ export const copyToClipboard = async (text) => {
     await navigator.clipboard.writeText(text);
     return true;
   } catch (err) {
-    console.error('Failed to copy:', err);
+    logger.error('Failed to copy:', err);
     return false;
   }
 };

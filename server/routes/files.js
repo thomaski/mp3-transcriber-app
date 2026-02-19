@@ -6,34 +6,84 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const logger = require('../../logger');
 
 const router = express.Router();
 
-// Load local file from absolute path
+// SECURITY: Whitelist für erlaubte Verzeichnisse (lokale Dateien)
+const ALLOWED_DIRECTORIES = [
+  'D:\\Projekte_KI\\pyenv_1_transcode_durchgabe\\audio',
+  process.env.UPLOAD_DIR || './uploads'
+].map(dir => path.resolve(dir));
+
+/**
+ * Sicherheitsprüfung: Verhindert Path Traversal Angriffe
+ * Prüft ob der angeforderte Pfad in einem erlaubten Verzeichnis liegt
+ * 
+ * @param {string} requestedPath - Angeforderter Dateipfad
+ * @returns {boolean} True wenn Pfad erlaubt ist
+ */
+function isPathAllowed(requestedPath) {
+  const resolvedPath = path.resolve(requestedPath);
+  
+  // Prüfe ob Pfad in einem der erlaubten Verzeichnisse liegt
+  return ALLOWED_DIRECTORIES.some(allowedDir => 
+    resolvedPath.startsWith(allowedDir)
+  );
+}
+
+/**
+ * GET /api/files/load-local
+ * Lädt eine lokale Datei vom Server (NUR aus erlaubten Verzeichnissen!)
+ * 
+ * @query {string} path - Absoluter Pfad zur Datei
+ * @query {string} type - Dateityp ('mp3' oder 'txt')
+ * @returns {Object} File Info oder Content
+ * @throws {400} Ungültiger Request
+ * @throws {403} Path Traversal Versuch / Zugriff verweigert
+ * @throws {404} Datei nicht gefunden
+ */
 router.get('/load-local', (req, res) => {
   try {
     const filePath = req.query.path;
     const fileType = req.query.type || 'mp3';
     
-    console.log(`📂 Load-Local Request: path="${filePath}", type="${fileType}"`);
+    logger.log('FILES', `📂 Load-Local Request: path="${filePath}", type="${fileType}"`);
     
+    // Input-Validierung
     if (!filePath) {
-      return res.status(400).json({ error: 'Dateipfad fehlt' });
+      logger.error('FILES', 'Kein Dateipfad angegeben');
+      return res.status(400).json({ 
+        success: false,
+        error: 'Dateipfad fehlt' 
+      });
+    }
+    
+    // SECURITY: Path Traversal Protection
+    if (!isPathAllowed(filePath)) {
+      logger.error('FILES', `⚠️ SECURITY: Path Traversal Versuch blockiert: ${filePath}`);
+      return res.status(403).json({ 
+        success: false,
+        error: 'Zugriff auf dieses Verzeichnis nicht erlaubt' 
+      });
     }
     
     // Check if file exists
     if (!fs.existsSync(filePath)) {
-      console.error(`❌ Datei nicht gefunden: ${filePath}`);
+      logger.error('FILES', `Datei nicht gefunden: ${filePath}`);
       return res.status(404).json({ 
-        error: 'Datei nicht gefunden',
-        path: filePath 
+        success: false,
+        error: 'Datei nicht gefunden'
       });
     }
     
     const stats = fs.statSync(filePath);
     if (!stats.isFile()) {
-      console.error(`❌ Pfad ist keine Datei: ${filePath}`);
-      return res.status(400).json({ error: 'Pfad ist keine Datei' });
+      logger.error('FILES', `Pfad ist keine Datei: ${filePath}`);
+      return res.status(400).json({ 
+        success: false,
+        error: 'Pfad ist keine Datei' 
+      });
     }
     
     // For MP3 files, return file info with backend URL for streaming
@@ -45,9 +95,8 @@ router.get('/load-local', (req, res) => {
       const host = req.get('host'); // Enthält host:port
       const streamUrl = `${protocol}://${host}/api/files/stream?path=${encodeURIComponent(filePath)}`;
       
-      console.log(`✓ MP3 gefunden: ${filename}`);
-      console.log(`  Stream-URL: ${streamUrl}`);
-      console.log(`  Request-Host: ${host}`);
+      logger.success('FILES', `MP3 gefunden: ${filename} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
+      logger.debug('FILES', `Stream-URL: ${streamUrl}`);
       
       res.json({
         success: true,
@@ -63,7 +112,7 @@ router.get('/load-local', (req, res) => {
     // For text files, return content
     else if (fileType === 'txt') {
       const content = fs.readFileSync(filePath, 'utf8');
-      console.log(`✓ Text-Datei geladen: ${filePath} (${content.length} Zeichen)`);
+      logger.success('FILES', `Text-Datei geladen: ${path.basename(filePath)} (${content.length} Zeichen)`);
       res.json({
         success: true,
         content: content,
@@ -71,26 +120,60 @@ router.get('/load-local', (req, res) => {
       });
     } 
     else {
-      res.status(400).json({ error: 'Ungültiger Dateityp' });
+      logger.error('FILES', `Ungültiger Dateityp: ${fileType}`);
+      res.status(400).json({ 
+        success: false,
+        error: 'Ungültiger Dateityp' 
+      });
     }
     
   } catch (error) {
-    console.error('❌ Local file load error:', error);
-    res.status(500).json({ error: error.message });
+    logger.error('FILES', `Local file load error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ 
+      success: false,
+      error: 'Fehler beim Laden der Datei' 
+    });
   }
 });
 
-// Stream local file (for MP3 playback)
+/**
+ * GET /api/files/stream
+ * Streamt eine MP3-Datei (mit Range-Request Support für Audio-Player)
+ * 
+ * @query {string} path - Absoluter Pfad zur MP3-Datei
+ * @returns {Stream} Audio-Stream mit Range-Support
+ * @throws {400} Ungültiger Request
+ * @throws {403} Zugriff verweigert
+ * @throws {404} Datei nicht gefunden
+ */
 router.get('/stream', (req, res) => {
   try {
     const filePath = req.query.path;
     
+    logger.debug('FILES', `🎵 Stream Request: ${filePath}`);
+    
+    // Input-Validierung
     if (!filePath) {
-      return res.status(400).json({ error: 'Dateipfad fehlt' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Dateipfad fehlt' 
+      });
+    }
+    
+    // SECURITY: Path Traversal Protection
+    if (!isPathAllowed(filePath)) {
+      logger.error('FILES', `⚠️ SECURITY: Stream-Zugriff verweigert: ${filePath}`);
+      return res.status(403).json({ 
+        success: false,
+        error: 'Zugriff verweigert' 
+      });
     }
     
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Datei nicht gefunden' });
+      return res.status(404).json({ 
+        success: false,
+        error: 'Datei nicht gefunden' 
+      });
     }
     
     const stat = fs.statSync(filePath);
@@ -122,55 +205,99 @@ router.get('/stream', (req, res) => {
       fs.createReadStream(filePath).pipe(res);
     }
   } catch (error) {
-    console.error('Stream error:', error);
-    res.status(500).json({ error: error.message });
+    logger.error('FILES', `Stream error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ 
+      success: false,
+      error: 'Fehler beim Streamen der Datei' 
+    });
   }
 });
 
-// Get file
+/**
+ * GET /api/files/:filename
+ * Lädt eine Datei aus dem Upload-Verzeichnis
+ * 
+ * @param {string} filename - Dateiname
+ * @returns {File} Die angeforderte Datei
+ * @throws {403} Path Traversal Versuch
+ * @throws {404} Datei nicht gefunden
+ */
 router.get('/:filename', (req, res) => {
   try {
     const filename = req.params.filename;
     const uploadDir = process.env.UPLOAD_DIR || './uploads';
     const filePath = path.join(uploadDir, filename);
     
+    logger.debug('FILES', `Datei-Zugriff: ${filename}`);
+    
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Datei nicht gefunden' });
+      logger.error('FILES', `Datei nicht gefunden: ${filename}`);
+      return res.status(404).json({ 
+        success: false,
+        error: 'Datei nicht gefunden' 
+      });
     }
     
-    // Security check: Ensure file is in upload directory
+    // SECURITY: Path Traversal Protection
     const resolvedPath = path.resolve(filePath);
     const resolvedUploadDir = path.resolve(uploadDir);
     
     if (!resolvedPath.startsWith(resolvedUploadDir)) {
-      return res.status(403).json({ error: 'Zugriff verweigert' });
+      logger.error('FILES', `⚠️ SECURITY: Path Traversal Versuch blockiert: ${filename}`);
+      return res.status(403).json({ 
+        success: false,
+        error: 'Zugriff verweigert' 
+      });
     }
     
+    logger.success('FILES', `Datei wird ausgeliefert: ${filename}`);
     res.sendFile(resolvedPath);
   } catch (error) {
-    console.error('File access error:', error);
-    res.status(500).json({ error: error.message });
+    logger.error('FILES', `File access error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ 
+      success: false,
+      error: 'Fehler beim Zugriff auf die Datei' 
+    });
   }
 });
 
-// Delete file
+/**
+ * DELETE /api/files/:filename
+ * Löscht eine Datei aus dem Upload-Verzeichnis
+ * 
+ * @param {string} filename - Zu löschender Dateiname
+ * @returns {Object} Success-Nachricht
+ * @throws {404} Datei nicht gefunden
+ */
 router.delete('/:filename', (req, res) => {
   try {
     const filename = req.params.filename;
     const uploadDir = process.env.UPLOAD_DIR || './uploads';
     const filePath = path.join(uploadDir, filename);
     
+    logger.log('FILES', `🗑️ Delete Request: ${filename}`);
+    
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Datei nicht gefunden' });
+      logger.error('FILES', `Datei nicht gefunden: ${filename}`);
+      return res.status(404).json({ 
+        success: false,
+        error: 'Datei nicht gefunden' 
+      });
     }
     
     fs.unlinkSync(filePath);
-    console.log(`✓ Datei gelöscht: ${filename}`);
+    logger.success('FILES', `Datei gelöscht: ${filename}`);
     
-    res.json({ success: true, message: 'Datei gelöscht' });
+    res.json({ 
+      success: true, 
+      message: 'Datei erfolgreich gelöscht' 
+    });
   } catch (error) {
-    console.error('File delete error:', error);
-    res.status(500).json({ error: error.message });
+    logger.error('FILES', `File delete error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ 
+      success: false,
+      error: 'Fehler beim Löschen der Datei' 
+    });
   }
 });
 

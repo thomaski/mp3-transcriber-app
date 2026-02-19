@@ -6,6 +6,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { FaArrowUp } from 'react-icons/fa';
+import logger from '../utils/logger';
 
 function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextChange, audioRef }) {
   const headerRefs = useRef({});
@@ -259,9 +260,9 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     if (foundIndex !== -1) {
       lines[foundIndex] = `${fullTimestamp} ${editedText}`;
       onTextChange(lines.join('\n'));
-      console.log(`✓ Text gespeichert für ${fullTimestamp}`);
+      logger.log(`✓ Text gespeichert für ${fullTimestamp}`);
     } else {
-      console.warn(`⚠ Timestamp ${fullTimestamp} nicht gefunden in Originaltext`);
+      logger.warn(`⚠ Timestamp ${fullTimestamp} nicht gefunden in Originaltext`);
     }
     
     setEditingLineIndex(null);
@@ -289,14 +290,14 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     if (foundIndex !== -1) {
       lines[foundIndex] = `---------- ${editedHeaderText}`;
       onTextChange(lines.join('\n'));
-      console.log(`✓ Überschrift gespeichert: "${editingHeaderKey}" → "${editedHeaderText}"`);
+      logger.log(`✓ Überschrift gespeichert: "${editingHeaderKey}" → "${editedHeaderText}"`);
       
       // Update the header key in refs
       const oldRef = headerRefs.current[editingHeaderKey];
       delete headerRefs.current[editingHeaderKey];
       headerRefs.current[editedHeaderText] = oldRef;
     } else {
-      console.warn(`⚠ Überschrift "${editingHeaderKey}" nicht gefunden`);
+      logger.warn(`⚠ Überschrift "${editingHeaderKey}" nicht gefunden`);
     }
     
     setEditingHeaderKey(null);

@@ -1,7 +1,7 @@
-# 🏗️ Architektur-Dokumentation MP3 Transcriber App v2.0.0
+# 🏗️ Architektur-Dokumentation MP3 Transcriber App v2.1.0
 
-**Datum**: 2026-02-18  
-**Version**: 2.0.0  
+**Datum**: 2026-02-19  
+**Version**: 2.1.0  
 **Status**: Production
 
 ---

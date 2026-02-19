@@ -5,6 +5,7 @@
 
 import React, { useCallback, useState, useRef } from 'react';
 import { FaCloudUploadAlt, FaFileAlt, FaFolderOpen } from 'react-icons/fa';
+import logger from '../utils/logger';
 
 function TextDropZone({ onDrop }) {
   const [isDragActive, setIsDragActive] = useState(false);
@@ -18,8 +19,6 @@ function TextDropZone({ onDrop }) {
     e.stopPropagation();
     dragCounter.current++;
     
-    console.log('📄 NATIVE - Drag Enter, counter:', dragCounter.current);
-    
     // NUR visuelles Feedback, keine Größenänderung
     if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
       setIsDragActive(true);
@@ -30,8 +29,6 @@ function TextDropZone({ onDrop }) {
     e.preventDefault();
     e.stopPropagation();
     dragCounter.current--;
-    
-    console.log('📄 NATIVE - Drag Leave, counter:', dragCounter.current);
     
     if (dragCounter.current === 0) {
       setIsDragActive(false);
@@ -50,10 +47,6 @@ function TextDropZone({ onDrop }) {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('📄 NATIVE - Drop Event!');
-    console.log('📊 dataTransfer:', e.dataTransfer);
-    console.log('📊 dataTransfer.files:', e.dataTransfer.files);
-    
     // State sofort zurücksetzen
     setIsDragActive(false);
     setIsDragReject(false);
@@ -64,7 +57,6 @@ function TextDropZone({ onDrop }) {
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const files = Array.from(e.dataTransfer.files);
-      console.log('📦 Dropped files:', files);
       
       // Filtere nur TXT-Dateien
       const txtFiles = files.filter(file => 
@@ -73,36 +65,29 @@ function TextDropZone({ onDrop }) {
       
       if (txtFiles.length > 0) {
         fileToRead = txtFiles[0];
-        console.log('✅ Valid TXT file:', fileToRead);
       } else {
-        console.log('❌ No valid TXT files found');
+        logger.warn('[TextDropZone] Keine gültigen TXT-Dateien gefunden');
         alert('Bitte nur TXT-Dateien hochladen!');
         return;
       }
     } else {
-      console.error('❌ PROBLEM: dataTransfer.files ist leer oder undefined!');
-      console.log('🔍 Versuche dataTransfer.items...');
-      
       // Fallback: Versuche items API
       if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-        console.log('✅ items API verfügbar, verwende items');
         const items = Array.from(e.dataTransfer.items);
         const fileItems = items.filter(item => item.kind === 'file');
         
         if (fileItems.length > 0) {
           const file = fileItems[0].getAsFile();
-          console.log('📦 File von items:', file);
           
           if (file && file.name.toLowerCase().endsWith('.txt')) {
             fileToRead = file;
-            console.log('✅ Valid TXT file via items:', file);
           } else {
             alert('Bitte nur TXT-Dateien hochladen!');
             return;
           }
         }
       } else {
-        console.error('❌ KRITISCH: Weder files noch items verfügbar!');
+        logger.error('[TextDropZone] Weder files noch items verfügbar!');
         alert('Drag & Drop funktioniert nicht auf diesem Browser. Bitte den "Datei durchsuchen"-Button verwenden.');
         return;
       }
@@ -112,10 +97,10 @@ function TextDropZone({ onDrop }) {
     if (fileToRead) {
       try {
         const text = await fileToRead.text();
-        console.log('✅ Text erfolgreich gelesen, Länge:', text.length);
+        logger.log('[TextDropZone] Text gelesen, Länge:', text.length);
         onDrop(text);
       } catch (err) {
-        console.error('❌ Fehler beim Lesen der Datei:', err);
+        logger.error('[TextDropZone] Fehler beim Lesen der Datei:', err.message);
         alert('Fehler beim Lesen der Datei: ' + err.message);
       }
     }
@@ -123,7 +108,6 @@ function TextDropZone({ onDrop }) {
 
   const handleDragEnd = useCallback((e) => {
     e.preventDefault();
-    console.log('📄 NATIVE - Drag End (Cleanup)');
     
     // Vollständiger State-Reset
     setIsDragActive(false);
@@ -132,7 +116,6 @@ function TextDropZone({ onDrop }) {
   }, []);
 
   const handleClick = useCallback(() => {
-    console.log('🖱️ Click on TextDropZone');
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
@@ -141,7 +124,6 @@ function TextDropZone({ onDrop }) {
   const handleFileInputChange = useCallback(async (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      console.log('📂 File input selected:', file);
       const text = await file.text();
       onDrop(text);
     }
@@ -149,14 +131,11 @@ function TextDropZone({ onDrop }) {
 
   const handleBrowseClick = useCallback((e) => {
     e.stopPropagation();
-    console.log('🔘 Browse button clicked');
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   }, []);
 
-  console.log('📄 TextDropZone - isDragActive:', isDragActive, 'isDragReject:', isDragReject);
-  
   return (
     <div
       onDragEnter={handleDragEnter}

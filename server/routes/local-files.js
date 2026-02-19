@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { authenticateJWT } = require('../middleware/auth');
 const { queryOne } = require('../db/database-pg');
+const logger = require('../../logger');
 
 // Konfiguration für lokales Verzeichnis (Default)
 const DEFAULT_AUDIO_DIR = 'D:\\Projekte_KI\\pyenv_1_transcode_durchgabe\\audio';
@@ -28,16 +29,13 @@ router.get('/list', authenticateJWT, async (req, res) => {
         );
         if (user && user.last_upload_directory) {
           audioDir = user.last_upload_directory;
-          console.log('[local-files] Using user\'s saved directory:', audioDir);
         } else {
-          console.log('[local-files] Using default directory:', audioDir);
+          logger.debug('LOCAL_FILES', `Using default directory: ${audioDir}`);
         }
       } catch (dbError) {
-        console.error('[local-files] Error loading user directory, using default:', dbError.message);
+        logger.error('LOCAL_FILES', 'Error loading user directory, using default:', dbError.message);
       }
     }
-
-    console.log('[local-files] Scanning directory:', audioDir);
 
     // Prüfen ob Verzeichnis existiert
     if (!fs.existsSync(audioDir)) {
@@ -90,7 +88,7 @@ router.get('/list', authenticateJWT, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Fehler beim Auflisten der lokalen Dateien:', error);
+    logger.error('LOCAL_FILES', 'Fehler beim Auflisten der lokalen Dateien:', error);
     res.status(500).json({ 
       error: 'Fehler beim Auflisten der Dateien',
       details: error.message 
@@ -116,7 +114,7 @@ router.get('/info', authenticateJWT, async (req, res) => {
           audioDir = user.last_upload_directory;
         }
       } catch (dbError) {
-        console.error('[local-files] Error loading user directory:', dbError.message);
+        logger.error('LOCAL_FILES', 'Error loading user directory:', dbError.message);
       }
     }
     
@@ -146,7 +144,7 @@ router.get('/info', authenticateJWT, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Fehler beim Abrufen der Verzeichnis-Info:', error);
+    logger.error('LOCAL_FILES', 'Fehler beim Abrufen der Verzeichnis-Info:', error);
     res.status(500).json({ 
       error: 'Fehler beim Abrufen der Verzeichnis-Info',
       details: error.message 

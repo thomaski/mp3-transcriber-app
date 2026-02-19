@@ -3,6 +3,7 @@ const router = express.Router();
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const logger = require('../../logger');
 
 // Konfiguration
 const LOCAL_AUDIO_DIR = 'D:\\Projekte_KI\\pyenv_1_transcode_durchgabe\\audio';
@@ -32,7 +33,7 @@ router.post('/', async (req, res) => {
     // Fortschritt senden
     const sendProgress = (step, message, progress = 0) => {
       io.to(socketId).emit('summarize:progress', { step, message, progress });
-      console.log(`[Summarize] ${step}: ${message} (${progress}%)`);
+      logger.debug('SUMMARIZE_LOCAL', `${step}: ${message} (${progress}%)`);
     };
 
     let txtPath;
@@ -51,7 +52,7 @@ router.post('/', async (req, res) => {
       txtPath = tempFile;
       
       sendProgress('init', `Temporäre Datei erstellt: ${tempFilename}`, 5);
-      console.log(`✓ Temporäre Datei erstellt: ${tempFile}`);
+      logger.debug('SUMMARIZE_LOCAL', `✓ Temporäre Datei erstellt: ${tempFile}`);
       
     } 
     // Fall 2: Dateiname angegeben (existierende Datei verwenden)
@@ -85,7 +86,7 @@ router.post('/', async (req, res) => {
     const wslCommand = `cd ${WSL_AUDIO_DIR} && source ${VENV_ACTIVATE} && python ${PYTHON_SCRIPT} ${promptFlag} ${actualFilename}`;
     
     sendProgress('wsl', 'Starte WSL2 und Python-Environment...', 10);
-    console.log(`[Summarize] Executing WSL command: ${wslCommand}`);
+    logger.debug('SUMMARIZE_LOCAL', `Executing WSL command: ${wslCommand}`);
 
     // WSL-Prozess starten mit spawn für Live-Output
     const wslProcess = spawn('wsl', ['bash', '-c', wslCommand]);
@@ -123,7 +124,7 @@ router.post('/', async (req, res) => {
     wslProcess.stderr.on('data', (data) => {
       const error = data.toString('utf8');
       errorBuffer += error;
-      console.error(`[Summarize] stderr: ${error}`);
+      logger.error('SUMMARIZE_LOCAL', `stderr: ${error}`);
       
       // Auch stderr senden (kann Warnings enthalten)
       sendProgress('warning', stripAnsiCodes(error), 0);
@@ -137,14 +138,14 @@ router.post('/', async (req, res) => {
       if (tempFile && fs.existsSync(tempFile)) {
         try {
           fs.unlinkSync(tempFile);
-          console.log(`✓ Temporäre Input-Datei gelöscht: ${tempFile}`);
+          logger.debug('SUMMARIZE_LOCAL', `✓ Temporäre Input-Datei gelöscht: ${tempFile}`);
         } catch (err) {
-          console.warn(`⚠ Fehler beim Löschen der temporären Datei: ${err.message}`);
+          logger.log('SUMMARIZE_LOCAL', `⚠ Fehler beim Löschen der temporären Datei: ${err.message}`);
         }
       }
       
       if (code !== 0) {
-        console.error(`[Summarize] WSL-Prozess beendet mit Code ${code}`);
+        logger.error('SUMMARIZE_LOCAL', `WSL-Prozess beendet mit Code ${code}`);
         sendProgress('error', `Summarization fehlgeschlagen (Exit-Code: ${code})`, 0);
         
         return res.status(500).json({
@@ -176,9 +177,9 @@ router.post('/', async (req, res) => {
       if (tempFile) {
         try {
           fs.unlinkSync(summaryPath);
-          console.log(`✓ Temporäre Output-Datei gelöscht: ${summaryPath}`);
+          logger.debug('SUMMARIZE_LOCAL', `✓ Temporäre Output-Datei gelöscht: ${summaryPath}`);
         } catch (err) {
-          console.warn(`⚠ Fehler beim Löschen der temporären Output-Datei: ${err.message}`);
+          logger.log('SUMMARIZE_LOCAL', `⚠ Fehler beim Löschen der temporären Output-Datei: ${err.message}`);
         }
       }
 
@@ -204,7 +205,7 @@ router.post('/', async (req, res) => {
 
     // Fehlerbehandlung
     wslProcess.on('error', (error) => {
-      console.error(`[Summarize] WSL-Prozess Fehler:`, error);
+      logger.error('SUMMARIZE_LOCAL', 'WSL-Prozess Fehler:', error);
       sendProgress('error', `WSL-Fehler: ${error.message}`, 0);
       
       // Temporäre Datei aufräumen bei Fehler
@@ -212,7 +213,7 @@ router.post('/', async (req, res) => {
         try {
           fs.unlinkSync(tempFile);
         } catch (err) {
-          console.warn(`⚠ Fehler beim Löschen der temporären Datei nach WSL-Fehler: ${err.message}`);
+          logger.log('SUMMARIZE_LOCAL', `⚠ Fehler beim Löschen der temporären Datei nach WSL-Fehler: ${err.message}`);
         }
       }
       
@@ -224,7 +225,7 @@ router.post('/', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Summarize] Unerwarteter Fehler:', error);
+    logger.error('SUMMARIZE_LOCAL', 'Unerwarteter Fehler:', error);
     res.status(500).json({ 
       error: 'Interner Server-Fehler',
       details: error.message 

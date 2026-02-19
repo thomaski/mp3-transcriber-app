@@ -6,6 +6,7 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const logger = require('../../logger');
 
 const router = express.Router();
 
@@ -35,22 +36,40 @@ const upload = multer({
   }
 });
 
-// Upload endpoint
+/**
+ * POST /api/upload
+ * Upload einer MP3- oder TXT-Datei (in-memory für DB-Speicherung)
+ * 
+ * @param {File} file - Hochzuladende Datei (multipart/form-data)
+ * @returns {Object} File Metadaten (ohne Buffer)
+ * @throws {400} Keine Datei oder ungültiger Dateityp
+ * @throws {500} Server-Fehler beim Upload
+ */
 router.post('/', upload.single('file'), (req, res) => {
   try {
+    logger.log('UPLOAD', `📤 Upload-Request von User: ${req.user?.username || 'unbekannt'}`);
+    
+    // Validierung: Datei vorhanden?
     if (!req.file) {
-      return res.status(400).json({ error: 'Keine Datei hochgeladen' });
+      logger.error('UPLOAD', 'Keine Datei in Request vorhanden');
+      return res.status(400).json({ 
+        success: false,
+        error: 'Keine Datei hochgeladen' 
+      });
     }
+    
+    // Zusätzliche Validierung: Dateiname-Sanitization
+    const sanitizedFilename = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
     
     // Datei ist jetzt in req.file.buffer (Buffer) statt auf Filesystem
     const fileInfo = {
-      originalname: req.file.originalname,
+      originalname: sanitizedFilename,
       buffer: req.file.buffer,           // Binary data für DB-Speicherung
       size: req.file.size,
       mimetype: req.file.mimetype
     };
     
-    console.log(`✓ Datei hochgeladen (in-memory): ${req.file.originalname} (${req.file.size} bytes)`);
+    logger.success('UPLOAD', `Datei hochgeladen: ${sanitizedFilename} (${(req.file.size / 1024 / 1024).toFixed(2)} MB)`);
     
     // Buffer kann nicht direkt als JSON zurückgegeben werden
     // Stattdessen nur Metadaten zurückgeben
@@ -65,22 +84,41 @@ router.post('/', upload.single('file'), (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ error: error.message });
+    logger.error('UPLOAD', `Upload-Fehler: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ 
+      success: false,
+      error: 'Ein Fehler ist beim Hochladen aufgetreten.' 
+    });
   }
 });
 
-// Error handling
+/**
+ * Error handling middleware für Upload-Route
+ * Behandelt Multer-spezifische Fehler
+ */
 router.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
+    logger.error('UPLOAD', `Multer-Fehler: ${error.code} - ${error.message}`);
+    
     if (error.code === 'LIMIT_FILE_SIZE') {
+      const maxSizeMB = Math.round((parseInt(process.env.MAX_FILE_SIZE) || 100 * 1024 * 1024) / 1024 / 1024);
       return res.status(400).json({ 
-        error: 'Datei zu groß', 
-        maxSize: process.env.MAX_FILE_SIZE 
+        success: false,
+        error: `Datei zu groß. Maximale Größe: ${maxSizeMB} MB` 
       });
     }
+    
+    return res.status(400).json({ 
+      success: false,
+      error: `Upload-Fehler: ${error.message}` 
+    });
   }
-  res.status(500).json({ error: error.message });
+  
+  logger.error('UPLOAD', `Unerwarteter Fehler: ${error.message}`, { stack: error.stack });
+  res.status(500).json({ 
+    success: false,
+    error: 'Ein unerwarteter Fehler ist aufgetreten.' 
+  });
 });
 
 module.exports = router;

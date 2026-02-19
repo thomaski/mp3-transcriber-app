@@ -5,6 +5,7 @@
 
 import axios from 'axios';
 import apiClient from './apiClient'; // Import authenticated client
+import logger from '../utils/logger';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
@@ -19,7 +20,7 @@ const api = axios.create({
 
 // Upload file
 export const uploadFile = async (file) => {
-  console.log('[api.js] uploadFile called:', file?.name, file?.size);
+  logger.log('[api.js] uploadFile called:', file?.name, file?.size);
   const formData = new FormData();
   formData.append('file', file);
   
@@ -30,51 +31,45 @@ export const uploadFile = async (file) => {
       }
     });
     
-    console.log('[api.js] uploadFile response:', response.data);
+    logger.log('[api.js] uploadFile response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('[api.js] ❌ uploadFile error:', error);
+    logger.error('[api.js] ❌ uploadFile error:', error);
     throw new Error(error.response?.data?.error || 'Upload fehlgeschlagen');
   }
 };
 
 // Get file
 export const getFile = async (filename) => {
-  console.log('[api.js] 📂 getFile called:', filename);
+  logger.log('[api.js] 📂 getFile called:', filename);
   
   try {
-    console.log('[api.js] Sending GET request to /files/' + filename);
     const response = await api.get(`/files/${filename}`);
-    console.log('[api.js] ✅ getFile response:', response.data);
+    logger.log('[api.js] ✅ getFile response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('[api.js] ❌ getFile error:', error);
-    console.error('[api.js] Error response:', error.response?.data);
+    logger.error('[api.js] ❌ getFile error:', error.response?.data || error.message);
     throw new Error(error.response?.data?.error || 'Datei nicht gefunden');
   }
 };
 
 // Delete file
 export const deleteFile = async (filename) => {
-  console.log('[api.js] 🗑️ deleteFile called:', filename);
+  logger.log('[api.js] 🗑️ deleteFile called:', filename);
   
   try {
-    console.log('[api.js] Sending DELETE request to /files/' + filename);
     const response = await api.delete(`/files/${filename}`);
-    console.log('[api.js] ✅ deleteFile response:', response.data);
+    logger.log('[api.js] ✅ deleteFile response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('[api.js] ❌ deleteFile error:', error);
-    console.error('[api.js] Error response:', error.response?.data);
+    logger.error('[api.js] ❌ deleteFile error:', error.response?.data || error.message);
     throw new Error(error.response?.data?.error || 'Löschen fehlgeschlagen');
   }
 };
 
 // Load local file
 export const loadLocalFile = async (filePath, type = 'mp3') => {
-  console.log('[api.js] 📁 loadLocalFile called');
-  console.log('[api.js] File path:', filePath);
-  console.log('[api.js] File type:', type);
+  logger.log('[api.js] 📁 loadLocalFile called, path:', filePath, 'type:', type);
   
   try {
     // Für MP3: Verwende Stream-URL vom Backend
@@ -83,7 +78,7 @@ export const loadLocalFile = async (filePath, type = 'mp3') => {
       const streamUrl = `${backendUrl}/api/files/stream?path=${encodeURIComponent(filePath)}`;
       const filename = filePath.split(/[\\/]/).pop();
       
-      console.log('[api.js] MP3 type - creating stream URL:', streamUrl);
+      logger.log('[api.js] MP3 type - stream URL erstellt:', streamUrl);
       
       return {
         success: true,
@@ -97,12 +92,12 @@ export const loadLocalFile = async (filePath, type = 'mp3') => {
     
     // Für TXT: Lade Inhalt vom Backend
     if (type === 'txt') {
-      console.log('[api.js] TXT type - loading content from backend...');
+      logger.log('[api.js] TXT type - lade Inhalt vom Backend...');
       const response = await api.get('/files/load-local', {
         params: { path: filePath, type: 'txt' }
       });
       
-      console.log('[api.js] ✅ TXT content loaded, length:', response.data.content?.length || 0);
+      logger.log('[api.js] ✅ TXT content geladen, Länge:', response.data.content?.length || 0);
       
       return {
         success: true,
@@ -112,12 +107,11 @@ export const loadLocalFile = async (filePath, type = 'mp3') => {
     }
     
     // Fallback für andere Typen
-    console.log('[api.js] Other type - loading from backend...');
     const response = await api.get('/files/load-local', {
       params: { path: filePath, type: type }
     });
     
-    console.log('[api.js] ✅ File loaded successfully');
+    logger.log('[api.js] ✅ Datei erfolgreich geladen');
     
     return {
       success: true,
@@ -125,8 +119,7 @@ export const loadLocalFile = async (filePath, type = 'mp3') => {
       path: filePath
     };
   } catch (error) {
-    console.error('[api.js] ❌ loadLocalFile Error:', error);
-    console.error('[api.js] Error response:', error.response?.data);
+    logger.error('[api.js] ❌ loadLocalFile Error:', error.response?.data || error.message);
     return {
       success: false,
       error: error.response?.data?.error || error.message || `Fehler beim Laden der lokalen ${type}-Datei`,
@@ -141,55 +134,47 @@ export const loadLocalFile = async (filePath, type = 'mp3') => {
 
 // List local files (MP3 or TXT)
 export const listLocalFiles = async (fileType = 'mp3') => {
-  console.log('[api.js] 📋 listLocalFiles called, type:', fileType);
+  logger.log('[api.js] 📋 listLocalFiles called, type:', fileType);
   
   try {
-    console.log('[api.js] Sending GET request to /local-files/list');
     const response = await api.get('/local-files/list', {
       params: { type: fileType }
     });
-    console.log('[api.js] ✅ listLocalFiles response:', response.data.files?.length || 0, 'files');
+    logger.log('[api.js] ✅ listLocalFiles response:', response.data.files?.length || 0, 'files');
     return response.data;
   } catch (error) {
-    console.error('[api.js] ❌ listLocalFiles error:', error);
-    console.error('[api.js] Error response:', error.response?.data);
+    logger.error('[api.js] ❌ listLocalFiles error:', error.response?.data || error.message);
     throw new Error(error.response?.data?.error || 'Fehler beim Laden der Dateiliste');
   }
 };
 
 // Get local directory info
 export const getLocalDirectoryInfo = async () => {
-  console.log('[api.js] 📂 getLocalDirectoryInfo called');
+  logger.log('[api.js] 📂 getLocalDirectoryInfo called');
   
   try {
-    console.log('[api.js] Sending GET request to /local-files/info');
     const response = await api.get('/local-files/info');
-    console.log('[api.js] ✅ getLocalDirectoryInfo response:', response.data);
+    logger.log('[api.js] ✅ getLocalDirectoryInfo response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('[api.js] ❌ getLocalDirectoryInfo error:', error);
-    console.error('[api.js] Error response:', error.response?.data);
+    logger.error('[api.js] ❌ getLocalDirectoryInfo error:', error.response?.data || error.message);
     throw new Error(error.response?.data?.error || 'Fehler beim Abrufen der Verzeichnis-Info');
   }
 };
 
 // Transcribe local MP3 with WSL2 Python
 export const transcribeLocal = async (filename, socketId) => {
-  console.log('[api.js] 🎤 transcribeLocal called');
-  console.log('[api.js] Filename:', filename);
-  console.log('[api.js] Socket ID:', socketId);
+  logger.log('[api.js] 🎤 transcribeLocal called, filename:', filename);
   
   try {
-    console.log('[api.js] Sending POST request to /transcribe-local');
     const response = await api.post('/transcribe-local', {
       filename,
       socketId
     });
-    console.log('[api.js] ✅ transcribeLocal response:', response.data);
+    logger.log('[api.js] ✅ transcribeLocal response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('[api.js] ❌ transcribeLocal error:', error);
-    console.error('[api.js] Error response:', error.response?.data);
+    logger.error('[api.js] ❌ transcribeLocal error:', error.response?.data || error.message);
     throw new Error(error.response?.data?.error || 'Lokale Transkription fehlgeschlagen');
   }
 };
@@ -199,58 +184,45 @@ export const transcribeLocal = async (filename, socketId) => {
 // socketId: Socket-ID für Live-Updates
 // transcription: Direkte Transkription als String (optional, wenn filename angegeben)
 export const summarizeLocal = async (filename, socketId, transcription = null) => {
-  console.log('[api.js] 📝 summarizeLocal called');
-  console.log('[api.js] Filename:', filename);
-  console.log('[api.js] Socket ID:', socketId);
-  console.log('[api.js] Has transcription:', !!transcription);
+  logger.log('[api.js] 📝 summarizeLocal called, filename:', filename, 'hasTranscription:', !!transcription);
   
   try {
     const payload = { socketId };
     
     if (transcription) {
-      // Direkte Transkription verwenden
       payload.transcription = transcription;
-      console.log('[api.js] Using direct transcription, length:', transcription.length);
     } else if (filename) {
-      // Dateiname verwenden
       payload.filename = filename;
-      console.log('[api.js] Using filename:', filename);
     } else {
-      console.error('[api.js] ❌ Neither filename nor transcription provided!');
       throw new Error('Entweder filename oder transcription muss angegeben werden');
     }
     
-    console.log('[api.js] Sending POST request to /summarize-local');
     const response = await api.post('/summarize-local', payload);
-    console.log('[api.js] ✅ summarizeLocal response:', response.data);
+    logger.log('[api.js] ✅ summarizeLocal response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('[api.js] ❌ summarizeLocal error:', error);
-    console.error('[api.js] Error response:', error.response?.data);
+    logger.error('[api.js] ❌ summarizeLocal error:', error.response?.data || error.message);
     throw new Error(error.response?.data?.error || 'Lokale Zusammenfassung fehlgeschlagen');
   }
 };
 
 // Health check
 export const healthCheck = async () => {
-  console.log('[api.js] 🏥 healthCheck called');
+  logger.log('[api.js] 🏥 healthCheck called');
   
   try {
-    console.log('[api.js] Sending GET request to /health');
     const response = await api.get('/health');
-    console.log('[api.js] ✅ healthCheck response:', response.data);
+    logger.log('[api.js] ✅ healthCheck response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('[api.js] ❌ healthCheck error:', error);
-    console.error('[api.js] Error response:', error.response?.data);
+    logger.error('[api.js] ❌ healthCheck error:', error.message);
     throw new Error('Server nicht erreichbar');
   }
 };
 
 // Save transcription to database
 export const saveTranscription = async (transcriptionData) => {
-  console.log('[api.js] saveTranscription called');
-  console.log('[api.js] transcriptionData:', {
+  logger.log('[api.js] saveTranscription called', {
     target_user_id: transcriptionData.target_user_id,
     mp3_filename: transcriptionData.mp3_filename,
     mp3_file_present: !!transcriptionData.mp3_file,
@@ -259,15 +231,12 @@ export const saveTranscription = async (transcriptionData) => {
   });
   
   try {
-    console.log('[api.js] Preparing FormData...');
-    
     // Create FormData for multipart/form-data upload
     const formData = new FormData();
     
     // Add MP3 file if present
     if (transcriptionData.mp3_file) {
       formData.append('mp3File', transcriptionData.mp3_file);
-      console.log('[api.js] Added MP3 file to FormData:', transcriptionData.mp3_file.name);
     }
     
     // Add other fields
@@ -277,10 +246,7 @@ export const saveTranscription = async (transcriptionData) => {
     
     if (transcriptionData.target_user_id) {
       formData.append('target_user_id', transcriptionData.target_user_id);
-      console.log('[api.js] Added target_user_id to FormData:', transcriptionData.target_user_id);
     }
-    
-    console.log('[api.js] Sending POST request to /api/transcriptions with FormData...');
     
     // Use apiClient instead of api to include Authorization header
     const response = await apiClient.post('/transcriptions', formData, {
@@ -289,18 +255,26 @@ export const saveTranscription = async (transcriptionData) => {
       }
     });
     
-    console.log('[api.js] saveTranscription response:', response.data);
-    console.log('[api.js] Action:', response.data.action);
-    console.log('[api.js] Transcription ID:', response.data.transcriptionId || response.data.id);
-    
+    logger.log('[api.js] ✅ saveTranscription response, action:', response.data.action);
     return response.data;
   } catch (error) {
-    console.error('[api.js] saveTranscription error:', error);
-    console.error('[api.js] Error response:', error.response);
-    console.error('[api.js] Error response data:', error.response?.data);
+    logger.error('[api.js] ❌ saveTranscription error:', error.response?.data || error.message);
     throw new Error(error.response?.data?.error || 'Fehler beim Speichern der Transkription');
   }
 };
 
-export default api;
+// Get transcription by ID
+export const getTranscription = async (transcriptionId) => {
+  logger.log('[api.js] getTranscription called:', transcriptionId);
+  
+  try {
+    const response = await apiClient.get(`/transcriptions/${transcriptionId}`);
+    logger.log('[api.js] ✅ getTranscription response:', response.data);
+    return response.data;
+  } catch (error) {
+    logger.error('[api.js] ❌ getTranscription error:', error);
+    throw error;
+  }
+};
 
+export default api;

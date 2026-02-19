@@ -1,0 +1,87 @@
+---
+alwaysApply: true
+---
+
+# Performance Guidelines
+
+## Grundregel
+> **"Premature optimization is the root of all evil"** - Donald Knuth
+
+**Erst funktionieren, dann optimieren!**
+
+## Wann optimieren?
+- ✅ Wenn Performance-Probleme messbar sind
+- ✅ Wenn User sich über Langsamkeit beschweren
+- ✅ Wenn Monitoring/Profiling Bottlenecks zeigt
+- ❌ NICHT: "Prophylaktisch" ohne Grund
+
+## Performance-Optimierung Prozess
+
+### 1. Messen (Baseline)
+Vor Optimierung immer messen:
+- Response Times (API-Endpoints)
+- Page Load Times
+- Database Query Times
+- Memory Usage
+
+**Tools:**
+- Browser DevTools (Network Tab, Performance Tab)
+- Server-Logs mit Timestamps
+- Profiling-Tools
+
+### 2. Identifizieren (Bottleneck finden)
+- Wo ist der tatsächliche Flaschenhals?
+- Datenbank? API? Frontend-Rendering?
+- Konkrete Zahlen sammeln
+
+### 3. Optimieren
+- **Eine Änderung zur Zeit**
+- Nach jeder Änderung neu messen
+- Dokumentieren was hilft und was nicht
+
+### 4. Verifizieren
+- Performance-Verbesserung messbar?
+- Funktionalität noch intakt?
+- Keine neuen Bugs eingeführt?
+
+## Performance Best Practices
+
+### Backend / API
+- **Database**: 
+  * Indizes für häufige Queries
+  * Query-Optimierung (EXPLAIN ANALYZE nutzen)
+  * Connection Pooling
+  * Caching für häufige Abfragen
+- **API**:
+  * Pagination für große Datensätze
+  * Compression (gzip)
+  * Lazy Loading wo möglich
+
+### Frontend
+- **Assets**:
+  * Bilder optimieren (richtige Größe, Format, Compression)
+  * Code Splitting (nur laden was gebraucht wird)
+  * Minification in Production
+- **React**:
+  * Unnötige Re-Renders vermeiden
+  * useMemo / useCallback bei Bedarf
+  * Virtualization für lange Listen
+
+### File Processing (MP3s)
+- **Streaming**: Große Files streamen statt komplett in Memory laden
+- **Background Processing**: Lange Operationen asynchron
+- **Progress Feedback**: User über Fortschritt informieren
+
+## Monitoring
+- Response Times loggen
+- Slow Queries identifizieren
+- Memory Leaks überwachen
+- Error Rates tracken
+
+## Performance-Ziele
+Realistische Ziele setzen:
+- API: < 200ms für einfache Requests
+- Page Load: < 3 Sekunden
+- Database Queries: < 100ms (außer komplexe Reports)
+
+**Aber**: User Experience > Rohe Performance-Zahlen

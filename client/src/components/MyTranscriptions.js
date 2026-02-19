@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getUserTranscriptions } from '../services/userService';
+import logger from '../utils/logger';
 
 function MyTranscriptions() {
   const { user, logout } = useAuth();
@@ -17,38 +18,33 @@ function MyTranscriptions() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    console.log('[MyTranscriptions] Component mounted');
-    console.log('[MyTranscriptions] Current user:', user);
     loadTranscriptions();
   }, [user]);
 
   async function loadTranscriptions() {
     if (!user?.id) {
-      console.error('[MyTranscriptions] No user ID available');
+      logger.error('[MyTranscriptions] Kein Benutzer-ID vorhanden');
       setError('Benutzer nicht authentifiziert.');
       setLoading(false);
       return;
     }
 
     try {
-      console.log('[MyTranscriptions] Loading transcriptions for user:', user.id);
+      logger.log('[MyTranscriptions] Lade Transkriptionen für Benutzer:', user.id);
       setLoading(true);
       setError(null);
 
       const response = await getUserTranscriptions(user.id);
-      console.log('[MyTranscriptions] getUserTranscriptions response:', response);
 
       if (response.success) {
-        console.log('[MyTranscriptions] Transcriptions loaded:', response.transcriptions.length);
+        logger.log('[MyTranscriptions] Transkriptionen geladen:', response.transcriptions.length);
         setTranscriptions(response.transcriptions);
       } else {
-        console.error('[MyTranscriptions] Failed to load transcriptions:', response.error);
+        logger.error('[MyTranscriptions] Laden fehlgeschlagen:', response.error);
         setError(response.error || 'Fehler beim Laden der Transkriptionen.');
       }
     } catch (err) {
-      console.error('[MyTranscriptions] ❌ Load transcriptions error:', err);
-      console.error('[MyTranscriptions] Error response:', err.response);
-      console.error('[MyTranscriptions] Error response data:', err.response?.data);
+      logger.error('[MyTranscriptions] ❌ Fehler:', err.response?.data || err.message);
       setError(err.response?.data?.error || err.message || 'Fehler beim Laden der Transkriptionen.');
     } finally {
       setLoading(false);
@@ -56,10 +52,7 @@ function MyTranscriptions() {
   }
 
   function handleTranscriptionClick(transcription) {
-    console.log('[MyTranscriptions] Transcription clicked:', transcription.id, transcription.mp3_filename);
-    console.log('[MyTranscriptions] Navigating to /transcribe with transcription:', transcription);
-    
-    // Navigate to transcribe page and pass transcription data via state
+    logger.log('[MyTranscriptions] Transkription geöffnet:', transcription.id);
     navigate('/transcribe', { 
       state: { 
         transcriptionId: transcription.id,
@@ -69,7 +62,6 @@ function MyTranscriptions() {
   }
 
   function handleLogout() {
-    console.log('[MyTranscriptions] User logout initiated');
     logout();
     navigate('/');
   }
@@ -93,10 +85,7 @@ function MyTranscriptions() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => {
-                  console.log('[MyTranscriptions] Navigating back to dashboard');
-                  navigate('/dashboard');
-                }}
+                onClick={() => navigate('/dashboard')}
                 className="flex items-center text-gray-600 hover:text-gray-900 transition"
                 title="Zurück zum Dashboard"
               >
@@ -143,10 +132,7 @@ function MyTranscriptions() {
               Transkriptionen ({transcriptions.length})
             </h2>
             <button
-              onClick={() => {
-                console.log('[MyTranscriptions] Navigating to /transcribe for new transcription');
-                navigate('/transcribe');
-              }}
+              onClick={() => navigate('/transcribe')}
               className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition"
             >
               + Neue Transkription

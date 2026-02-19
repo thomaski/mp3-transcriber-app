@@ -1,0 +1,35 @@
+---
+alwaysApply: true
+---
+
+# Security Best Practices
+
+## ⛔ Niemals in Code einfügen
+- ❌ Passwörter, API-Keys, Tokens
+- ❌ Hardcoded Credentials
+- ❌ Sensitive User-Daten in Logs
+- ✅ **Immer Umgebungsvariablen nutzen** (.env, .envproduction)
+
+## Input-Validierung & Sanitization
+- **Alle User-Inputs validieren** (Frontend UND Backend)
+- **SQL Injection Prevention**: Immer Prepared Statements/Parameterized Queries verwenden
+- **XSS Protection**: User-Input escapen vor Anzeige im Frontend
+- **File Upload Security**: 
+  * Dateiendungen validieren
+  * Dateigröße limitieren
+  * Malware-Scanning bei kritischen Anwendungen
+
+## Authentication & Authorization
+- **Passwords**: Immer hashen (bcrypt mit ausreichenden Rounds)
+- **Sessions**: Sichere Session-Verwaltung
+- **JWT**: Secrets sicher speichern, kurze Expiration Times
+- **Rate Limiting**: API-Endpunkte vor Brute-Force schützen
+
+## HTTPS & Transmission
+- In Production immer HTTPS verwenden
+- Sensitive Daten verschlüsselt übertragen
+- Secure Cookies (httpOnly, secure flags)
+
+## Dependencies
+- Regelmäßig `npm audit` ausführen
+- Bekannte Vulnerabilities zeitnah fixen

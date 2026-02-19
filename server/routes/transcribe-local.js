@@ -3,6 +3,7 @@ const router = express.Router();
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const logger = require('../../logger');
 
 // Konfiguration
 const LOCAL_AUDIO_DIR = 'D:\\Projekte_KI\\pyenv_1_transcode_durchgabe\\audio';
@@ -41,7 +42,7 @@ router.post('/', async (req, res) => {
     // Fortschritt senden
     const sendProgress = (step, message, progress = 0) => {
       io.to(socketId).emit('transcribe:progress', { step, message, progress });
-      console.log(`[Transcribe] ${step}: ${message} (${progress}%)`);
+      logger.debug('TRANSCRIBE_LOCAL', `${step}: ${message} (${progress}%)`);
     };
 
     sendProgress('init', `Starte Transkription für: ${filename}`, 0);
@@ -51,7 +52,7 @@ router.post('/', async (req, res) => {
     const wslCommand = `cd ${WSL_AUDIO_DIR} && source ${VENV_ACTIVATE} && python ${PYTHON_SCRIPT} ${filename}`;
     
     sendProgress('wsl', 'Starte WSL2 und Python-Environment...', 10);
-    console.log(`[Transcribe] Executing WSL command: ${wslCommand}`);
+    logger.debug('TRANSCRIBE_LOCAL', `Executing WSL command: ${wslCommand}`);
 
     // WSL-Prozess starten mit spawn für Live-Output
     const wslProcess = spawn('wsl', ['bash', '-c', wslCommand]);
@@ -89,7 +90,7 @@ router.post('/', async (req, res) => {
     wslProcess.stderr.on('data', (data) => {
       const error = data.toString('utf8');
       errorBuffer += error;
-      console.error(`[Transcribe] stderr: ${error}`);
+      logger.error('TRANSCRIBE_LOCAL', `stderr: ${error}`);
       
       // Auch stderr senden (kann Warnings enthalten)
       sendProgress('warning', stripAnsiCodes(error), 0);
@@ -100,7 +101,7 @@ router.post('/', async (req, res) => {
       const duration = ((Date.now() - startTime) / 1000).toFixed(1);
       
       if (code !== 0) {
-        console.error(`[Transcribe] WSL-Prozess beendet mit Code ${code}`);
+        logger.error('TRANSCRIBE_LOCAL', `WSL-Prozess beendet mit Code ${code}`);
         sendProgress('error', `Transkription fehlgeschlagen (Exit-Code: ${code})`, 0);
         
         return res.status(500).json({
@@ -150,7 +151,7 @@ router.post('/', async (req, res) => {
 
     // Fehlerbehandlung
     wslProcess.on('error', (error) => {
-      console.error(`[Transcribe] WSL-Prozess Fehler:`, error);
+      logger.error('TRANSCRIBE_LOCAL', 'WSL-Prozess Fehler:', error);
       sendProgress('error', `WSL-Fehler: ${error.message}`, 0);
       
       res.status(500).json({
@@ -161,7 +162,7 @@ router.post('/', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Transcribe] Unerwarteter Fehler:', error);
+    logger.error('TRANSCRIBE_LOCAL', 'Unerwarteter Fehler:', error);
     res.status(500).json({ 
       error: 'Interner Server-Fehler',
       details: error.message 

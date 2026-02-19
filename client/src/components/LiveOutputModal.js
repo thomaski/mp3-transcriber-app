@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { FaSpinner, FaCheckCircle, FaTimesCircle, FaTerminal } from 'react-icons/fa';
+import logger from '../utils/logger';
 
 function LiveOutputModal({ isOpen, title, outputs, progress, isComplete, hasError, onClose }) {
   const outputEndRef = useRef(null);
@@ -15,7 +16,7 @@ function LiveOutputModal({ isOpen, title, outputs, progress, isComplete, hasErro
   useEffect(() => {
     if (isComplete && !hasError && onClose) {
       const timer = setTimeout(() => {
-        console.log('✓ Auto-Close: Modal wird in 3 Sekunden geschlossen');
+        logger.log('✓ Auto-Close: Modal wird in 3 Sekunden geschlossen');
         onClose();
       }, 3000);
 

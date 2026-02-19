@@ -10,6 +10,7 @@ const { hashPassword } = require('../utils/passwordUtils');
 const { generateUserId } = require('../utils/generateShortId'); // Added
 const { logAuditEvent } = require('../utils/logger');
 const bcrypt = require('bcrypt');
+const logger = require('../../logger');
 
 const router = express.Router();
 
@@ -24,8 +25,6 @@ router.use(authenticateJWT);
 router.get('/search', requireAdmin, async (req, res) => {
   const { q } = req.query;
   
-  console.log('[users-pg] Search endpoint called with query:', q);
-  
   if (!q || q.trim() === '') {
     return res.json({
       success: true,
@@ -35,8 +34,6 @@ router.get('/search', requireAdmin, async (req, res) => {
   
   try {
     const searchTerm = `%${q.trim()}%`;
-    
-    console.log('[users-pg] Searching database with term:', searchTerm);
     
     const users = await query(
       `SELECT 
@@ -56,7 +53,7 @@ router.get('/search', requireAdmin, async (req, res) => {
       [searchTerm]
     );
     
-    console.log('[users-pg] Found users:', users.length, users);
+    logger.debug('USERS', `Search '${q}' found ${users.length} users`);
     
     res.json({
       success: true,
@@ -71,7 +68,7 @@ router.get('/search', requireAdmin, async (req, res) => {
       }))
     });
   } catch (error) {
-    console.error('[users-pg] Search users error:', error);
+    logger.error('USERS', 'Search users error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler bei der Benutzersuche.'
@@ -84,12 +81,7 @@ router.get('/search', requireAdmin, async (req, res) => {
  * Get all users with transcription count
  */
 router.get('/', requireAdmin, async (req, res) => {
-  console.log('[users-pg] GET /api/users called');
-  console.log('[users-pg] Request user:', req.user);
-  console.log('[users-pg] Is admin:', req.user?.isAdmin);
-  
   try {
-    console.log('[users-pg] Fetching users from database...');
     const users = await query(
       `SELECT 
         u.id,
@@ -107,8 +99,7 @@ router.get('/', requireAdmin, async (req, res) => {
       ORDER BY u.first_name ASC, u.last_name ASC`
     );
     
-    console.log('[users-pg] Found users:', users.length);
-    console.log('[users-pg] User details:', users);
+    logger.debug('USERS', `GET /api/users - Found ${users.length} users`);
     
     const mappedUsers = users.map(user => ({
       ...user,
@@ -116,17 +107,12 @@ router.get('/', requireAdmin, async (req, res) => {
       isAdmin: user.is_admin
     }));
     
-    console.log('[users-pg] Mapped users:', mappedUsers);
-    console.log('[users-pg] Sending success response');
-    
     res.json({
       success: true,
       users: mappedUsers
     });
   } catch (error) {
-    console.error('[users-pg] Get users error:', error);
-    console.error('[users-pg] Error message:', error.message);
-    console.error('[users-pg] Error stack:', error.stack);
+    logger.error('USERS', 'Get users error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Abrufen der Benutzer.'
@@ -161,7 +147,7 @@ router.get('/:userId', requireAdmin, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get user error:', error);
+    logger.error('USERS', 'Get user error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Abrufen des Benutzers.'
@@ -176,47 +162,18 @@ router.get('/:userId', requireAdmin, async (req, res) => {
 router.post('/', requireAdmin, async (req, res) => {
   const { username, password, first_name, last_name, email, is_admin } = req.body;
   
-  console.log('[users-pg] POST /api/users - Create user called');
-  console.log('[users-pg] Request body:', {
-    username,
-    password: password ? '***' : undefined,
-    first_name,
-    last_name,
-    email,
-    is_admin
-  });
-  
   // Validation
   if (!username || !password || !first_name) {
-    console.error('[users-pg] Validation failed: missing required fields');
     return res.status(400).json({
       success: false,
       error: 'Benutzername, Passwort und Vorname sind erforderlich.'
     });
   }
   
-  console.log('[users-pg] Validating username:', username);
-  console.log('[users-pg] Username length:', username.length);
-  console.log('[users-pg] Username contains special chars:', /[^a-zA-Z0-9_-]/.test(username));
-  
-  console.log('[users-pg] Validating first_name:', first_name);
-  console.log('[users-pg] First name length:', first_name.length);
-  console.log('[users-pg] First name contains special chars:', /[^a-zA-Z0-9\s_-]/.test(first_name));
-  
-  if (last_name) {
-    console.log('[users-pg] Validating last_name:', last_name);
-    console.log('[users-pg] Last name length:', last_name.length);
-    console.log('[users-pg] Last name contains special chars:', /[^a-zA-Z0-9\s_-]/.test(last_name));
-  }
-  
   // Email validation (if provided)
   if (email) {
-    console.log('[users-pg] Validating email:', email);
     const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    console.log('[users-pg] Email is valid:', isValidEmail);
-    
     if (!isValidEmail) {
-      console.error('[users-pg] Email validation failed');
       return res.status(400).json({
         success: false,
         error: 'Ungültige Email-Adresse.'
@@ -226,52 +183,30 @@ router.post('/', requireAdmin, async (req, res) => {
   
   try {
     // Check if username already exists
-    console.log('[users-pg] Checking if username already exists...');
     const existing = await queryOne('SELECT id FROM users WHERE username = $1', [username]);
     if (existing) {
-      console.error('[users-pg] Username already exists:', username);
       return res.status(409).json({
         success: false,
         error: 'Benutzername bereits vergeben.'
       });
     }
-    console.log('[users-pg] Username is available');
     
     // Check if email already exists (if provided)
     if (email) {
-      console.log('[users-pg] Checking if email already exists...');
       const existingEmail = await queryOne('SELECT id FROM users WHERE email = $1', [email]);
       if (existingEmail) {
-        console.error('[users-pg] Email already exists:', email);
         return res.status(409).json({
           success: false,
           error: 'Email-Adresse bereits vergeben.'
         });
       }
-      console.log('[users-pg] Email is available');
     }
     
-    // Generate user ID
+    // Generate user ID and hash password
     const userId = generateUserId();
-    console.log('[users-pg] Generated user ID:', userId);
-    
-    // Hash password
-    console.log('[users-pg] Hashing password...');
     const password_hash = await bcrypt.hash(password, 12);
-    console.log('[users-pg] Password hashed successfully');
     
     // Insert user with explicit ID
-    console.log('[users-pg] Inserting user into database...');
-    console.log('[users-pg] Insert params:', {
-      id: userId,
-      username,
-      password_hash: '***',
-      first_name,
-      last_name: last_name || '',
-      email: email || null,
-      is_admin: is_admin || false
-    });
-    
     const result = await execute(
       `INSERT INTO users (id, username, password_hash, first_name, last_name, email, is_admin)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -279,12 +214,10 @@ router.post('/', requireAdmin, async (req, res) => {
       [userId, username, password_hash, first_name, last_name || '', email || null, is_admin || false]
     );
     
-    console.log('[users-pg] Insert result:', result.rows);
     const insertedUserId = result.rows[0].id;
-    console.log('[users-pg] User created with ID:', insertedUserId);
+    logger.log('USERS', `✓ User created: ${username} (ID: ${insertedUserId})`);
     
     // Log event
-    console.log('[users-pg] Logging audit event...');
     await logAuditEvent({
       event_type: 'user_create',
       user_id: req.user.userId,
@@ -295,14 +228,10 @@ router.post('/', requireAdmin, async (req, res) => {
     });
     
     // Return created user (without password hash)
-    console.log('[users-pg] Fetching created user data...');
     const newUser = await queryOne(
       'SELECT id, username, first_name, last_name, email, is_admin, created_at FROM users WHERE id = $1', 
       [insertedUserId]
     );
-    
-    console.log('[users-pg] Created user:', newUser);
-    console.log('[users-pg] Sending success response');
     
     res.status(201).json({
       success: true,
@@ -314,13 +243,7 @@ router.post('/', requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[users-pg] ❌ Create user error:', error);
-    console.error('[users-pg] Error name:', error.name);
-    console.error('[users-pg] Error message:', error.message);
-    console.error('[users-pg] Error code:', error.code);
-    console.error('[users-pg] Error stack:', error.stack);
-    console.error('[users-pg] Full error object:', JSON.stringify(error, null, 2));
-    
+    logger.error('USERS', '❌ Create user error:', error);
     res.status(500).json({
       success: false,
       error: `Fehler beim Erstellen des Benutzers: ${error.message}`
@@ -421,6 +344,8 @@ router.put('/:userId', requireAdmin, async (req, res) => {
       values
     );
     
+    logger.log('USERS', `✓ User updated: ${userId}`);
+    
     // Log event
     await logAuditEvent({
       event_type: 'user_update',
@@ -446,7 +371,7 @@ router.put('/:userId', requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Update user error:', error);
+    logger.error('USERS', 'Update user error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Aktualisieren des Benutzers.'
@@ -482,6 +407,8 @@ router.delete('/:userId', requireAdmin, async (req, res) => {
     // Delete user (transcriptions will be cascade deleted due to FOREIGN KEY)
     await execute('DELETE FROM users WHERE id = $1', [userId]);
     
+    logger.log('USERS', `✓ User deleted: ${userId} (${user.username})`);
+    
     // Log event
     await logAuditEvent({
       event_type: 'user_delete',
@@ -498,7 +425,7 @@ router.delete('/:userId', requireAdmin, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Delete user error:', error);
+    logger.error('USERS', 'Delete user error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Löschen des Benutzers.'
@@ -511,13 +438,9 @@ router.delete('/:userId', requireAdmin, async (req, res) => {
  * Get all transcriptions for a user
  */
 router.get('/:userId/transcriptions', async (req, res) => {
-  console.log('[users-pg] GET /:userId/transcriptions called');
-  console.log('[users-pg] Requested userId:', req.params.userId);
-  console.log('[users-pg] Request user:', req.user);
-  
   // Check: User can only access their own transcriptions, unless admin
   if (req.user.userId !== req.params.userId && !req.user.isAdmin) {
-    console.warn('[users-pg] ❌ Access denied: User', req.user.userId, 'tried to access transcriptions of', req.params.userId);
+    logger.log('USERS', `Access denied: User ${req.user.userId} tried to access transcriptions of ${req.params.userId}`);
     return res.status(403).json({
       success: false,
       error: 'Zugriff verweigert. Sie können nur Ihre eigenen Transkriptionen sehen.'
@@ -525,7 +448,6 @@ router.get('/:userId/transcriptions', async (req, res) => {
   }
   
   try {
-    console.log('[users-pg] Fetching transcriptions for user:', req.params.userId);
     const transcriptions = await query(
       `SELECT 
         t.id,
@@ -543,13 +465,13 @@ router.get('/:userId/transcriptions', async (req, res) => {
       [req.params.userId]
     );
     
-    console.log('[users-pg] Found transcriptions:', transcriptions.length);
+    logger.debug('USERS', `Found ${transcriptions.length} transcriptions for user ${req.params.userId}`);
     res.json({
       success: true,
       transcriptions
     });
   } catch (error) {
-    console.error('Get transcriptions error:', error);
+    logger.error('USERS', 'Get transcriptions error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Abrufen der Transkriptionen.'
@@ -565,15 +487,9 @@ router.patch('/:userId/upload-directory', authenticateJWT, async (req, res) => {
   const { userId } = req.params;
   const { directory } = req.body;
   
-  console.log('[users-pg] PATCH /upload-directory called');
-  console.log('[users-pg] User ID:', userId);
-  console.log('[users-pg] Directory:', directory);
-  console.log('[users-pg] Request user:', req.user.userId);
-  
   try {
     // Check authorization: User can only update their own directory
     if (userId !== req.user.userId) {
-      console.error('[users-pg] Unauthorized: User trying to update another user\'s directory');
       return res.status(403).json({
         success: false,
         error: 'Keine Berechtigung, das Verzeichnis eines anderen Benutzers zu ändern.'
@@ -583,7 +499,6 @@ router.patch('/:userId/upload-directory', authenticateJWT, async (req, res) => {
     // Check if user exists
     const user = await queryOne('SELECT id, is_admin FROM users WHERE id = $1', [userId]);
     if (!user) {
-      console.error('[users-pg] User not found:', userId);
       return res.status(404).json({
         success: false,
         error: 'Benutzer nicht gefunden.'
@@ -591,13 +506,12 @@ router.patch('/:userId/upload-directory', authenticateJWT, async (req, res) => {
     }
     
     // Update last_upload_directory
-    console.log('[users-pg] Updating last_upload_directory...');
     await execute(
       'UPDATE users SET last_upload_directory = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
       [directory || null, userId]
     );
     
-    console.log('[users-pg] Directory updated successfully');
+    logger.log('USERS', `✓ Upload directory updated for user ${userId}: ${directory}`);
     
     res.json({
       success: true,
@@ -606,8 +520,7 @@ router.patch('/:userId/upload-directory', authenticateJWT, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[users-pg] ❌ Update upload directory error:', error);
-    console.error('[users-pg] Error message:', error.message);
+    logger.error('USERS', 'Update upload directory error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Speichern des Verzeichnisses.'
@@ -622,14 +535,9 @@ router.patch('/:userId/upload-directory', authenticateJWT, async (req, res) => {
 router.get('/:userId/upload-directory', authenticateJWT, async (req, res) => {
   const { userId } = req.params;
   
-  console.log('[users-pg] GET /upload-directory called');
-  console.log('[users-pg] User ID:', userId);
-  console.log('[users-pg] Request user:', req.user.userId);
-  
   try {
     // Check authorization
     if (userId !== req.user.userId) {
-      console.error('[users-pg] Unauthorized: User trying to access another user\'s directory');
       return res.status(403).json({
         success: false,
         error: 'Keine Berechtigung.'
@@ -643,14 +551,11 @@ router.get('/:userId/upload-directory', authenticateJWT, async (req, res) => {
     );
     
     if (!user) {
-      console.error('[users-pg] User not found:', userId);
       return res.status(404).json({
         success: false,
         error: 'Benutzer nicht gefunden.'
       });
     }
-    
-    console.log('[users-pg] Last upload directory:', user.last_upload_directory);
     
     res.json({
       success: true,
@@ -658,8 +563,7 @@ router.get('/:userId/upload-directory', authenticateJWT, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[users-pg] ❌ Get upload directory error:', error);
-    console.error('[users-pg] Error message:', error.message);
+    logger.error('USERS', 'Get upload directory error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Abrufen des Verzeichnisses.'
@@ -674,14 +578,9 @@ router.get('/:userId/upload-directory', authenticateJWT, async (req, res) => {
 router.get('/:userId/last-transcription', authenticateJWT, async (req, res) => {
   const { userId } = req.params;
   
-  console.log('[users-pg] GET /last-transcription called');
-  console.log('[users-pg] User ID:', userId);
-  console.log('[users-pg] Request user:', req.user.userId);
-  
   try {
     // Check authorization
     if (userId !== req.user.userId && !req.user.isAdmin) {
-      console.error('[users-pg] Unauthorized: User trying to access another user\'s transcription');
       return res.status(403).json({
         success: false,
         error: 'Keine Berechtigung.'
@@ -699,14 +598,13 @@ router.get('/:userId/last-transcription', authenticateJWT, async (req, res) => {
     );
     
     if (!transcription) {
-      console.log('[users-pg] No transcription found for user');
       return res.json({
         success: true,
         transcription: null
       });
     }
     
-    console.log('[users-pg] Last transcription found:', transcription.id, transcription.mp3_filename);
+    logger.debug('USERS', `Last transcription for user ${userId}: ${transcription.mp3_filename}`);
     
     res.json({
       success: true,
@@ -721,8 +619,7 @@ router.get('/:userId/last-transcription', authenticateJWT, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[users-pg] ❌ Get last transcription error:', error);
-    console.error('[users-pg] Error message:', error.message);
+    logger.error('USERS', 'Get last transcription error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Abrufen der letzten Transkription.'

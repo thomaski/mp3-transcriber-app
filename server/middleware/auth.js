@@ -3,8 +3,16 @@
  */
 
 const jwt = require('jsonwebtoken');
+const logger = require('../../logger');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
+// SECURITY: JWT_SECRET MUSS in .env gesetzt werden
+if (!process.env.JWT_SECRET) {
+  logger.error('AUTH', '❌ FATAL: JWT_SECRET nicht in .env gesetzt!');
+  logger.error('AUTH', '❌ Server kann nicht sicher starten.');
+  process.exit(1);
+}
+
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRY = '24h';
 
 /**
@@ -55,14 +63,13 @@ function authenticateJWTOptional(req, res, next) {
  * Middleware: Authenticate JWT from Authorization header (REQUIRED)
  */
 function authenticateJWT(req, res, next) {
-  console.log('[auth] authenticateJWT called for:', req.method, req.path);
+  logger.debug('AUTH', `authenticateJWT called for: ${req.method} ${req.path}`);
   
   // Get token from Authorization header (Bearer <token>)
   const authHeader = req.headers.authorization;
-  console.log('[auth] Authorization header present:', !!authHeader);
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.warn('[auth] No valid Authorization header');
+    logger.log('AUTH', 'No valid Authorization header');
     return res.status(401).json({ 
       success: false, 
       error: 'Nicht authentifiziert. Bitte einloggen.' 
@@ -70,21 +77,17 @@ function authenticateJWT(req, res, next) {
   }
   
   const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-  console.log('[auth] Token length:', token.length);
-  console.log('[auth] Token (first 20 chars):', token.substring(0, 20) + '...');
-  
   const decoded = verifyToken(token);
-  console.log('[auth] Token decoded:', !!decoded);
   
   if (!decoded) {
-    console.error('[auth] Token verification failed');
+    logger.error('AUTH', 'Token verification failed');
     return res.status(401).json({ 
       success: false, 
       error: 'Ungültiges oder abgelaufenes Token. Bitte erneut einloggen.' 
     });
   }
   
-  console.log('[auth] User authenticated:', decoded.username, 'isAdmin:', decoded.isAdmin);
+  logger.debug('AUTH', `User authenticated: ${decoded.username} isAdmin: ${decoded.isAdmin}`);
   
   // Attach user info to request
   req.user = decoded;
@@ -95,29 +98,23 @@ function authenticateJWT(req, res, next) {
  * Middleware: Check if user is admin
  */
 function requireAdmin(req, res, next) {
-  console.log('[auth] requireAdmin called');
-  console.log('[auth] req.user present:', !!req.user);
-  console.log('[auth] req.user:', req.user);
-  
   if (!req.user) {
-    console.error('[auth] No user in request');
+    logger.error('AUTH', 'requireAdmin: No user in request');
     return res.status(401).json({ 
       success: false, 
       error: 'Nicht authentifiziert.' 
     });
   }
   
-  console.log('[auth] User isAdmin:', req.user.isAdmin);
-  
   if (!req.user.isAdmin) {
-    console.error('[auth] User is not admin');
+    logger.log('AUTH', `requireAdmin: User ${req.user.username} is not admin`);
     return res.status(403).json({ 
       success: false, 
       error: 'Zugriff verweigert. Admin-Rechte erforderlich.' 
     });
   }
   
-  console.log('[auth] Admin access granted');
+  logger.debug('AUTH', `Admin access granted for: ${req.user.username}`);
   next();
 }
 

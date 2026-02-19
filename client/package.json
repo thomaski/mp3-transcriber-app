@@ -1,6 +1,6 @@
 {
   "name": "mp3-transcriber-client",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "private": true,
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",

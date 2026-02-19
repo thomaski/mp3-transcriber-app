@@ -1,0 +1,26 @@
+---
+alwaysApply: true
+---
+
+# Code-Qualität Standards
+
+## Coding Standards
+- **JavaScript/Node.js**: ES6+ Syntax bevorzugen (async/await, arrow functions, destructuring)
+- **Konsistente Formatierung**: 2 Spaces Einrückung (wie im Projekt)
+- **Naming Conventions**: 
+  * camelCase für Variablen und Funktionen
+  * PascalCase für React-Komponenten und Klassen
+  * UPPER_SNAKE_CASE für Konstanten
+- **Kommentare**: Deutsche Kommentare für komplexe Logik
+
+## Vor jeder Code-Änderung
+1. **Code-Stil analysieren**: Bestehenden Stil im File übernehmen
+2. **Keine Breaking Changes**: Ohne vorherige Ankündigung/Diskussion
+3. **Erst erklären, dann implementieren**: Bei größeren Änderungen
+4. **DRY Prinzip**: Don't Repeat Yourself - Code wiederverwenden
+
+## Code Review Checkliste
+- ✅ Code lesbar und selbsterklärend?
+- ✅ Funktionen haben eine klare Verantwortlichkeit?
+- ✅ Magic Numbers vermieden (durch benannte Konstanten ersetzt)?
+- ✅ Keine toten Code-Abschnitte oder auskommentierter Code?

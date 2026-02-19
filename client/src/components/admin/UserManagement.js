@@ -19,6 +19,7 @@ import {
   deleteUser,
   getUserTranscriptions
 } from '../../services/userService';
+import logger from '../../utils/logger';
 
 function UserManagement() {
   const { user: currentUser, logout } = useAuth();
@@ -76,7 +77,7 @@ function UserManagement() {
         setUsers(response.users);
       }
     } catch (error) {
-      console.error('Load users error:', error);
+      logger.error('[UserManagement] Benutzer laden fehlgeschlagen:', error.message);
       setError('Fehler beim Laden der Benutzer.');
     } finally {
       setLoading(false);
@@ -88,10 +89,16 @@ function UserManagement() {
       setTranscriptionsLoading(true);
       const response = await getUserTranscriptions(userId);
       if (response.success) {
-        setTranscriptions(response.transcriptions);
+        // Sortiere Transkriptionen aufsteigend nach MP3-Dateiname
+        const sortedTranscriptions = response.transcriptions.sort((a, b) => {
+          const nameA = (a.mp3_filename || '').toLowerCase();
+          const nameB = (b.mp3_filename || '').toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
+        setTranscriptions(sortedTranscriptions);
       }
     } catch (error) {
-      console.error('Load transcriptions error:', error);
+      logger.error('[UserManagement] Transkriptionen laden fehlgeschlagen:', error.message);
     } finally {
       setTranscriptionsLoading(false);
     }
@@ -109,10 +116,10 @@ function UserManagement() {
     setSelectedTranscriptionId(transcriptionId === selectedTranscriptionId ? null : transcriptionId);
   }
 
-  // Handle open transcription - CHANGED_2026_02_19
+  // Handle open transcription
   function handleOpenTranscription() {
     if (selectedTranscriptionId) {
-      console.log('[UserManagement] Opening transcription:', selectedTranscriptionId);
+      logger.log('[UserManagement] Transkription öffnen:', selectedTranscriptionId);
       navigate(`/transcribe/${selectedTranscriptionId}`);
     }
   }
@@ -197,7 +204,7 @@ function UserManagement() {
         setEditingField(null);
       }
     } catch (error) {
-      console.error('Update user error:', error);
+      logger.error('[UserManagement] Benutzer aktualisieren fehlgeschlagen:', error.message);
       setSaveStatus(prev => ({ ...prev, [userId]: 'error' }));
       setError(error.response?.data?.error || 'Fehler beim Speichern.');
 
@@ -226,36 +233,22 @@ function UserManagement() {
   // Handle create user
   async function handleCreateUser(e) {
     e.preventDefault();
-
-    console.log('[UserManagement] handleCreateUser called');
-    console.log('[UserManagement] New user data:', {
-      username: newUser.username,
-      password: newUser.password ? '***' : undefined,
-      first_name: newUser.first_name,
-      last_name: newUser.last_name,
-      email: newUser.email,
-      is_admin: newUser.is_admin
-    });
+    logger.log('[UserManagement] Neuen Benutzer erstellen:', { username: newUser.username });
 
     try {
-      console.log('[UserManagement] Calling createUser API...');
       const response = await createUser(newUser);
-      console.log('[UserManagement] createUser response:', response);
 
       if (response.success) {
-        console.log('[UserManagement] User created successfully:', response.user);
+        logger.log('[UserManagement] ✅ Benutzer erstellt:', response.user?.username);
         setUsers(prev => [response.user, ...prev]);
         setShowNewUserForm(false);
         setNewUser({ username: '', password: '', first_name: '', last_name: '', email: '', is_admin: false });
       } else {
-        console.error('[UserManagement] Create user failed:', response.error);
+        logger.warn('[UserManagement] Erstellen fehlgeschlagen:', response.error);
         setError(response.error || 'Fehler beim Erstellen des Benutzers.');
       }
     } catch (error) {
-      console.error('[UserManagement] ❌ Create user error:', error);
-      console.error('[UserManagement] Error response:', error.response);
-      console.error('[UserManagement] Error response data:', error.response?.data);
-      console.error('[UserManagement] Error message:', error.message);
+      logger.error('[UserManagement] ❌ Erstellen fehlgeschlagen:', error.response?.data || error.message);
       setError(error.response?.data?.error || error.message || 'Fehler beim Erstellen des Benutzers.');
     }
   }
@@ -276,7 +269,7 @@ function UserManagement() {
         }
       }
     } catch (error) {
-      console.error('Delete user error:', error);
+      logger.error('[UserManagement] Löschen fehlgeschlagen:', error.response?.data || error.message);
       setError(error.response?.data?.error || 'Fehler beim Löschen des Benutzers.');
     }
   }
@@ -375,9 +368,9 @@ function UserManagement() {
           </div>
         )}
 
-        <div className="flex flex-col xl:flex-row gap-6">
-          {/* Left: User List */}
-          <div className="bg-white rounded-lg shadow flex-grow">
+        <div className="max-w-7xl mx-auto">
+          {/* User List */}
+          <div className="bg-white rounded-lg shadow mb-6">
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">
                 Benutzer ({users.length})
@@ -469,46 +462,46 @@ function UserManagement() {
             )}
 
             {/* User Table */}
-            <div className="overflow-y-auto" style={{ maxHeight: '600px' }}>
-              <table className="w-auto min-w-full">
+            <div className="overflow-x-auto">
+              <table className="w-full">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr className="text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    <th className="px-4 py-3">
+                    <th className="px-4 py-3 whitespace-nowrap">
                       ID
                     </th>
                     <th
-                      className="px-4 py-3 cursor-pointer hover:bg-gray-100"
+                      className="px-4 py-3 cursor-pointer hover:bg-gray-100 whitespace-nowrap"
                       onClick={() => handleSort('first_name')}
                     >
                       Vorname {sortBy === 'first_name' && (sortOrder === 'asc' ? '▲' : '▼')}
                     </th>
                     <th
-                      className="px-4 py-3 cursor-pointer hover:bg-gray-100"
+                      className="px-4 py-3 cursor-pointer hover:bg-gray-100 whitespace-nowrap"
                       onClick={() => handleSort('last_name')}
                     >
                       Nachname {sortBy === 'last_name' && (sortOrder === 'asc' ? '▲' : '▼')}
                     </th>
                     <th
-                      className="px-4 py-3 cursor-pointer hover:bg-gray-100"
+                      className="px-4 py-3 cursor-pointer hover:bg-gray-100 whitespace-nowrap"
                       onClick={() => handleSort('username')}
                     >
                       Username {sortBy === 'username' && (sortOrder === 'asc' ? '▲' : '▼')}
                     </th>
                     <th
-                      className="px-4 py-3 cursor-pointer hover:bg-gray-100"
+                      className="px-4 py-3 cursor-pointer hover:bg-gray-100 whitespace-nowrap"
                       onClick={() => handleSort('email')}
                     >
                       Email {sortBy === 'email' && (sortOrder === 'asc' ? '▲' : '▼')}
                     </th>
-                    <th className="px-4 py-3">Passwort</th>
-                    <th className="px-4 py-3">Rolle</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Passwort</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Rolle</th>
                     <th
-                      className="px-4 py-3 cursor-pointer hover:bg-gray-100"
+                      className="px-4 py-3 cursor-pointer hover:bg-gray-100 whitespace-nowrap"
                       onClick={() => handleSort('transcription_count')}
                     >
                       MP3s {sortBy === 'transcription_count' && (sortOrder === 'asc' ? '▲' : '▼')}
                     </th>
-                    <th className="px-4 py-3">Aktionen</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Aktionen</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -722,8 +715,8 @@ function UserManagement() {
             </div>
           </div>
 
-          {/* Right: MP3 Transcriptions */}
-          <div className="bg-white rounded-lg shadow xl:w-96 flex-shrink-0">
+          {/* MP3 Transcriptions */}
+          <div className="bg-white rounded-lg shadow">
             <div className="p-4 border-b border-gray-200">
               <h2 className="text-lg font-bold text-gray-900">
                 MP3-Transkriptionen
@@ -748,14 +741,13 @@ function UserManagement() {
                 <p>Keine Transkriptionen vorhanden.</p>
               </div>
             ) : (
-              <div className="overflow-auto" style={{ maxHeight: '600px' }}>
+              <div className="overflow-x-auto" style={{ maxHeight: '600px' }}>
                 <table className="w-full">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr className="text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      <th className="px-4 py-3">ID</th>
-                      <th className="px-4 py-3">MP3-Datei</th>
-                      <th className="px-4 py-3">Summary</th>
-                      <th className="px-4 py-3">Erstellt</th>
+                      <th className="px-4 py-3 whitespace-nowrap">ID</th>
+                      <th className="px-4 py-3 whitespace-nowrap">MP3-Datei</th>
+                      <th className="px-4 py-3 whitespace-nowrap">Summary</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -771,17 +763,14 @@ function UserManagement() {
                           <span className="text-sm font-mono text-gray-600">{trans.id}</span>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="text-sm">🎵 {trans.mp3_filename}</div>
+                          <div className="text-sm" title={trans.mp3_filename}>🎵 {trans.mp3_filename}</div>
                         </td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-1 text-xs rounded ${
+                        <td className="px-4 py-3 text-center">
+                          <span className={`px-2 py-0.5 text-xs rounded ${
                             trans.has_summary ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                           }`}>
-                            {trans.has_summary ? '✓ Ja' : '✗ Nein'}
+                            {trans.has_summary ? '✓' : '✗'}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {new Date(trans.created_at).toLocaleDateString('de-DE')}
                         </td>
                       </tr>
                     ))}
@@ -790,41 +779,57 @@ function UserManagement() {
               </div>
             )}
 
-            {/* Landing-Page URL + Button (when transcription is selected) */}
-            {selectedTranscriptionId && (
-              <div className="p-4 bg-blue-50 border-t border-blue-200">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">🔗 Landing-Page URL</h3>
-                <div className="flex items-center gap-2 mb-3">
-                  <input
-                    type="text"
-                    value={`${window.location.protocol}//${window.location.host}/access/${selectedTranscriptionId}`}
-                    readOnly
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded bg-white font-mono"
-                    onClick={(e) => e.target.select()}
-                  />
+            {/* Transkription öffnen Button (always visible below transcriptions table) */}
+            {selectedUserId && transcriptions.length > 0 && (
+              <div className="p-4 bg-gray-50 border-t border-gray-200">
                   <button
-                    onClick={() => {
-                      const url = `${window.location.protocol}//${window.location.host}/access/${selectedTranscriptionId}`;
-                      navigator.clipboard.writeText(url).then(() => {
-                        alert('✅ URL in Zwischenablage kopiert!');
-                      });
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition flex items-center gap-2"
+                    onClick={handleOpenTranscription}
+                    disabled={!selectedTranscriptionId}
+                    className={`w-full px-4 py-2 text-sm font-semibold rounded transition flex items-center justify-center gap-2 mb-3 ${
+                      selectedTranscriptionId
+                        ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                    title={selectedTranscriptionId ? 'Transkription öffnen' : 'Bitte eine Transkription in der Tabelle auswählen'}
                   >
-                    📋 Kopieren
+                    📂 Transkription öffnen
                   </button>
+                  
+                  {selectedTranscriptionId ? (
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-semibold text-gray-700">🔗 Landing-Page URL (Transkription)</h3>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={`${window.location.protocol}//${window.location.host}/public/mp3/${selectedTranscriptionId}`}
+                          readOnly
+                          className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded bg-white font-mono"
+                          onClick={(e) => e.target.select()}
+                        />
+                        <button
+                          onClick={() => {
+                            const url = `${window.location.protocol}//${window.location.host}/public/mp3/${selectedTranscriptionId}`;
+                            navigator.clipboard.writeText(url).then(() => {
+                              alert('✅ URL in Zwischenablage kopiert!');
+                            });
+                          }}
+                          className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition flex items-center gap-1"
+                        >
+                          📋 Kopieren
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-600">
+                        Passwort für den Zugriff: <strong>{users.find(u => u.id === selectedUserId)?.first_name}</strong>
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-600 text-center">
+                      ℹ️ Klicken Sie auf eine Zeile in der Tabelle um eine Transkription auszuwählen
+                    </p>
+                  )}
                 </div>
-                <button
-                  onClick={handleOpenTranscription}
-                  className="w-full px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded hover:bg-green-700 transition flex items-center justify-center gap-2"
-                >
-                  📂 Transkription öffnen
-                </button>
-                <p className="mt-2 text-xs text-gray-600">
-                  Passwort für den Zugriff: <strong>{users.find(u => u.id === selectedUserId)?.first_name}</strong>
-                </p>
-              </div>
-            )}
+              )
+            }
           </div>
         </div>
       </main>

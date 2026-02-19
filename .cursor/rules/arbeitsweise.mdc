@@ -1,0 +1,54 @@
+---
+alwaysApply: true
+description: Strukturierte Arbeitsweise und Testrichtlinien für die MP3 Transcriber App
+---
+
+# Arbeitsweise und Testrichtlinien
+
+## Bei jedem Prompt prüfen
+- ✅ **Screenshots prüfen**: Prüfe bei jedem Prompt ob Screenshots angehängt sind und berücksichtige diese in deiner Analyse
+
+## Nach größeren Änderungen testen
+Nach Änderungen am Frontend oder Backend immer folgende Tests durchführen:
+1. **GUI-Erreichbarkeit**: Prüfe ob die Anwendung unter der entsprechenden URL erreichbar ist
+2. **User-Menü für "tom"**: Prüfe ob das User-Menü für den Benutzer "tom" korrekt angezeigt wird
+
+### Test-Credentials & Backend-Server
+→ Siehe `.cursor/rules/test-credentials.mdc` (lokal, nicht in Git)
+
+## Strukturierte Problemlösung
+
+Wenn ein Problem auftritt, **NICHT** wild experimentieren, sondern systematisch vorgehen:
+
+### 1. Situationsanalyse
+- Was ist passiert?
+- Was wurde geändert?
+- Was war das erwartete Verhalten?
+- Was ist das tatsächliche Verhalten?
+
+### 2. Problemanalyse
+- **Mögliche Ursachen** durchdenken und auflisten
+- Problem **eingrenzen** durch:
+  * Tests durchführen
+  * Log-Analyse
+  * Schritt-für-Schritt Isolation
+- Problem **lokalisieren** auf:
+  * Frontend oder Backend?
+  * Welche Komponente/Datei?
+  * Welche Funktion/Zeile?
+
+### 3. Weitere Eingrenzung
+Überlegen wie das Problem weiter eingegrenzt werden kann:
+- Zusätzliche Log-Informationen hinzufügen
+- Debug-Output erstellen
+- Isolierte Tests durchführen
+- Schritt-für-Schritt durch den Code gehen
+
+### 4. Schrittweise Lösung
+- **Zeit nehmen** - nicht überstürzen
+- **Schritt für Schritt** vorgehen
+- Jede Änderung einzeln testen
+- Dokumentieren was funktioniert und was nicht
+
+## Zusammenfassung
+> 🎯 **Methodisch statt chaotisch**: Analyse → Eingrenzen → Lokalisieren → Schrittweise lösen

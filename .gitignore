@@ -44,3 +44,6 @@ show-tables.js
 
 # Documentation drafts
 x_doku/
+
+# Cursor Rules mit sensitiven Daten (Credentials etc.)
+.cursor/rules/test-credentials.mdc

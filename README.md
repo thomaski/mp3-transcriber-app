@@ -2,7 +2,7 @@
 
 Eine moderne Full-Stack-Webapp für die Transkription und Zusammenfassung von MP3-Audio-Dateien mit PostgreSQL, Whisper und Llama.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![React](https://img.shields.io/badge/React-18.2-61dafb.svg)
 ![Node](https://img.shields.io/badge/Node-18+-339933.svg)
@@ -31,7 +31,17 @@ Eine moderne Full-Stack-Webapp für die Transkription und Zusammenfassung von MP
 
 ## ✨ Features
 
-### 🆕 Version 1.0.0 Highlights
+### 🆕 Version 2.1.0 Highlights (2026-02-19)
+
+- **🎨 Vereinfachte TranscribeScreen**: Intelligenter "Transkription speichern" Button mit Auto-Logik
+- **📊 Optimiertes ControlPanel**: Übersichtliches Button-Layout in einer Zeile
+- **👥 Rollenbasiertes Dashboard**: Admin-Funktionen nur für Admins sichtbar
+- **🔗 Public Access**: Direkte Weiterleitung zu `/my-transcriptions` nach Verifikation
+- **📱 Lazy Loading**: UserManagement wird dynamisch geladen für bessere Performance
+- **🎯 Zentriertes Layout**: Benutzerverwaltung perfekt zentriert mit 50/50 Grid
+- **🔤 Alphabetische Sortierung**: MP3-Transkriptionen aufsteigend nach Dateinamen sortiert
+
+### Version 2.0.0 Highlights (2026-02-18)
 
 - **🗄️ PostgreSQL**: Migration von SQLite → PostgreSQL für bessere Skalierung
 - **💾 DB-Storage**: MP3-Dateien in DB (BYTEA) statt Filesystem

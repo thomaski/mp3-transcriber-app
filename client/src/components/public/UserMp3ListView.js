@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getUserMp3List } from '../../services/publicAccessService';
+import logger from '../../utils/logger';
 
 function UserMp3ListView() {
   const { id } = useParams();
@@ -18,31 +19,27 @@ function UserMp3ListView() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    console.log('[UserMp3ListView] useEffect called with id:', id, 'password:', password ? `${password.length} chars` : 'NONE');
-    
     if (!password) {
-      console.warn('[UserMp3ListView] No password in URL, redirecting to landing page');
+      logger.warn('[UserMp3ListView] No password in URL, redirecting to landing page');
       navigate(`/access/${id}`);
       return;
     }
 
-    console.log('[UserMp3ListView] Fetching user MP3 list...');
+    logger.log('[UserMp3ListView] Fetching user MP3 list for ID:', id);
     getUserMp3List(id, password)
       .then((data) => {
-        console.log('[UserMp3ListView] getUserMp3List response:', data);
         if (data.success) {
-          console.log('[UserMp3ListView] Success! User data:', data.user, 'MP3 count:', data.transcriptions?.length);
+          logger.log('[UserMp3ListView] Success! MP3 count:', data.transcriptions?.length);
           setUserData(data);
           setLoading(false);
         } else {
-          console.error('[UserMp3ListView] API returned success:false, error:', data.error);
+          logger.error('[UserMp3ListView] API error:', data.error);
           setError(data.error || 'Fehler beim Laden der MP3-Liste.');
           setLoading(false);
         }
       })
       .catch((err) => {
-        console.error('[UserMp3ListView] getUserMp3List error:', err);
-        console.error('[UserMp3ListView] Error object:', JSON.stringify(err, null, 2));
+        logger.error('[UserMp3ListView] getUserMp3List error:', err);
         setError(err.error || err.message || 'Zugriff verweigert.');
         setLoading(false);
       });

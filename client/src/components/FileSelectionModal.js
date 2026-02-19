@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FaTimes, FaFile, FaMusic, FaSpinner, FaFolder, FaSave } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { updateUploadDirectory, getUploadDirectory } from '../services/userService';
+import logger from '../utils/logger';
 
 function FileSelectionModal({ isOpen, onClose, fileType, onSelect }) {
   const { user } = useAuth();
@@ -18,7 +19,6 @@ function FileSelectionModal({ isOpen, onClose, fileType, onSelect }) {
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === 'Escape' && isOpen) {
-        console.log('✓ Modal geschlossen via ESC (Emergency Exit)');
         onClose();
       }
     };
@@ -52,7 +52,7 @@ function FileSelectionModal({ isOpen, onClose, fileType, onSelect }) {
       setNewDirectory(data.directory || '');
       
     } catch (err) {
-      console.error('Fehler beim Laden der Dateiliste:', err);
+      logger.error('[FileSelectionModal] Fehler beim Laden der Dateiliste:', err.message);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -66,7 +66,6 @@ function FileSelectionModal({ isOpen, onClose, fileType, onSelect }) {
   }, [isOpen, loadFiles]);
 
   const handleClose = () => {
-    console.log('✓ Modal geschlossen via Button');
     onClose();
   };
 
@@ -84,11 +83,9 @@ function FileSelectionModal({ isOpen, onClose, fileType, onSelect }) {
     // Speichere das Verzeichnis für den Admin
     if (user?.isAdmin && user?.userId && currentDirectory) {
       try {
-        console.log('[FileSelectionModal] Saving directory for user:', user.userId, currentDirectory);
         await updateUploadDirectory(user.userId, currentDirectory);
-        console.log('[FileSelectionModal] Directory saved successfully');
       } catch (err) {
-        console.error('[FileSelectionModal] Error saving directory:', err);
+        logger.error('[FileSelectionModal] Fehler beim Speichern des Verzeichnisses:', err.message);
         // Fehler nicht anzeigen, da Datei bereits ausgewählt wurde
       }
     }
@@ -101,14 +98,13 @@ function FileSelectionModal({ isOpen, onClose, fileType, onSelect }) {
     
     setSavingDirectory(true);
     try {
-      console.log('[FileSelectionModal] Manually saving directory:', newDirectory);
       await updateUploadDirectory(user.userId, newDirectory);
       setCurrentDirectory(newDirectory);
       setIsEditingDirectory(false);
       // Reload files from new directory
       await loadFiles();
     } catch (err) {
-      console.error('[FileSelectionModal] Error saving directory:', err);
+      logger.error('[FileSelectionModal] Fehler beim Speichern des Verzeichnisses:', err.message);
       setError('Fehler beim Speichern des Verzeichnisses: ' + err.message);
     } finally {
       setSavingDirectory(false);

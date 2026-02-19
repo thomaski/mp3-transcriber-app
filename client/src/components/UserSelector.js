@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { FaUser, FaSearch, FaTimes } from 'react-icons/fa';
+import logger from '../utils/logger';
 
 function UserSelector({ selectedUserId, selectedUserName, onSelectUser, currentUser }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,7 +36,6 @@ function UserSelector({ selectedUserId, selectedUserName, onSelectUser, currentU
 
     const timeoutId = setTimeout(async () => {
       setIsSearching(true);
-      console.log('[UserSelector] Searching for:', searchQuery);
       try {
         const response = await fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`, {
           credentials: 'include'
@@ -43,14 +43,14 @@ function UserSelector({ selectedUserId, selectedUserName, onSelectUser, currentU
         
         if (response.ok) {
           const data = await response.json();
-          console.log('[UserSelector] Search results:', data.users);
+          logger.log('[UserSelector] Suchergebnisse:', data.users?.length || 0);
           setSearchResults(data.users || []);
           setShowDropdown(true);
         } else {
-          console.error('[UserSelector] Search failed:', response.status);
+          logger.warn('[UserSelector] Suche fehlgeschlagen, Status:', response.status);
         }
       } catch (error) {
-        console.error('[UserSelector] Error searching users:', error);
+        logger.error('[UserSelector] Fehler bei der Benutzersuche:', error.message);
       } finally {
         setIsSearching(false);
       }

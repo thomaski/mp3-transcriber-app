@@ -27,26 +27,29 @@ RUNPOD_API_KEY=YOUR_API_KEY_HERE
 ### 3. App starten (1 Min)
 
 ```bash
-npm run dev
+npm run server
 ```
 
-**Fertig!** App läuft auf http://localhost:4000
+**Fertig!** App läuft auf http://localhost:5000
 
 ### 4. Erste Schritte (1 Min)
 
-1. **Test-Transkription laden:**
-   ```
-   http://localhost:4000?text=./base-data/test_3min.txt
-   ```
+1. **Login:**
+   - URL: http://localhost:5000
+   - Test-User: `test` / `test`
+   - Admin-User: `tom` / `MT9#Detomaso`
 
-2. **Timestamp klicken:**
-   - Klicke auf `[00:00:01]`
-   - Audio springt zur Position (wenn geladen)
+2. **MP3 hochladen:**
+   - Drag-and-Drop einer MP3-Datei
+   - Oder: File-Browser verwenden
 
-3. **Edit-Modus testen:**
-   ```
-   http://localhost:4000?edit=true
-   ```
+3. **Transkription starten:**
+   - Klicke auf "Transcribe MP3"
+   - Oder: TXT-Datei droppen zum Laden
+
+4. **Timestamp-Navigation:**
+   - Klicke auf `[00:00:01]` Format
+   - Audio springt zur Position
 
 ---
 

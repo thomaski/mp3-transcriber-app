@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { FaPlay, FaPause, FaStop, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
+import logger from '../utils/logger';
 
 function AudioPlayer({ audioUrl, audioRef, audioFile }) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -48,7 +49,7 @@ function AudioPlayer({ audioUrl, audioRef, audioFile }) {
       audio.pause();
     } else {
       audio.play().catch(err => {
-        console.error('Play error:', err);
+        logger.error('Play error:', err);
       });
     }
   };

@@ -9,13 +9,19 @@ require('dotenv').config();
 const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
+const logger = require('../../logger');
+
+// SECURITY: PostgreSQL Credentials MÜSSEN in .env gesetzt werden
+if (!process.env.POSTGRES_PASSWORD) {
+  logger.log('DATABASE', '⚠️ WARNING: POSTGRES_PASSWORD nicht in .env gesetzt. Verwende Fallback (nur für Development!)');
+}
 
 // PostgreSQL connection configuration
 const poolConfig = {
   user: process.env.POSTGRES_USER || 'postgres',
   host: process.env.POSTGRES_HOST || 'localhost',
   database: process.env.POSTGRES_DB || 'mp3_transcriber',
-  password: process.env.POSTGRES_PASSWORD || 'postgres',
+  password: process.env.POSTGRES_PASSWORD || 'postgres', // Fallback nur für Development
   port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
   
   // Connection pool settings
@@ -34,28 +40,28 @@ const SCHEMA_PATH = path.join(__dirname, 'postgresql-schema.sql');
  * Initialize database connection and create schema if needed
  */
 async function initDatabase() {
-  console.log('📦 Initializing PostgreSQL database...');
+  logger.log('DATABASE', '📦 Initializing PostgreSQL database...');
   
   try {
     // Test connection
     const client = await pool.connect();
     const result = await client.query('SELECT NOW() as now');
-    console.log('✅ Database connection successful!', result.rows[0].now);
+    logger.log('DATABASE', '✅ Database connection successful!', result.rows[0].now);
     client.release();
     
     // Check if schema needs to be created
     const schemaExists = await checkSchemaExists();
     
     if (!schemaExists) {
-      console.log('🆕 Schema not found. Creating database schema...');
+      logger.log('DATABASE', '🆕 Schema not found. Creating database schema...');
       await createSchema();
     } else {
-      console.log('✅ Database schema already exists.');
+      logger.log('DATABASE', '✅ Database schema already exists.');
     }
     
     return pool;
   } catch (error) {
-    console.error('❌ Error initializing database:', error.message);
+    logger.error('DATABASE', '❌ Error initializing database:', error.message);
     throw error;
   }
 }
@@ -74,7 +80,7 @@ async function checkSchemaExists() {
     `);
     return result.rows[0].exists;
   } catch (error) {
-    console.error('❌ Error checking schema:', error.message);
+    logger.error('DATABASE', '❌ Error checking schema:', error.message);
     return false;
   }
 }
@@ -83,7 +89,7 @@ async function checkSchemaExists() {
  * Create database schema from postgresql-schema.sql
  */
 async function createSchema() {
-  console.log('📝 Creating database schema...');
+  logger.log('DATABASE', '📝 Creating database schema...');
   
   try {
     // Read schema file
@@ -92,9 +98,9 @@ async function createSchema() {
     // Execute schema (PostgreSQL supports multiple statements)
     await pool.query(schema);
     
-    console.log('✅ Database schema created successfully!');
+    logger.log('DATABASE', '✅ Database schema created successfully!');
   } catch (error) {
-    console.error('❌ Error creating database schema:', error);
+    logger.error('DATABASE', '❌ Error creating database schema:', error);
     throw error;
   }
 }
@@ -111,7 +117,7 @@ function getDatabase() {
  */
 async function closeDatabase() {
   await pool.end();
-  console.log('🔒 Database connection pool closed.');
+  logger.log('DATABASE', '🔒 Database connection pool closed.');
 }
 
 /**
@@ -125,7 +131,7 @@ async function query(sql, params = []) {
     const result = await pool.query(sql, params);
     return result.rows;
   } catch (error) {
-    console.error('Query error:', error);
+    logger.error('DATABASE', 'Query error:', error);
     throw error;
   }
 }
@@ -141,7 +147,7 @@ async function queryOne(sql, params = []) {
     const result = await pool.query(sql, params);
     return result.rows[0] || null;
   } catch (error) {
-    console.error('Query error:', error);
+    logger.error('DATABASE', 'Query error:', error);
     throw error;
   }
 }
@@ -160,7 +166,7 @@ async function execute(sql, params = []) {
       rows: result.rows
     };
   } catch (error) {
-    console.error('Execute error:', error);
+    logger.error('DATABASE', 'Execute error:', error);
     throw error;
   }
 }
@@ -180,7 +186,7 @@ async function transaction(callback) {
     return result;
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Transaction error:', error);
+    logger.error('DATABASE', 'Transaction error:', error);
     throw error;
   } finally {
     client.release();

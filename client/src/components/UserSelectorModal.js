@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaUser, FaTimes, FaUserShield, FaSearch } from 'react-icons/fa';
 import apiClient from '../services/apiClient';
+import logger from '../utils/logger';
 
 function UserSelectorModal({ isOpen, onClose, onSelectUser, currentUser }) {
   const [users, setUsers] = useState([]);
@@ -29,29 +30,22 @@ function UserSelectorModal({ isOpen, onClose, onSelectUser, currentUser }) {
   }, [firstNameFilter, lastNameFilter, users]);
 
   const fetchAllUsers = async () => {
-    console.log('[UserSelectorModal] fetchAllUsers called');
+    logger.log('[UserSelectorModal] Benutzer laden...');
     setIsLoading(true);
     setError(null);
     try {
-      console.log('[UserSelectorModal] Making GET request to /api/users via apiClient');
       const response = await apiClient.get('/users');
       
-      console.log('[UserSelectorModal] Response:', response);
-      console.log('[UserSelectorModal] Response data:', response.data);
-      console.log('[UserSelectorModal] Found users:', response.data.users);
-      console.log('[UserSelectorModal] User count:', response.data.users?.length);
-      
       if (response.data.success) {
+        logger.log('[UserSelectorModal] ✅', response.data.users?.length, 'Benutzer geladen');
         setUsers(response.data.users || []);
         setFilteredUsers(response.data.users || []);
       } else {
-        console.error('[UserSelectorModal] API returned success:false');
+        logger.warn('[UserSelectorModal] API returned success:false');
         setError('Fehler beim Laden der Benutzer.');
       }
     } catch (err) {
-      console.error('[UserSelectorModal] Error fetching users:', err);
-      console.error('[UserSelectorModal] Error message:', err.message);
-      console.error('[UserSelectorModal] Error response:', err.response);
+      logger.error('[UserSelectorModal] Fehler:', err.response?.data || err.message);
       if (err.response?.status === 401) {
         setError('Nicht authentifiziert. Bitte neu einloggen.');
       } else if (err.response?.status === 403) {

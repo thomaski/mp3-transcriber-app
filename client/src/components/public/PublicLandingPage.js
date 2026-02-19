@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { checkId, verifyPassword } from '../../services/publicAccessService';
+import logger from '../../utils/logger';
 
 function PublicLandingPage() {
   const { id } = useParams();
@@ -19,30 +20,29 @@ function PublicLandingPage() {
 
   // Check ID on mount
   useEffect(() => {
-    console.log('[PublicLandingPage] Mounting with ID:', id);
+    logger.log('[PublicLandingPage] Mounting with ID:', id);
     
     if (!id || id.length !== 6) {
-      console.error('[PublicLandingPage] Invalid ID length:', id?.length);
+      logger.error('[PublicLandingPage] Invalid ID length:', id?.length);
       setError('Ungültige ID. IDs müssen 6 Zeichen lang sein.');
       setLoading(false);
       return;
     }
 
-    console.log('[PublicLandingPage] Checking ID:', id);
+    logger.log('[PublicLandingPage] Checking ID:', id);
     checkId(id)
       .then((data) => {
-        console.log('[PublicLandingPage] checkId response:', data);
         if (data.success) {
           setIdInfo(data);
           setLoading(false);
         } else {
-          console.error('[PublicLandingPage] checkId failed:', data.error);
+          logger.error('[PublicLandingPage] checkId failed:', data.error);
           setError(data.error || 'ID nicht gefunden.');
           setLoading(false);
         }
       })
       .catch((err) => {
-        console.error('[PublicLandingPage] checkId error:', err);
+        logger.error('[PublicLandingPage] checkId error:', err);
         setError(err.error || 'Fehler beim Laden der ID.');
         setLoading(false);
       });
@@ -51,94 +51,74 @@ function PublicLandingPage() {
   // Handle password submit
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('[PublicLandingPage] Submit password for ID:', id);
+    logger.log('[PublicLandingPage] Submit password for ID:', id);
     setError('');
 
     if (!password) {
-      console.warn('[PublicLandingPage] No password entered');
       setError('Bitte Passwort eingeben.');
       return;
     }
 
-    console.log('[PublicLandingPage] Verifying password...');
+    logger.log('[PublicLandingPage] Verifying password...');
     setVerifying(true);
 
     try {
       const result = await verifyPassword(id, password);
-      console.log('[PublicLandingPage] verifyPassword response:', result);
 
       if (result.success) {
-        console.log('[PublicLandingPage] ✅✅✅ Password verified successfully! ✅✅✅');
-        console.log('[PublicLandingPage] Full result object:', JSON.stringify(result, null, 2));
-        console.log('[PublicLandingPage] Result type:', result.type);
-        console.log('[PublicLandingPage] Has token?', !!result.token);
-        console.log('[PublicLandingPage] Has user?', !!result.user);
+        logger.log('[PublicLandingPage] ✅ Password verified, type:', result.type);
         
         // For user access: store token and user data, then redirect to transcribe
         if (result.type === 'user' && result.token && result.user) {
-          console.log('[PublicLandingPage] 🔐🔐🔐 USER ACCESS - Starting token storage 🔐🔐🔐');
-          console.log('[PublicLandingPage] Token preview (first 20 chars):', result.token.substring(0, 20) + '...');
-          console.log('[PublicLandingPage] User data:', JSON.stringify(result.user, null, 2));
-          
-          // IMPORTANT: Clear old auth data (but keep auth_version to prevent migration!)
-          console.log('[PublicLandingPage] 🧹 Step 1: Clearing old auth data...');
-          console.log('[PublicLandingPage] LocalStorage BEFORE clear:', JSON.stringify(localStorage));
-          console.log('[PublicLandingPage] SessionStorage BEFORE clear:', JSON.stringify(sessionStorage));
-          
           // WICHTIG: NICHT localStorage.clear() verwenden!
           // Das würde auth_version löschen → Migration läuft → Token wird gelöscht!
-          // Stattdessen nur spezifische Keys löschen:
           localStorage.removeItem('authToken');
           localStorage.removeItem('user');
           sessionStorage.clear();
           
-          console.log('[PublicLandingPage] ✅ LocalStorage AFTER clear:', JSON.stringify(localStorage));
-          console.log('[PublicLandingPage] ✅ SessionStorage AFTER clear:', JSON.stringify(sessionStorage));
-          
-          // Store token in localStorage (WICHTIG: Key muss 'authToken' sein, nicht 'token'!)
-          console.log('[PublicLandingPage] 💾 Step 2: Storing authToken...');
+          // Store token in localStorage (Key muss 'authToken' sein, nicht 'token'!)
           localStorage.setItem('authToken', result.token);
-          console.log('[PublicLandingPage] ✅ authToken stored! Verify:', localStorage.getItem('authToken')?.substring(0, 20) + '...');
-          
-          // Store user data in localStorage
-          console.log('[PublicLandingPage] 💾 Step 3: Storing user data...');
           localStorage.setItem('user', JSON.stringify(result.user));
-          console.log('[PublicLandingPage] ✅ User stored! Verify:', localStorage.getItem('user'));
           
           // Mark as public access session
-          console.log('[PublicLandingPage] 💾 Step 4: Marking as public access...');
           sessionStorage.setItem('isPublicAccess', 'true');
-          console.log('[PublicLandingPage] ✅ Public access marked! Verify:', sessionStorage.getItem('isPublicAccess'));
           
           // WICHTIG: Warte kurz, damit localStorage sicher gespeichert ist
-          console.log('[PublicLandingPage] ⏳ Waiting 500ms for storage to settle...');
           await new Promise(resolve => setTimeout(resolve, 500));
           
-          console.log('[PublicLandingPage] 🚀🚀🚀 ALL DATA STORED - NOW REDIRECTING TO /dashboard 🚀🚀🚀');
-          console.log('[PublicLandingPage] Current URL:', window.location.href);
-          console.log('[PublicLandingPage] Target URL:', window.location.origin + '/dashboard');
+          window.location.href = '/my-transcriptions';
+        } else if (result.type === 'mp3' && result.token && result.user) {
+          logger.log('[PublicLandingPage] 🎵 MP3 ACCESS - Token speichern und zu Transkription weiterleiten');
           
-          // Use hard redirect to dashboard (user will see their transcriptions there)
-          console.log('[PublicLandingPage] ⏱️ Executing redirect NOW...');
-          window.location.href = '/dashboard';
-        } else if (result.type === 'mp3') {
-          console.log('[PublicLandingPage] 🎵 MP3 ACCESS - Navigating to MP3 view');
-          // Navigate to MP3 view
-          navigate(`/public/mp3/${id}?pw=${encodeURIComponent(password)}`);
+          // WICHTIG: Altes Token (z.B. von Admin) entfernen und neues Token für den MP3-Besitzer setzen
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('user');
+          sessionStorage.clear();
+          
+          // Token für den MP3-Besitzer speichern (z.B. User "test", nicht Admin "tom")
+          localStorage.setItem('authToken', result.token);
+          localStorage.setItem('user', JSON.stringify(result.user));
+          
+          // Als Public Access Session markieren
+          sessionStorage.setItem('isPublicAccess', 'true');
+          
+          logger.log('[PublicLandingPage] ✅ Token gespeichert für User:', result.user?.username);
+          
+          // WICHTIG: Warte kurz, damit localStorage sicher gespeichert ist
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Direkt zur Transkription weiterleiten (id = MP3-Transkriptions-ID)
+          window.location.href = `/transcribe/${id}`;
         } else {
-          console.error('[PublicLandingPage] ❌❌❌ UNEXPECTED RESULT STRUCTURE ❌❌❌');
-          console.error('[PublicLandingPage] result.type:', result.type);
-          console.error('[PublicLandingPage] result.token:', result.token ? 'EXISTS' : 'MISSING');
-          console.error('[PublicLandingPage] result.user:', result.user ? 'EXISTS' : 'MISSING');
-          console.error('[PublicLandingPage] Full result:', JSON.stringify(result, null, 2));
+          logger.error('[PublicLandingPage] Unerwartete Ergebnisstruktur:', result.type, !!result.token, !!result.user);
         }
       } else {
-        console.error('[PublicLandingPage] Password verification failed:', result.error);
+        logger.error('[PublicLandingPage] Passwort-Verifikation fehlgeschlagen:', result.error);
         setError(result.error || 'Zugriff verweigert.');
         setVerifying(false);
       }
     } catch (err) {
-      console.error('[PublicLandingPage] verifyPassword error:', err);
+      logger.error('[PublicLandingPage] verifyPassword error:', err);
       setError(err.error || 'Fehler bei der Authentifizierung.');
       setVerifying(false);
     }

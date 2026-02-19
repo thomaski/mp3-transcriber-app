@@ -9,6 +9,7 @@ const { authenticateJWT, requireAdmin } = require('../middleware/auth');
 const { logAuditEvent } = require('../utils/logger');
 const multer = require('multer');
 const crypto = require('crypto'); // For SHA-256 hash
+const logger = require('../../logger');
 
 const router = express.Router();
 
@@ -31,16 +32,11 @@ const upload = multer({
  * Get all transcriptions (admin) or user's own transcriptions
  */
 router.get('/', authenticateJWT, async (req, res) => {
-  console.log('[transcriptions-pg] 📋 GET /api/transcriptions called');
-  console.log('[transcriptions-pg] User:', req.user.userId);
-  console.log('[transcriptions-pg] Is Admin:', req.user.isAdmin);
-  
   try {
     let transcriptions;
     
     if (req.user.isAdmin) {
       // Admin: Alle Transkriptionen (ohne mp3_data für Performance)
-      console.log('[transcriptions-pg] Loading ALL transcriptions (admin)');
       transcriptions = await query(
         `SELECT 
           t.id,
@@ -62,7 +58,6 @@ router.get('/', authenticateJWT, async (req, res) => {
       );
     } else {
       // User: Nur eigene Transkriptionen
-      console.log('[transcriptions-pg] Loading user transcriptions for:', req.user.userId);
       transcriptions = await query(
         `SELECT 
           t.id,
@@ -81,15 +76,14 @@ router.get('/', authenticateJWT, async (req, res) => {
       );
     }
     
-    console.log('[transcriptions-pg] ✅ Found transcriptions:', transcriptions.length);
+    logger.debug('TRANSCRIPTIONS', `Found ${transcriptions.length} transcriptions`);
     
     res.json({
       success: true,
       transcriptions
     });
   } catch (error) {
-    console.error('[transcriptions-pg] ❌ Get transcriptions error:', error);
-    console.error('[transcriptions-pg] Error stack:', error.stack);
+    logger.error('TRANSCRIPTIONS', '❌ Get transcriptions error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Abrufen der Transkriptionen.'
@@ -105,14 +99,8 @@ router.get('/', authenticateJWT, async (req, res) => {
 router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => {
   const { mp3_filename, transcription_text, has_summary, target_user_id } = req.body;
   
-  console.log('[transcriptions-pg] POST /api/transcriptions called');
-  console.log('[transcriptions-pg] mp3_filename:', mp3_filename);
-  console.log('[transcriptions-pg] transcription_text length:', transcription_text?.length);
-  console.log('[transcriptions-pg] has_summary:', has_summary);
-  console.log('[transcriptions-pg] target_user_id:', target_user_id);
-  
   if (!mp3_filename) {
-    console.error('[transcriptions-pg] Missing mp3_filename');
+    logger.log('TRANSCRIPTIONS', 'Missing mp3_filename in POST request');
     return res.status(400).json({
       success: false,
       error: 'MP3-Dateiname ist erforderlich.'
@@ -129,16 +117,13 @@ router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => 
       // Admin: Prüfen ob target_user existiert
       const targetUser = await queryOne('SELECT id FROM users WHERE id = $1', [target_user_id]);
       if (!targetUser) {
-        console.error('[transcriptions-pg] Target user not found:', target_user_id);
         return res.status(400).json({
           success: false,
           error: 'Ziel-User nicht gefunden.'
         });
       }
       userId = target_user_id;
-      console.log(`[transcriptions-pg] Admin ${req.user.username} erstellt/aktualisiert Transkription für User ${target_user_id}`);
-    } else {
-      console.log(`[transcriptions-pg] User ${req.user.username} erstellt/aktualisiert eigene Transkription`);
+      logger.debug('TRANSCRIPTIONS', `Admin ${req.user.username} saves transcription for user ${target_user_id}`);
     }
     
     // MP3-Datei aus Request (Buffer)
@@ -150,14 +135,10 @@ router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => 
       mp3Data = req.file.buffer;
       mp3Size = req.file.size;
       mp3Hash = calculateHash(mp3Data);
-      console.log(`[transcriptions-pg] 📁 MP3-Datei hochgeladen: ${mp3_filename} (${mp3Size} bytes)`);
-      console.log(`[transcriptions-pg] 🔑 MP3 Hash (SHA-256): ${mp3Hash}`);
-    } else {
-      console.log(`[transcriptions-pg] ⚠️ Keine MP3-Datei im Request`);
+      logger.debug('TRANSCRIPTIONS', `MP3 uploaded: ${mp3_filename} (${mp3Size} bytes)`);
     }
     
     // Check if transcription already exists for this user and filename
-    console.log(`[transcriptions-pg] Prüfe ob Transkription bereits existiert: user_id=${userId}, filename=${mp3_filename}`);
     const existingTranscription = await queryOne(
       `SELECT id, mp3_hash FROM transcriptions WHERE user_id = $1 AND mp3_filename = $2`,
       [userId, mp3_filename]
@@ -171,23 +152,17 @@ router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => 
       // UPDATE existing transcription
       isUpdate = true;
       transcriptionId = existingTranscription.id;
-      console.log(`[transcriptions-pg] ♻️ Transkription existiert bereits (ID: ${transcriptionId})`);
+      logger.debug('TRANSCRIPTIONS', `Updating existing transcription: ${transcriptionId}`);
       
       // Check if MP3 hash has changed
       if (mp3Hash && existingTranscription.mp3_hash) {
         mp3Changed = mp3Hash !== existingTranscription.mp3_hash;
-        console.log(`[transcriptions-pg] 🔍 Hash-Vergleich:`);
-        console.log(`  Alte MP3 Hash: ${existingTranscription.mp3_hash}`);
-        console.log(`  Neue MP3 Hash: ${mp3Hash}`);
-        console.log(`  MP3 geändert: ${mp3Changed ? '✅ JA' : '❌ NEIN (identisch)'}`);
       } else if (mp3Hash && !existingTranscription.mp3_hash) {
         // No hash stored yet, consider as changed
         mp3Changed = true;
-        console.log(`[transcriptions-pg] ⚠️ Keine alte MP3-Hash vorhanden, MP3 wird gespeichert`);
       } else if (!mp3Hash) {
         // No new MP3 data provided
         mp3Changed = false;
-        console.log(`[transcriptions-pg] ℹ️ Keine neue MP3-Datei im Request`);
       }
       
       // Prepare UPDATE query - only update fields that are provided
@@ -198,13 +173,11 @@ router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => 
       if (transcription_text !== undefined && transcription_text !== null) {
         updateFields.push(`transcription_text = $${paramCounter++}`);
         updateValues.push(transcription_text);
-        console.log(`[transcriptions-pg]   → Aktualisiere: transcription_text`);
       }
       
       if (has_summary !== undefined && has_summary !== null) {
         updateFields.push(`has_summary = $${paramCounter++}`);
         updateValues.push(has_summary);
-        console.log(`[transcriptions-pg]   → Aktualisiere: has_summary = ${has_summary}`);
       }
       
       // Only update MP3 data if hash has changed
@@ -215,14 +188,10 @@ router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => 
         updateValues.push(mp3Size);
         updateFields.push(`mp3_hash = $${paramCounter++}`);
         updateValues.push(mp3Hash);
-        console.log(`[transcriptions-pg]   → Aktualisiere: mp3_data, mp3_size_bytes, mp3_hash (MP3 hat sich geändert)`);
-      } else if (mp3Data && !mp3Changed) {
-        console.log(`[transcriptions-pg]   → Überspringe MP3-Update: Hash ist identisch (keine Änderung)`);
       }
       
       // Only proceed with UPDATE if there are fields to update
       if (updateFields.length === 0) {
-        console.log(`[transcriptions-pg] ℹ️ Keine Änderungen erkannt, UPDATE übersprungen`);
         // Still return success, but indicate nothing was updated
         const savedTranscription = await queryOne(
           `SELECT 
@@ -264,21 +233,13 @@ router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => 
         RETURNING id, updated_at
       `;
       
-      console.log('[transcriptions-pg] UPDATE query:', updateQuery);
-      console.log('[transcriptions-pg] UPDATE values (excluding mp3_data):', updateValues.map((v, i) => 
-        Buffer.isBuffer(v) ? `[Buffer ${v.length} bytes]` : v
-      ));
-      
       await execute(updateQuery, updateValues);
-      console.log(`[transcriptions-pg] ✅ Transkription ${transcriptionId} erfolgreich aktualisiert`);
+      logger.log('TRANSCRIPTIONS', `✓ Transcription ${transcriptionId} updated`);
       
     } else {
       // INSERT new transcription
-      console.log(`[transcriptions-pg] ➕ Transkription existiert noch nicht, INSERT wird durchgeführt`);
-      
       const { generateMp3Id } = require('../utils/generateShortId');
       transcriptionId = generateMp3Id();
-      console.log(`[transcriptions-pg] Generierte ID: ${transcriptionId}`);
       
       const result = await execute(
         `INSERT INTO transcriptions (id, user_id, mp3_filename, mp3_data, mp3_size_bytes, mp3_hash, transcription_text, has_summary)
@@ -296,7 +257,7 @@ router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => 
         ]
       );
       
-      console.log(`[transcriptions-pg] ✅ Neue Transkription ${transcriptionId} erfolgreich erstellt`);
+      logger.log('TRANSCRIPTIONS', `✓ New transcription created: ${transcriptionId} for ${mp3_filename}`);
     }
     
     // Log event
@@ -315,7 +276,6 @@ router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => 
       },
       success: true
     });
-    console.log(`[transcriptions-pg] Audit event logged: ${isUpdate ? 'update' : 'insert'}`);
     
     // Return transcription (ohne mp3_data)
     const savedTranscription = await queryOne(
@@ -335,13 +295,6 @@ router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => 
       [transcriptionId]
     );
     
-    console.log('[transcriptions-pg] Response:', {
-      success: true,
-      transcriptionId,
-      action: isUpdate ? 'updated' : 'created',
-      mp3_changed: isUpdate ? mp3Changed : true
-    });
-    
     res.status(isUpdate ? 200 : 201).json({
       success: true,
       transcriptionId: transcriptionId,
@@ -352,10 +305,7 @@ router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => 
     });
     
   } catch (error) {
-    console.error('[transcriptions-pg] Error:', error);
-    console.error('[transcriptions-pg] Error name:', error.name);
-    console.error('[transcriptions-pg] Error message:', error.message);
-    console.error('[transcriptions-pg] Error stack:', error.stack);
+    logger.error('TRANSCRIPTIONS', '❌ Save transcription error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Speichern der Transkription.'
@@ -368,13 +318,7 @@ router.post('/', authenticateJWT, upload.single('mp3File'), async (req, res) => 
  * Get single transcription (ohne mp3_data, nur Metadaten + Text)
  */
 router.get('/:id', authenticateJWT, async (req, res) => {
-  console.log('[transcriptions-pg] 📄 GET /api/transcriptions/:id called');
-  console.log('[transcriptions-pg] Transcription ID:', req.params.id);
-  console.log('[transcriptions-pg] Request user:', req.user.userId);
-  console.log('[transcriptions-pg] Is Admin:', req.user.isAdmin);
-  
   try {
-    console.log('[transcriptions-pg] Fetching transcription from database...');
     const transcription = await queryOne(
       `SELECT 
         t.id,
@@ -394,28 +338,19 @@ router.get('/:id', authenticateJWT, async (req, res) => {
     );
     
     if (!transcription) {
-      console.warn('[transcriptions-pg] ⚠️ Transcription not found:', req.params.id);
       return res.status(404).json({
         success: false,
         error: 'Transkription nicht gefunden.'
       });
     }
     
-    console.log('[transcriptions-pg] ✅ Transcription found');
-    console.log('[transcriptions-pg] Owner:', transcription.user_id);
-    console.log('[transcriptions-pg] Filename:', transcription.mp3_filename);
-    console.log('[transcriptions-pg] Size:', transcription.mp3_size_bytes);
-    
     // Check permissions: Own transcription or admin
     if (transcription.user_id !== req.user.userId && !req.user.isAdmin) {
-      console.warn('[transcriptions-pg] ❌ Access denied - not owner and not admin');
       return res.status(403).json({
         success: false,
         error: 'Zugriff verweigert.'
       });
     }
-    
-    console.log('[transcriptions-pg] ✅ Access granted');
     
     res.json({
       success: true,
@@ -423,8 +358,7 @@ router.get('/:id', authenticateJWT, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[transcriptions-pg] ❌ Get transcription error:', error);
-    console.error('[transcriptions-pg] Error stack:', error.stack);
+    logger.error('TRANSCRIPTIONS', '❌ Get transcription error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Abrufen der Transkription.'
@@ -483,7 +417,7 @@ router.get('/:id/audio', authenticateJWT, async (req, res) => {
     res.send(transcription.mp3_data);
     
   } catch (error) {
-    console.error('Get audio error:', error);
+    logger.error('TRANSCRIPTIONS', 'Get audio error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Abrufen der Audio-Datei.'
@@ -543,10 +477,10 @@ router.get('/:id/download', authenticateJWT, async (req, res) => {
     
     res.send(transcription.transcription_text);
     
-    console.log(`📥 Transkription heruntergeladen: ${txtFilename} (User: ${req.user.username})`);
+    logger.log('TRANSCRIPTIONS', `📥 Download: ${txtFilename} (User: ${req.user.username})`);
     
   } catch (error) {
-    console.error('Download transcription error:', error);
+    logger.error('TRANSCRIPTIONS', 'Download transcription error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Herunterladen der Transkription.'
@@ -644,7 +578,7 @@ router.put('/:id', authenticateJWT, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Update transcription error:', error);
+    logger.error('TRANSCRIPTIONS', 'Update transcription error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Aktualisieren der Transkription.'
@@ -699,7 +633,7 @@ router.delete('/:id', authenticateJWT, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Delete transcription error:', error);
+    logger.error('TRANSCRIPTIONS', 'Delete transcription error:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler beim Löschen der Transkription.'

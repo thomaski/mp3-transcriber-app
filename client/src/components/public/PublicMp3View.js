@@ -26,8 +26,9 @@ function PublicMp3View() {
     getMp3Transcription(id, password)
       .then((data) => {
         if (data.success) {
-          setMp3Data(data.transcription);
-          setLoading(false);
+          // Redirect to TranscribeScreen with transcription ID
+          // The transcription will be loaded there via URL param
+          navigate(`/transcribe/${id}`);
         } else {
           setError(data.error || 'Fehler beim Laden der Transkription.');
           setLoading(false);

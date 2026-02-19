@@ -1,0 +1,54 @@
+---
+alwaysApply: true
+---
+
+# Git Commit Conventions
+
+## Commit Message Format
+
+```
+<type>: <deutsche beschreibung>
+
+[Optionaler Body mit mehr Details]
+```
+
+### Commit-Typen
+- **feat**: Neues Feature hinzugefügt
+- **fix**: Bugfix
+- **refactor**: Code-Umstrukturierung (keine funktionalen Änderungen)
+- **docs**: Dokumentation (README, Kommentare, etc.)
+- **style**: Code-Formatierung (keine funktionalen Änderungen)
+- **test**: Tests hinzugefügt oder geändert
+- **chore**: Maintenance (Dependencies, Config, Build-Scripts)
+- **perf**: Performance-Verbesserung
+
+### Beispiele (GUTE Commits)
+```
+feat: User-Profilbild Upload implementiert
+fix: Login-Bug bei leeren Feldern behoben
+refactor: API-Routes in separate Dateien aufgeteilt
+docs: README mit Installationsanleitung erweitert
+chore: Dependencies aktualisiert
+```
+
+### Beispiele (SCHLECHTE Commits - vermeiden)
+```
+❌ "update"
+❌ "fix"
+❌ "changes"
+❌ "asdf"
+❌ "WIP" (außer auf Feature-Branches)
+```
+
+## Commit Best Practices
+- **Atomic Commits**: Jeder Commit sollte eine logische Einheit sein
+- **Häufig committen**: Besser viele kleine als ein großer Commit
+- **Beschreibend**: Was und warum wurde geändert
+- **Vor dem Commit**: Code testen
+- **Branch-Strategie**: Feature-Branches für größere Features
+
+## Wann NICHT committen
+- ⚠️ Code funktioniert nicht (außer explizit als WIP markiert)
+- ⚠️ Tests schlagen fehl
+- ⚠️ Linter-Errors vorhanden
+- ⚠️ Console.logs oder Debug-Code noch drin
