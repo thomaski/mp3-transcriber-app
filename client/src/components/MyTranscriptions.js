@@ -52,13 +52,9 @@ function MyTranscriptions() {
   }
 
   function handleTranscriptionClick(transcription) {
-    logger.log('[MyTranscriptions] Transkription geöffnet:', transcription.id);
-    navigate('/transcribe', { 
-      state: { 
-        transcriptionId: transcription.id,
-        mp3Filename: transcription.mp3_filename 
-      } 
-    });
+    logger.log('[MyTranscriptions] Transkription geöffnet:', transcription.id, transcription.mp3_filename);
+    // WICHTIG: ID muss in der URL stehen (useParams in TranscribeScreen), nicht im State!
+    navigate(`/transcribe/${transcription.id}`);
   }
 
   function handleLogout() {
