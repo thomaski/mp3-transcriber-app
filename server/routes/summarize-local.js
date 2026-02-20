@@ -21,7 +21,7 @@ router.post('/', async (req, res) => {
   const startTime = Date.now();
   
   try {
-    const { filename, transcription, socketId } = req.body;
+    const { filename, transcription, socketId, mp3Filename } = req.body;
 
     if (!socketId) {
       return res.status(400).json({ error: 'Keine Socket-ID angegeben' });
@@ -43,8 +43,17 @@ router.post('/', async (req, res) => {
     if (transcription && transcription.trim()) {
       sendProgress('init', 'Verwende aktuelle Transkription...', 0);
       
-      // Temporären Dateinamen generieren
-      const tempFilename = `temp_${Date.now()}_transcription.txt`;
+      // Temp-Dateiname: basierend auf MP3-Dateinamen (ohne Endung) + "_temp.txt"
+      // z.B. "newsletter_2013-02.mp3" → "newsletter_2013-02_temp.txt"
+      // Python erzeugt daraus dann "newsletter_2013-02_temp_s.txt" (die Summary)
+      let tempFilename;
+      if (mp3Filename) {
+        const mp3Base = path.basename(mp3Filename, path.extname(mp3Filename))
+          .replace(/[^a-zA-Z0-9._\-]/g, '_');
+        tempFilename = `${mp3Base}_temp.txt`;
+      } else {
+        tempFilename = `temp_${Date.now()}_transcription.txt`;
+      }
       tempFile = path.join(LOCAL_AUDIO_DIR, tempFilename);
       
       // Transkription in temporäre Datei schreiben

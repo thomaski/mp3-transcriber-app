@@ -15,6 +15,7 @@ import ProgressModal from './ProgressModal';
 import FileSelectionModal from './FileSelectionModal';
 import LiveOutputModal from './LiveOutputModal';
 import UserSelectorModal from './UserSelectorModal';
+import ExportModal from './ExportModal';
 import { loadLocalFile, transcribeLocal, summarizeLocal, saveTranscription, updateTranscriptionText, getTranscription, getTranscriptionByFilename, getAudioBlobUrl, saveFileForTranscription } from '../services/api';
 import { getLastTranscription, updateLastTranscription } from '../services/userService';
 import { parseUrlParams, parseTimestamp } from '../utils/helpers';
@@ -47,6 +48,9 @@ function TranscribeScreen() {
   const [progress, setProgress] = useState({ step: '', message: '', progress: 0 });
   const [error, setError] = useState(null);
   
+  // Export Modal State
+  const [showExportModal, setShowExportModal] = useState(false);
+
   // WSL2 Local Processing State
   const [showFileModal, setShowFileModal] = useState(false);
   const [fileModalType, setFileModalType] = useState('mp3'); // 'mp3' or 'txt'
@@ -740,6 +744,9 @@ function TranscribeScreen() {
         // Wenn die MP3-Datei per Drag & Drop geladen wurde (hat originalFile),
         // muss sie zuerst zum Server in LOCAL_AUDIO_DIR hochgeladen werden,
         // da WSL2 nur lokale Dateien verarbeiten kann.
+        // Dateiname für den Transcribe-Aufruf (Original oder Temp)
+        let transcribeFilename = audioFile.name;
+
         if (audioFile.originalFile) {
           logger.log('→ [TranscribeScreen] MP3 wird für WSL2 zum Server hochgeladen:', audioFile.name);
           setLiveOutputs([{
@@ -748,11 +755,13 @@ function TranscribeScreen() {
             timestamp: new Date().toLocaleTimeString(),
             type: 'info'
           }]);
-          await saveFileForTranscription(audioFile.originalFile);
-          logger.log('✅ [TranscribeScreen] MP3 erfolgreich zum Server hochgeladen');
+          // Server speichert als {basename}_temp.mp3 und gibt den Temp-Namen zurück
+          const saveResult = await saveFileForTranscription(audioFile.originalFile);
+          transcribeFilename = saveResult.filename; // z.B. "newsletter_2013-02_temp.mp3"
+          logger.log('✅ [TranscribeScreen] Temp-MP3 auf Server:', transcribeFilename);
         }
 
-        await transcribeLocal(audioFile.name, socketId);
+        await transcribeLocal(transcribeFilename, socketId);
       } catch (err) {
         logger.error('✗ Transkription fehlgeschlagen:', err);
         setError(err.message);
@@ -794,7 +803,9 @@ function TranscribeScreen() {
       
       try {
         // Sende die aktuelle Transkription direkt an das Backend
-        const response = await summarizeLocal(null, socketRef.current?.id, transcription);
+        // mp3Filename für benutzerfriendliche Temp-Datei-Namen übergeben
+        const mp3Filename = audioFile?.name || null;
+        const response = await summarizeLocal(null, socketRef.current?.id, transcription, mp3Filename);
         logger.log('✓ Lokale Zusammenfassung gestartet:', response);
       } catch (err) {
         logger.error('✗ Lokale Zusammenfassung fehlgeschlagen:', err);
@@ -1057,6 +1068,20 @@ function TranscribeScreen() {
           />
         </div>
         
+        {/* Export-Button (nur sichtbar wenn Transkription vorhanden) */}
+        {transcription && (
+          <div className="mb-4 flex justify-end">
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 transition-colors"
+              title="Transkription als TXT oder PDF exportieren"
+            >
+              <span>⬇</span>
+              <span>Export Transkription</span>
+            </button>
+          </div>
+        )}
+
         {/* Transcript View */}
         {transcription && (
           <div>
@@ -1115,6 +1140,14 @@ function TranscribeScreen() {
         }}
       />
       
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        transcription={transcription}
+        filename={audioFile?.name}
+      />
+
       {/* User Selector Modal */}
       <UserSelectorModal
         isOpen={showUserModal}

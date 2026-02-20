@@ -36,6 +36,9 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ error: `MP3-Datei nicht gefunden: ${filename}` });
     }
 
+    // Merken ob es eine Temp-Datei ist (enthält _temp vor der Endung)
+    const isTempFile = /^.+_temp\.[^.]+$/.test(filename);
+
     // Socket.io Instanz holen (wird in index.js gesetzt)
     const io = req.app.get('io');
 
@@ -96,6 +99,18 @@ router.post('/', async (req, res) => {
       sendProgress('warning', stripAnsiCodes(error), 0);
     });
 
+    // Hilfsfunktion: Temp-MP3-Datei aufräumen
+    const cleanupTempMp3 = () => {
+      if (isTempFile && fs.existsSync(mp3Path)) {
+        try {
+          fs.unlinkSync(mp3Path);
+          logger.log('TRANSCRIBE_LOCAL', `✓ Temp-MP3 gelöscht: ${filename}`);
+        } catch (err) {
+          logger.log('TRANSCRIBE_LOCAL', `⚠ Fehler beim Löschen der Temp-MP3: ${err.message}`);
+        }
+      }
+    };
+
     // Prozess beendet
     wslProcess.on('close', async (code) => {
       const duration = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -103,6 +118,7 @@ router.post('/', async (req, res) => {
       if (code !== 0) {
         logger.error('TRANSCRIBE_LOCAL', `WSL-Prozess beendet mit Code ${code}`);
         sendProgress('error', `Transkription fehlgeschlagen (Exit-Code: ${code})`, 0);
+        cleanupTempMp3(); // Temp-Datei auch bei Fehler löschen
         
         return res.status(500).json({
           error: 'Transkription fehlgeschlagen',
@@ -130,6 +146,7 @@ router.post('/', async (req, res) => {
       const transcription = fs.readFileSync(txtPath, 'utf8');
 
       sendProgress('complete', `Transkription abgeschlossen in ${duration}s`, 100);
+      cleanupTempMp3(); // Temp-MP3 nach erfolgreicher Transkription löschen
 
       // Sende Transkription auch via Socket für direktes Update im Frontend
       io.to(socketId).emit('transcribe:result', {
@@ -153,6 +170,7 @@ router.post('/', async (req, res) => {
     wslProcess.on('error', (error) => {
       logger.error('TRANSCRIBE_LOCAL', 'WSL-Prozess Fehler:', error);
       sendProgress('error', `WSL-Fehler: ${error.message}`, 0);
+      cleanupTempMp3(); // Temp-Datei auch bei WSL-Fehler löschen
       
       res.status(500).json({
         error: 'Fehler beim Starten von WSL',

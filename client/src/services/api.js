@@ -201,14 +201,16 @@ export const transcribeLocal = async (filename, socketId) => {
 // filename: TXT-Dateiname (optional, wenn transcription angegeben)
 // socketId: Socket-ID für Live-Updates
 // transcription: Direkte Transkription als String (optional, wenn filename angegeben)
-export const summarizeLocal = async (filename, socketId, transcription = null) => {
-  logger.log('[api.js] 📝 summarizeLocal called, filename:', filename, 'hasTranscription:', !!transcription);
+// mp3Filename: Dateiname der MP3-Datei (für benutzerfriendliche Temp-Datei-Namen)
+export const summarizeLocal = async (filename, socketId, transcription = null, mp3Filename = null) => {
+  logger.log('[api.js] 📝 summarizeLocal called, filename:', filename, 'hasTranscription:', !!transcription, 'mp3Filename:', mp3Filename);
   
   try {
     const payload = { socketId };
     
     if (transcription) {
       payload.transcription = transcription;
+      if (mp3Filename) payload.mp3Filename = mp3Filename;
     } else if (filename) {
       payload.filename = filename;
     } else {

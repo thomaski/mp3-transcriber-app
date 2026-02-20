@@ -175,15 +175,19 @@ router.post('/save-for-transcription', authenticateJWT, upload.single('file'), a
       fs.mkdirSync(targetDir, { recursive: true });
     }
 
-    // Sicherer Dateiname
-    const safeFilename = path.basename(req.file.originalname).replace(/[^a-zA-Z0-9._\-]/g, '_');
-    const targetPath = path.join(targetDir, safeFilename);
+    // Sicherer Dateiname: Original-Basename + _temp Suffix
+    // z.B. "newsletter_2013-02.mp3" → "newsletter_2013-02_temp.mp3"
+    const originalSafe = path.basename(req.file.originalname).replace(/[^a-zA-Z0-9._\-]/g, '_');
+    const ext = path.extname(originalSafe);
+    const base = path.basename(originalSafe, ext);
+    const tempFilename = `${base}_temp${ext}`;
+    const targetPath = path.join(targetDir, tempFilename);
 
     fs.writeFileSync(targetPath, req.file.buffer);
 
-    logger.log('LOCAL_FILES', `✅ Datei für Transkription gespeichert: ${safeFilename} (${(req.file.size / 1024 / 1024).toFixed(2)} MB)`);
+    logger.log('LOCAL_FILES', `✅ Temp-Datei für Transkription gespeichert: ${tempFilename} (${(req.file.size / 1024 / 1024).toFixed(2)} MB)`);
 
-    res.json({ success: true, filename: safeFilename, path: targetPath });
+    res.json({ success: true, filename: tempFilename, originalFilename: originalSafe, path: targetPath });
   } catch (error) {
     logger.error('LOCAL_FILES', 'Fehler beim Speichern für Transkription:', error.message);
     res.status(500).json({ error: `Fehler beim Speichern: ${error.message}` });
