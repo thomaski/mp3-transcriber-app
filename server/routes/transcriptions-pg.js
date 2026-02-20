@@ -92,6 +92,54 @@ router.get('/', authenticateJWT, async (req, res) => {
 });
 
 /**
+ * GET /api/transcriptions/by-filename?filename=xxx
+ * Sucht eine Transkription anhand des Dateinamens für den eingeloggten User (oder Admin-User)
+ * Muss VOR /:id stehen um Konflikte zu vermeiden
+ */
+router.get('/by-filename', authenticateJWT, async (req, res) => {
+  const { filename } = req.query;
+
+  if (!filename) {
+    return res.status(400).json({ success: false, error: 'filename Parameter fehlt.' });
+  }
+
+  try {
+    const userId = req.user.userId;
+
+    const transcription = await queryOne(
+      `SELECT id, user_id, mp3_filename, transcription_text, has_summary, created_at, updated_at
+       FROM transcriptions
+       WHERE user_id = $1 AND mp3_filename = $2
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+      [userId, filename]
+    );
+
+    if (!transcription) {
+      return res.json({ success: true, transcription: null });
+    }
+
+    logger.debug('TRANSCRIPTIONS', `By-filename found: ${transcription.id} for user ${userId}`);
+
+    res.json({
+      success: true,
+      transcription: {
+        id: transcription.id,
+        user_id: transcription.user_id,
+        mp3_filename: transcription.mp3_filename,
+        transcription_text: transcription.transcription_text,
+        has_summary: transcription.has_summary,
+        created_at: transcription.created_at,
+        updated_at: transcription.updated_at
+      }
+    });
+  } catch (error) {
+    logger.error('TRANSCRIPTIONS', '❌ By-filename error:', error);
+    res.status(500).json({ success: false, error: 'Fehler beim Suchen der Transkription.' });
+  }
+});
+
+/**
  * POST /api/transcriptions
  * Create or update transcription with MP3 data and optional target user (admin only)
  * UPSERT logic: If a transcription with same mp3_filename and user_id exists, UPDATE it

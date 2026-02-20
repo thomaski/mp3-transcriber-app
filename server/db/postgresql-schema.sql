@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE,                  -- Email (optional, must be valid if provided)
   is_admin BOOLEAN DEFAULT FALSE,
   last_upload_directory VARCHAR(500),         -- Last used upload directory (for admins)
+  last_transcription_id VARCHAR(6),           -- Zuletzt bearbeitete Transkription (für Admins)
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

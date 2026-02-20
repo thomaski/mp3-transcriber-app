@@ -124,6 +124,18 @@ export async function getLastTranscription(userId) {
   return response.data;
 }
 
+/**
+ * Speichert die zuletzt bearbeitete Transkription für einen Admin-User
+ * @param {string} userId 
+ * @param {string} transcriptionId 
+ * @returns {Promise<Object>} Success response
+ */
+export async function updateLastTranscription(userId, transcriptionId) {
+  logger.log('[userService] updateLastTranscription aufgerufen:', userId, transcriptionId);
+  const response = await apiClient.patch(`/users/${userId}/last-transcription`, { transcriptionId });
+  return response.data;
+}
+
 export default {
   getAllUsers,
   getUser,
@@ -134,5 +146,6 @@ export default {
   getUserTranscriptions,
   updateUploadDirectory,
   getUploadDirectory,
-  getLastTranscription
+  getLastTranscription,
+  updateLastTranscription
 };

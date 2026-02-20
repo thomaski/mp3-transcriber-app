@@ -57,6 +57,8 @@ async function initDatabase() {
       await createSchema();
     } else {
       logger.log('DATABASE', '✅ Database schema already exists.');
+      // Migrations: Neue Spalten hinzufügen falls noch nicht vorhanden
+      await runMigrations();
     }
     
     return pool;
@@ -102,6 +104,27 @@ async function createSchema() {
   } catch (error) {
     logger.error('DATABASE', '❌ Error creating database schema:', error);
     throw error;
+  }
+}
+
+/**
+ * Migrations: Fügt fehlende Spalten und Constraints zu bestehenden Tabellen hinzu
+ * Idempotent – kann bei jedem Server-Start ausgeführt werden
+ */
+async function runMigrations() {
+  logger.log('DATABASE', '🔄 Prüfe DB-Migrationen...');
+
+  try {
+    // Migration: last_transcription_id in users Tabelle
+    await pool.query(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS last_transcription_id VARCHAR(6)
+          REFERENCES transcriptions(id) ON DELETE SET NULL
+    `);
+    logger.log('DATABASE', '✅ Migration: last_transcription_id geprüft/hinzugefügt');
+  } catch (error) {
+    // Fehler nicht fatal – Spalte könnte in seltenen Fällen schon existieren
+    logger.warn('DATABASE', '⚠️ Migration last_transcription_id:', error.message);
   }
 }
 

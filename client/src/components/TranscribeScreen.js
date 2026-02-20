@@ -15,8 +15,8 @@ import ProgressModal from './ProgressModal';
 import FileSelectionModal from './FileSelectionModal';
 import LiveOutputModal from './LiveOutputModal';
 import UserSelectorModal from './UserSelectorModal';
-import { uploadFile, loadLocalFile, transcribeLocal, summarizeLocal, saveTranscription, getTranscription, getAudioBlobUrl } from '../services/api';
-import { getLastTranscription } from '../services/userService';
+import { uploadFile, loadLocalFile, transcribeLocal, summarizeLocal, saveTranscription, getTranscription, getTranscriptionByFilename, getAudioBlobUrl } from '../services/api';
+import { getLastTranscription, updateLastTranscription } from '../services/userService';
 import { parseUrlParams, parseTimestamp } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
 import logger from '../utils/logger';
@@ -139,6 +139,11 @@ function TranscribeScreen() {
             setSavedTranscriptionId(trans.id);
             setSelectedUserId(trans.user_id);
 
+            // last_transcription_id für Admin aktualisieren
+            if (user.isAdmin && user.userId) {
+              try { await updateLastTranscription(user.userId, trans.id); } catch (_) {}
+            }
+
             if (trans.mp3_filename) {
               setAudioFile({ name: trans.mp3_filename, size: 0, isFromDatabase: true });
               try {
@@ -223,6 +228,9 @@ function TranscribeScreen() {
             setTranscription(lastTrans.transcription_text || '');
             setIsTranscriptionDirty(false);
             setSavedTranscriptionId(lastTrans.id);
+
+            // last_transcription_id für Admin aktualisieren (falls noch nicht gesetzt)
+            try { await updateLastTranscription(user.userId, lastTrans.id); } catch (_) {}
 
             if (lastTrans.mp3_filename) {
               setAudioFile({ name: lastTrans.mp3_filename, size: 0, isFromDatabase: true });
@@ -388,30 +396,70 @@ function TranscribeScreen() {
         // Handle MP3 file
         setIsProcessing(true);
         setProgress({ step: 'upload', message: 'Lade Datei hoch...', progress: 0 });
-        
-        logger.log('[TranscribeScreen] Uploading MP3:', file.name);
-        const uploadResult = await uploadFile(file);
-        logger.log('[TranscribeScreen] Upload result:', uploadResult);
-        
-        // Create a Blob URL for the audio player (local playback)
-        const blobUrl = URL.createObjectURL(file);
-        
-        // Store file info with Blob URL and buffer reference
-        const audioFileData = {
-          name: file.name,
-          size: file.size,
-          mimetype: file.type,
-          originalFile: file, // Keep reference to original file for later use
-          isUploaded: true
-        };
-        
-        setAudioFile(audioFileData);
-        setAudioUrl(blobUrl);
-        
-        logger.log('[TranscribeScreen] ✅ MP3 gespeichert:', file.name);
-        
-        setIsProcessing(false);
-        setProgress({ step: '', message: '', progress: 0 });
+
+        // Prüfen ob eine Transkription mit gleichem Dateinamen bereits in der DB existiert
+        let existingTranscription = null;
+        if (user?.userId) {
+          try {
+            const checkResult = await getTranscriptionByFilename(file.name);
+            if (checkResult.success && checkResult.transcription) {
+              existingTranscription = checkResult.transcription;
+              logger.log('[TranscribeScreen] 🔍 Vorhandene Transkription gefunden für:', file.name, '→ ID:', existingTranscription.id);
+            }
+          } catch (checkErr) {
+            logger.warn('[TranscribeScreen] ⚠️ Dateiname-Check fehlgeschlagen (nicht kritisch):', checkErr.message);
+          }
+        }
+
+        if (existingTranscription) {
+          // ✅ Transkription aus DB laden – MP3-Datei (frisch gedroppt) als Blob-URL verwenden
+          const blobUrl = URL.createObjectURL(file);
+          setAudioFile({
+            name: file.name,
+            size: file.size,
+            mimetype: file.type,
+            originalFile: file,
+            isUploaded: true
+          });
+          setAudioUrl(blobUrl);
+          setTranscription(existingTranscription.transcription_text || '');
+          setIsTranscriptionDirty(false);
+          setSavedTranscriptionId(existingTranscription.id);
+
+          // last_transcription_id für Admin aktualisieren
+          if (user?.isAdmin && user?.userId) {
+            try { await updateLastTranscription(user.userId, existingTranscription.id); } catch (_) {}
+          }
+
+          logger.log('[TranscribeScreen] ✅ Vorhandene Transkription geladen für:', file.name);
+          setIsProcessing(false);
+          setProgress({ step: '', message: '', progress: 0 });
+        } else {
+          // Neue MP3 – normaler Upload-Flow
+          logger.log('[TranscribeScreen] Uploading MP3 (neu):', file.name);
+          const uploadResult = await uploadFile(file);
+          logger.log('[TranscribeScreen] Upload result:', uploadResult);
+
+          // Create a Blob URL for the audio player (local playback)
+          const blobUrl = URL.createObjectURL(file);
+
+          // Store file info with Blob URL and buffer reference
+          const audioFileData = {
+            name: file.name,
+            size: file.size,
+            mimetype: file.type,
+            originalFile: file, // Keep reference to original file for later use
+            isUploaded: true
+          };
+
+          setAudioFile(audioFileData);
+          setAudioUrl(blobUrl);
+
+          logger.log('[TranscribeScreen] ✅ MP3 gespeichert:', file.name);
+
+          setIsProcessing(false);
+          setProgress({ step: '', message: '', progress: 0 });
+        }
       } else {
         setError('Nur MP3-Dateien werden hier unterstützt');
       }
@@ -511,11 +559,17 @@ function TranscribeScreen() {
       const saveResult = await saveTranscription(saveData);
       
       if (saveResult.success) {
-        setSavedTranscriptionId(saveResult.transcriptionId || saveResult.id);
+        const savedId = saveResult.transcriptionId || saveResult.id;
+        setSavedTranscriptionId(savedId);
         setSaveSuccess(true);
         setIsTranscriptionDirty(false); // Nach erfolgreichem Speichern: kein ungespeicherter Inhalt
         
-        logger.log('✅ [TranscribeScreen] Gespeichert! ID:', saveResult.transcriptionId || saveResult.id, '| Action:', saveResult.action);
+        logger.log('✅ [TranscribeScreen] Gespeichert! ID:', savedId, '| Action:', saveResult.action);
+
+        // last_transcription_id für Admin aktualisieren
+        if (user?.isAdmin && user?.userId && savedId) {
+          try { await updateLastTranscription(user.userId, savedId); } catch (_) {}
+        }
         
         // Zeige Erfolgsmeldung für 3 Sekunden
         setTimeout(() => setSaveSuccess(false), 3000);

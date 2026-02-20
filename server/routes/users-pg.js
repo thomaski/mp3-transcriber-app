@@ -573,7 +573,9 @@ router.get('/:userId/upload-directory', authenticateJWT, async (req, res) => {
 
 /**
  * GET /api/users/:userId/last-transcription
- * Get user's last/most recent transcription
+ * Get user's last edited transcription.
+ * Priorität: 1) last_transcription_id (explizit gesetzt)
+ *            2) Neueste Transkription nach updated_at (Fallback)
  */
 router.get('/:userId/last-transcription', authenticateJWT, async (req, res) => {
   const { userId } = req.params;
@@ -586,25 +588,45 @@ router.get('/:userId/last-transcription', authenticateJWT, async (req, res) => {
         error: 'Keine Berechtigung.'
       });
     }
-    
-    // Get user's most recent transcription
-    const transcription = await queryOne(
-      `SELECT id, mp3_filename, transcription_text, has_summary, created_at, updated_at
-       FROM transcriptions
-       WHERE user_id = $1
-       ORDER BY updated_at DESC, created_at DESC
-       LIMIT 1`,
+
+    // Priorität 1: Explizit gespeicherte letzte Transkription
+    const userRow = await queryOne(
+      'SELECT last_transcription_id FROM users WHERE id = $1',
       [userId]
     );
-    
+
+    let transcription = null;
+
+    if (userRow && userRow.last_transcription_id) {
+      transcription = await queryOne(
+        `SELECT id, mp3_filename, transcription_text, has_summary, created_at, updated_at
+         FROM transcriptions
+         WHERE id = $1 AND user_id = $2`,
+        [userRow.last_transcription_id, userId]
+      );
+      if (transcription) {
+        logger.debug('USERS', `Last transcription (via last_transcription_id) for user ${userId}: ${transcription.mp3_filename}`);
+      }
+    }
+
+    // Priorität 2: Fallback – neueste nach updated_at
     if (!transcription) {
-      return res.json({
-        success: true,
-        transcription: null
-      });
+      transcription = await queryOne(
+        `SELECT id, mp3_filename, transcription_text, has_summary, created_at, updated_at
+         FROM transcriptions
+         WHERE user_id = $1
+         ORDER BY updated_at DESC, created_at DESC
+         LIMIT 1`,
+        [userId]
+      );
+      if (transcription) {
+        logger.debug('USERS', `Last transcription (fallback updated_at) for user ${userId}: ${transcription.mp3_filename}`);
+      }
     }
     
-    logger.debug('USERS', `Last transcription for user ${userId}: ${transcription.mp3_filename}`);
+    if (!transcription) {
+      return res.json({ success: true, transcription: null });
+    }
     
     res.json({
       success: true,
@@ -623,6 +645,61 @@ router.get('/:userId/last-transcription', authenticateJWT, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Fehler beim Abrufen der letzten Transkription.'
+    });
+  }
+});
+
+/**
+ * PATCH /api/users/:userId/last-transcription
+ * Speichert die zuletzt bearbeitete Transkription für einen Admin-User
+ */
+router.patch('/:userId/last-transcription', authenticateJWT, async (req, res) => {
+  const { userId } = req.params;
+  const { transcriptionId } = req.body;
+
+  try {
+    // Nur der eigene User darf sein last_transcription_id setzen
+    if (userId !== req.user.userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Keine Berechtigung.'
+      });
+    }
+
+    if (!transcriptionId) {
+      return res.status(400).json({ success: false, error: 'transcriptionId fehlt.' });
+    }
+
+    // Prüfen ob die Transkription diesem User gehört
+    const trans = await queryOne(
+      'SELECT id FROM transcriptions WHERE id = $1 AND user_id = $2',
+      [transcriptionId, userId]
+    );
+
+    // Admin-Transkriptionen können auch fremden Usern gehören – daher nur prüfen ob Transkription existiert
+    // (falls trans null ist und Admin → egal, wir prüfen nur ob sie überhaupt existiert)
+    const transExists = trans || (req.user.isAdmin
+      ? await queryOne('SELECT id FROM transcriptions WHERE id = $1', [transcriptionId])
+      : null);
+
+    if (!transExists) {
+      return res.status(404).json({ success: false, error: 'Transkription nicht gefunden.' });
+    }
+
+    await execute(
+      'UPDATE users SET last_transcription_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [transcriptionId, userId]
+    );
+
+    logger.debug('USERS', `✓ last_transcription_id updated for user ${userId}: ${transcriptionId}`);
+
+    res.json({ success: true, transcriptionId });
+
+  } catch (error) {
+    logger.error('USERS', 'Update last transcription error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Fehler beim Speichern der letzten Transkription.'
     });
   }
 });

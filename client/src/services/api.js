@@ -263,6 +263,21 @@ export const saveTranscription = async (transcriptionData) => {
   }
 };
 
+// Sucht eine Transkription anhand des MP3-Dateinamens (für den eingeloggten User)
+export const getTranscriptionByFilename = async (filename) => {
+  logger.log('[api.js] getTranscriptionByFilename called:', filename);
+  try {
+    const response = await apiClient.get(`/transcriptions/by-filename`, {
+      params: { filename }
+    });
+    logger.log('[api.js] ✅ getTranscriptionByFilename:', response.data?.transcription?.id || 'nicht gefunden');
+    return response.data;
+  } catch (error) {
+    logger.error('[api.js] ❌ getTranscriptionByFilename error:', error);
+    throw error;
+  }
+};
+
 // Get transcription by ID
 export const getTranscription = async (transcriptionId) => {
   logger.log('[api.js] getTranscription called:', transcriptionId);
