@@ -17,6 +17,7 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  deleteTranscription,
   getUserTranscriptions
 } from '../../services/userService';
 import logger from '../../utils/logger';
@@ -121,6 +122,38 @@ function UserManagement() {
     if (selectedTranscriptionId) {
       logger.log('[UserManagement] Transkription öffnen:', selectedTranscriptionId);
       navigate(`/transcribe/${selectedTranscriptionId}`);
+    }
+  }
+
+  // Handle delete transcription
+  async function handleDeleteTranscription() {
+    if (!selectedTranscriptionId) return;
+
+    const trans = transcriptions.find(t => t.id === selectedTranscriptionId);
+    const filename = trans?.mp3_filename || selectedTranscriptionId;
+
+    if (!window.confirm(`Transkription "${filename}" wirklich löschen?\n\nDieser Vorgang kann nicht rückgängig gemacht werden.`)) {
+      return;
+    }
+
+    try {
+      const response = await deleteTranscription(selectedTranscriptionId);
+      if (response.success) {
+        logger.log('[UserManagement] ✅ Transkription gelöscht:', selectedTranscriptionId);
+        // Aus der Liste entfernen und Auswahl zurücksetzen
+        setTranscriptions(prev => prev.filter(t => t.id !== selectedTranscriptionId));
+        setSelectedTranscriptionId(null);
+        // Transkriptions-Zähler beim User aktualisieren
+        setUsers(prev => prev.map(u =>
+          u.id === selectedUserId
+            ? { ...u, transcription_count: Math.max(0, (u.transcription_count || 1) - 1) }
+            : u
+        ));
+      }
+    } catch (error) {
+      logger.error('[UserManagement] Transkription löschen fehlgeschlagen:', error.message);
+      setError(error.response?.data?.error || 'Fehler beim Löschen der Transkription.');
+      setTimeout(() => setError(null), 4000);
     }
   }
 
@@ -782,18 +815,32 @@ function UserManagement() {
             {/* Transkription öffnen Button (always visible below transcriptions table) */}
             {selectedUserId && transcriptions.length > 0 && (
               <div className="p-4 bg-gray-50 border-t border-gray-200">
-                  <button
-                    onClick={handleOpenTranscription}
-                    disabled={!selectedTranscriptionId}
-                    className={`w-full px-4 py-2 text-sm font-semibold rounded transition flex items-center justify-center gap-2 mb-3 ${
-                      selectedTranscriptionId
-                        ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                    title={selectedTranscriptionId ? 'Transkription öffnen' : 'Bitte eine Transkription in der Tabelle auswählen'}
-                  >
-                    📂 Transkription öffnen
-                  </button>
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      onClick={handleOpenTranscription}
+                      disabled={!selectedTranscriptionId}
+                      className={`flex-1 px-4 py-2 text-sm font-semibold rounded transition flex items-center justify-center gap-2 ${
+                        selectedTranscriptionId
+                          ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                      title={selectedTranscriptionId ? 'Transkription öffnen' : 'Bitte eine Transkription in der Tabelle auswählen'}
+                    >
+                      📂 Transkription öffnen
+                    </button>
+                    <button
+                      onClick={handleDeleteTranscription}
+                      disabled={!selectedTranscriptionId}
+                      className={`px-4 py-2 text-sm font-semibold rounded transition flex items-center justify-center gap-2 ${
+                        selectedTranscriptionId
+                          ? 'bg-red-600 text-white hover:bg-red-700 cursor-pointer'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                      title={selectedTranscriptionId ? 'Transkription löschen' : 'Bitte eine Transkription auswählen'}
+                    >
+                      🗑️ Löschen
+                    </button>
+                  </div>
                   
                   {selectedTranscriptionId ? (
                     <div className="space-y-2">

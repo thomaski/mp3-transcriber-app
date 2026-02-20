@@ -68,6 +68,18 @@ export async function deleteUser(userId) {
 }
 
 /**
+ * Delete transcription by ID
+ * @param {string} transcriptionId 
+ * @returns {Promise<Object>} Success message
+ */
+export async function deleteTranscription(transcriptionId) {
+  logger.log('[userService] deleteTranscription aufgerufen:', transcriptionId);
+  const response = await apiClient.delete(`/transcriptions/${transcriptionId}`);
+  logger.log('[userService] ✅ Transkription gelöscht:', transcriptionId);
+  return response.data;
+}
+
+/**
  * Get user's transcriptions
  * @param {string} userId 
  * @returns {Promise<Object>} Transcriptions list
@@ -118,6 +130,7 @@ export default {
   createUser,
   updateUser,
   deleteUser,
+  deleteTranscription,
   getUserTranscriptions,
   updateUploadDirectory,
   getUploadDirectory,
