@@ -18,7 +18,8 @@ import {
   updateUser,
   deleteUser,
   deleteTranscription,
-  getUserTranscriptions
+  getUserTranscriptions,
+  getAllTranscriptions
 } from '../../services/userService';
 import logger from '../../utils/logger';
 
@@ -60,14 +61,14 @@ function UserManagement() {
     loadUsers();
   }, []);
 
-  // Load transcriptions when user is selected
+  // Load transcriptions when user is selected – oder alle wenn kein User selektiert
   useEffect(() => {
     if (selectedUserId) {
       loadTranscriptions(selectedUserId);
     } else {
-      setTranscriptions([]);
-      setSelectedTranscriptionId(null);
+      loadAllTranscriptionsView();
     }
+    setSelectedTranscriptionId(null);
   }, [selectedUserId]);
 
   async function loadUsers() {
@@ -100,6 +101,27 @@ function UserManagement() {
       }
     } catch (error) {
       logger.error('[UserManagement] Transkriptionen laden fehlgeschlagen:', error.message);
+    } finally {
+      setTranscriptionsLoading(false);
+    }
+  }
+
+  // Alle Transkriptionen aller User laden (kein User selektiert)
+  async function loadAllTranscriptionsView() {
+    try {
+      setTranscriptionsLoading(true);
+      const response = await getAllTranscriptions();
+      if (response.success) {
+        // Sortiere nach MP3-Dateiname
+        const sorted = response.transcriptions.sort((a, b) => {
+          const nameA = (a.mp3_filename || '').toLowerCase();
+          const nameB = (b.mp3_filename || '').toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
+        setTranscriptions(sorted);
+      }
+    } catch (error) {
+      logger.error('[UserManagement] Alle Transkriptionen laden fehlgeschlagen:', error.message);
     } finally {
       setTranscriptionsLoading(false);
     }
@@ -143,9 +165,11 @@ function UserManagement() {
         // Aus der Liste entfernen und Auswahl zurücksetzen
         setTranscriptions(prev => prev.filter(t => t.id !== selectedTranscriptionId));
         setSelectedTranscriptionId(null);
-        // Transkriptions-Zähler beim User aktualisieren
+        // Transkriptions-Zähler beim zugehörigen User aktualisieren
+        // (trans.user_id funktioniert auch in der Alle-Ansicht, da die Transkription den user_id enthält)
+        const ownerUserId = trans?.user_id || selectedUserId;
         setUsers(prev => prev.map(u =>
-          u.id === selectedUserId
+          u.id === ownerUserId
             ? { ...u, transcription_count: Math.max(0, (u.transcription_count || 1) - 1) }
             : u
         ));
@@ -752,20 +776,19 @@ function UserManagement() {
           <div className="bg-white rounded-lg shadow">
             <div className="p-4 border-b border-gray-200">
               <h2 className="text-lg font-bold text-gray-900">
-                MP3-Transkriptionen
+                {selectedUserId
+                  ? `MP3-Transkriptionen – ${users.find(u => u.id === selectedUserId)?.first_name || ''} ${users.find(u => u.id === selectedUserId)?.last_name || ''}`.trim()
+                  : `Alle MP3-Transkriptionen (${transcriptions.length})`
+                }
               </h2>
-              {selectedUserId && (
-                <p className="text-sm text-gray-600 mt-1">
-                  Benutzer: {users.find(u => u.id === selectedUserId)?.first_name} {users.find(u => u.id === selectedUserId)?.last_name}
+              {!selectedUserId && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Klicken Sie auf einen Benutzer oben, um nur dessen Transkriptionen zu sehen.
                 </p>
               )}
             </div>
 
-            {!selectedUserId ? (
-              <div className="p-8 text-center text-gray-500">
-                <p>Wählen Sie einen Benutzer aus, um dessen Transkriptionen zu sehen.</p>
-              </div>
-            ) : transcriptionsLoading ? (
+            {transcriptionsLoading ? (
               <div className="p-8 text-center">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
@@ -779,14 +802,18 @@ function UserManagement() {
                   <thead className="bg-gray-50 sticky top-0">
                     <tr className="text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       <th className="px-4 py-3 whitespace-nowrap">ID</th>
+                      {/* Benutzer-Spalte nur in der Alle-Ansicht */}
+                      {!selectedUserId && (
+                        <th className="px-4 py-3 whitespace-nowrap">Benutzer</th>
+                      )}
                       <th className="px-4 py-3 whitespace-nowrap">MP3-Datei</th>
                       <th className="px-4 py-3 whitespace-nowrap">Summary</th>
                     </tr>
                   </thead>
                   <tbody>
                     {transcriptions.map((trans) => (
-                      <tr 
-                        key={trans.id} 
+                      <tr
+                        key={trans.id}
                         onClick={() => handleTranscriptionRowClick(trans.id)}
                         className={`border-b border-gray-200 cursor-pointer transition ${
                           selectedTranscriptionId === trans.id ? 'bg-blue-50' : 'hover:bg-gray-50'
@@ -795,6 +822,14 @@ function UserManagement() {
                         <td className="px-4 py-3">
                           <span className="text-sm font-mono text-gray-600">{trans.id}</span>
                         </td>
+                        {/* Benutzer-Spalte nur in der Alle-Ansicht */}
+                        {!selectedUserId && (
+                          <td className="px-4 py-3">
+                            <span className="text-sm text-gray-700">
+                              {trans.first_name ? `${trans.first_name}${trans.last_name ? ' ' + trans.last_name : ''}` : trans.username}
+                            </span>
+                          </td>
+                        )}
                         <td className="px-4 py-3">
                           <div className="text-sm" title={trans.mp3_filename}>🎵 {trans.mp3_filename}</div>
                         </td>
@@ -812,37 +847,42 @@ function UserManagement() {
               </div>
             )}
 
-            {/* Transkription öffnen Button (always visible below transcriptions table) */}
-            {selectedUserId && transcriptions.length > 0 && (
+            {/* Aktions-Buttons (immer sichtbar wenn Transkriptionen vorhanden) */}
+            {transcriptions.length > 0 && (
               <div className="p-4 bg-gray-50 border-t border-gray-200">
-                  <div className="flex gap-2 mb-3">
-                    <button
-                      onClick={handleOpenTranscription}
-                      disabled={!selectedTranscriptionId}
-                      className={`flex-1 px-4 py-2 text-sm font-semibold rounded transition flex items-center justify-center gap-2 ${
-                        selectedTranscriptionId
-                          ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
-                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      }`}
-                      title={selectedTranscriptionId ? 'Transkription öffnen' : 'Bitte eine Transkription in der Tabelle auswählen'}
-                    >
-                      📂 Transkription öffnen
-                    </button>
-                    <button
-                      onClick={handleDeleteTranscription}
-                      disabled={!selectedTranscriptionId}
-                      className={`px-4 py-2 text-sm font-semibold rounded transition flex items-center justify-center gap-2 ${
-                        selectedTranscriptionId
-                          ? 'bg-red-600 text-white hover:bg-red-700 cursor-pointer'
-                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      }`}
-                      title={selectedTranscriptionId ? 'Transkription löschen' : 'Bitte eine Transkription auswählen'}
-                    >
-                      🗑️ Löschen
-                    </button>
-                  </div>
-                  
-                  {selectedTranscriptionId ? (
+                <div className="flex gap-2 mb-3">
+                  <button
+                    onClick={handleOpenTranscription}
+                    disabled={!selectedTranscriptionId}
+                    className={`flex-1 px-4 py-2 text-sm font-semibold rounded transition flex items-center justify-center gap-2 ${
+                      selectedTranscriptionId
+                        ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                    title={selectedTranscriptionId ? 'Transkription öffnen' : 'Bitte eine Transkription in der Tabelle auswählen'}
+                  >
+                    📂 Transkription öffnen
+                  </button>
+                  <button
+                    onClick={handleDeleteTranscription}
+                    disabled={!selectedTranscriptionId}
+                    className={`px-4 py-2 text-sm font-semibold rounded transition flex items-center justify-center gap-2 ${
+                      selectedTranscriptionId
+                        ? 'bg-red-600 text-white hover:bg-red-700 cursor-pointer'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                    title={selectedTranscriptionId ? 'Transkription löschen' : 'Bitte eine Transkription auswählen'}
+                  >
+                    🗑️ Löschen
+                  </button>
+                </div>
+
+                {selectedTranscriptionId ? (() => {
+                  // Passwort-User aus selektierter Transkription ermitteln (funktioniert auch in Alle-Ansicht)
+                  const selTrans = transcriptions.find(t => t.id === selectedTranscriptionId);
+                  const ownerUserId = selTrans?.user_id || selectedUserId;
+                  const ownerUser = users.find(u => u.id === ownerUserId);
+                  return (
                     <div className="space-y-2">
                       <h3 className="text-xs font-semibold text-gray-700">🔗 Landing-Page URL (Transkription)</h3>
                       <div className="flex items-center gap-2">
@@ -865,18 +905,20 @@ function UserManagement() {
                           📋 Kopieren
                         </button>
                       </div>
-                      <p className="text-xs text-gray-600">
-                        Passwort für den Zugriff: <strong>{users.find(u => u.id === selectedUserId)?.first_name}</strong>
-                      </p>
+                      {ownerUser && (
+                        <p className="text-xs text-gray-600">
+                          Passwort für den Zugriff: <strong>{ownerUser.first_name}</strong>
+                        </p>
+                      )}
                     </div>
-                  ) : (
-                    <p className="text-xs text-gray-600 text-center">
-                      ℹ️ Klicken Sie auf eine Zeile in der Tabelle um eine Transkription auszuwählen
-                    </p>
-                  )}
-                </div>
-              )
-            }
+                  );
+                })() : (
+                  <p className="text-xs text-gray-600 text-center">
+                    ℹ️ Klicken Sie auf eine Zeile in der Tabelle um eine Transkription auszuwählen
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </main>

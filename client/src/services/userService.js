@@ -114,6 +114,17 @@ export async function getUploadDirectory(userId) {
 }
 
 /**
+ * Get all transcriptions (Admin-only – alle User)
+ * @returns {Promise<Object>} All transcriptions list
+ */
+export async function getAllTranscriptions() {
+  logger.log('[userService] getAllTranscriptions aufgerufen');
+  const response = await apiClient.get('/transcriptions');
+  logger.log('[userService] getAllTranscriptions:', response.data?.transcriptions?.length || 0, 'Transkriptionen');
+  return response.data;
+}
+
+/**
  * Get user's last/most recent transcription
  * @param {string} userId 
  * @returns {Promise<Object>} Last transcription
@@ -144,6 +155,7 @@ export default {
   deleteUser,
   deleteTranscription,
   getUserTranscriptions,
+  getAllTranscriptions,
   updateUploadDirectory,
   getUploadDirectory,
   getLastTranscription,
