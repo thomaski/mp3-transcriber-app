@@ -113,8 +113,19 @@ function LiveOutputModal({ isOpen, title, outputs, progress, isComplete, hasErro
                 </span>
               )}
             </div>
-            <div className="text-xs text-gray-500">
-              {outputs.length} Zeile{outputs.length !== 1 ? 'n' : ''}
+            <div className="flex items-center space-x-4">
+              <div className="text-xs text-gray-500">
+                {outputs.length} Zeile{outputs.length !== 1 ? 'n' : ''}
+              </div>
+              {/* Schließen-Button nur bei Fehler oder abgeschlossen */}
+              {(hasError || isComplete) && onClose && (
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  ✕ Schließen
+                </button>
+              )}
             </div>
           </div>
         </div>

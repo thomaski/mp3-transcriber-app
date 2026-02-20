@@ -706,6 +706,22 @@ function TranscribeScreen() {
     // EINFACHE LOGIK: MP3 vorhanden? Direkt verwenden! Sonst Modal.
     if (audioFile && audioFile.name) {
       logger.log('✓ Starte Transkription für:', audioFile.name);
+
+      // Socket-Verbindung prüfen – ohne Socket-ID kann der Server keine Live-Updates senden
+      const socketId = socketRef.current?.id;
+      if (!socketId) {
+        logger.error('✗ Socket nicht verbunden – kann Transkription nicht starten');
+        setLiveOutputs([{
+          step: 'error',
+          message: 'Keine Socket-Verbindung zum Server. Bitte die Seite neu laden (F5) und erneut versuchen.',
+          timestamp: new Date().toLocaleTimeString(),
+          type: 'error'
+        }]);
+        setHasLiveError(true);
+        setShowLiveOutput(true);
+        setLiveTitle('Lokale Transkription (WSL2 Python)');
+        return;
+      }
       
       // Reset live output states
       setLiveOutputs([]);
@@ -717,7 +733,7 @@ function TranscribeScreen() {
       setLiveTitle('Lokale Transkription (WSL2 Python)');
       
       try {
-        await transcribeLocal(audioFile.name, socketRef.current?.id);
+        await transcribeLocal(audioFile.name, socketId);
       } catch (err) {
         logger.error('✗ Transkription fehlgeschlagen:', err);
         setError(err.message);
