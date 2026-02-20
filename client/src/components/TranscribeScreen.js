@@ -15,7 +15,7 @@ import ProgressModal from './ProgressModal';
 import FileSelectionModal from './FileSelectionModal';
 import LiveOutputModal from './LiveOutputModal';
 import UserSelectorModal from './UserSelectorModal';
-import { uploadFile, loadLocalFile, transcribeLocal, summarizeLocal, saveTranscription, getTranscription, getTranscriptionByFilename, getAudioBlobUrl } from '../services/api';
+import { loadLocalFile, transcribeLocal, summarizeLocal, saveTranscription, getTranscription, getTranscriptionByFilename, getAudioBlobUrl } from '../services/api';
 import { getLastTranscription, updateLastTranscription } from '../services/userService';
 import { parseUrlParams, parseTimestamp } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
@@ -395,7 +395,7 @@ function TranscribeScreen() {
       if (fileType === 'mp3') {
         // Handle MP3 file
         setIsProcessing(true);
-        setProgress({ step: 'upload', message: 'Lade Datei hoch...', progress: 0 });
+        setProgress({ step: 'upload', message: 'Datei wird vorbereitet...', progress: 0 });
 
         // Prüfen ob eine Transkription mit gleichem Dateinamen bereits in der DB existiert
         let existingTranscription = null;
@@ -435,27 +435,21 @@ function TranscribeScreen() {
           setIsProcessing(false);
           setProgress({ step: '', message: '', progress: 0 });
         } else {
-          // Neue MP3 – normaler Upload-Flow
-          logger.log('[TranscribeScreen] Uploading MP3 (neu):', file.name);
-          const uploadResult = await uploadFile(file);
-          logger.log('[TranscribeScreen] Upload result:', uploadResult);
+          // Neue MP3 – keine Server-Upload nötig, Datei liegt bereits lokal im Speicher.
+          // Blob URL für den Audio-Player direkt aus dem lokalen File-Objekt erstellen.
+          // Der tatsächliche Upload zur DB erfolgt erst beim Klick auf "Speichern".
+          logger.log('[TranscribeScreen] ✅ Neue MP3 lokal vorbereitet (kein Upload):', file.name);
 
-          // Create a Blob URL for the audio player (local playback)
           const blobUrl = URL.createObjectURL(file);
 
-          // Store file info with Blob URL and buffer reference
-          const audioFileData = {
+          setAudioFile({
             name: file.name,
             size: file.size,
             mimetype: file.type,
-            originalFile: file, // Keep reference to original file for later use
+            originalFile: file, // Referenz auf Original-File für späteren DB-Upload
             isUploaded: true
-          };
-
-          setAudioFile(audioFileData);
+          });
           setAudioUrl(blobUrl);
-
-          logger.log('[TranscribeScreen] ✅ MP3 gespeichert:', file.name);
 
           setIsProcessing(false);
           setProgress({ step: '', message: '', progress: 0 });
