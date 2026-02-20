@@ -148,20 +148,30 @@ router.post('/', async (req, res) => {
       // Datei lesen
       const transcription = fs.readFileSync(txtPath, 'utf8');
 
+      // Temp-TXT-Output löschen (falls aus Temp-MP3 entstanden)
+      if (isTempFile && fs.existsSync(txtPath)) {
+        try {
+          fs.unlinkSync(txtPath);
+          logger.log('TRANSCRIBE_LOCAL', `✓ Temp-TXT gelöscht: ${txtPath}`);
+        } catch (err) {
+          logger.log('TRANSCRIBE_LOCAL', `⚠ Fehler beim Löschen der Temp-TXT: ${err.message}`);
+        }
+      }
+
       sendProgress('complete', `Transkription abgeschlossen in ${duration}s`, 100);
       cleanupTempMp3(); // Temp-MP3 nach erfolgreicher Transkription löschen
 
-      // Sende Transkription auch via Socket für direktes Update im Frontend
+      // Sende Transkription via Socket – Originalnamen (ohne _temp) verwenden!
       io.to(socketId).emit('transcribe:result', {
         transcription: transcription,
-        filename: `${baseName}.txt`,
-        mp3Filename: filename
+        filename: `${path.basename(displayFilename, path.extname(displayFilename))}.txt`,
+        mp3Filename: displayFilename  // Originalname ohne _temp-Suffix
       });
 
       res.json({
         success: true,
-        filename: `${baseName}.txt`,
-        mp3Filename: filename, // Original MP3-Dateiname
+        filename: `${path.basename(displayFilename, path.extname(displayFilename))}.txt`,
+        mp3Filename: displayFilename, // Originalname (ohne _temp) zurückgeben
         path: txtPath,
         transcription: transcription,
         duration: parseFloat(duration),

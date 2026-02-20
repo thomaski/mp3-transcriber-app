@@ -546,8 +546,7 @@ function TranscribeScreen() {
   const saveTranscriptionWithMp3 = async (transcriptionText, hasSummary = false, overrideUserId = null) => {
     const effectiveUserId = overrideUserId || selectedUserId;
     if (!effectiveUserId) {
-      logger.error('❌ [TranscribeScreen] Kein User ausgewählt, Speicherung übersprungen.');
-      setError('⚠️ Kein Benutzer ausgewählt! Bitte wählen Sie einen Benutzer aus.');
+      logger.warn('⚠️ [TranscribeScreen] Kein User ausgewählt, Speicherung übersprungen.');
       return null;
     }
     
