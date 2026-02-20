@@ -162,6 +162,24 @@ export const getLocalDirectoryInfo = async () => {
   }
 };
 
+// Speichert eine MP3-Datei im lokalen Audio-Verzeichnis für WSL2-Transkription
+export const saveFileForTranscription = async (file) => {
+  logger.log('[api.js] 💾 saveFileForTranscription called:', file?.name, file?.size);
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await apiClient.post('/local-files/save-for-transcription', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    logger.log('[api.js] ✅ saveFileForTranscription response:', response.data);
+    return response.data;
+  } catch (error) {
+    logger.error('[api.js] ❌ saveFileForTranscription error:', error.response?.data || error.message);
+    throw new Error(error.response?.data?.error || 'Fehler beim Speichern der MP3 für Transkription');
+  }
+};
+
 // Transcribe local MP3 with WSL2 Python
 export const transcribeLocal = async (filename, socketId) => {
   logger.log('[api.js] 🎤 transcribeLocal called, filename:', filename);

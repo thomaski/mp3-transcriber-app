@@ -15,7 +15,7 @@ import ProgressModal from './ProgressModal';
 import FileSelectionModal from './FileSelectionModal';
 import LiveOutputModal from './LiveOutputModal';
 import UserSelectorModal from './UserSelectorModal';
-import { loadLocalFile, transcribeLocal, summarizeLocal, saveTranscription, updateTranscriptionText, getTranscription, getTranscriptionByFilename, getAudioBlobUrl } from '../services/api';
+import { loadLocalFile, transcribeLocal, summarizeLocal, saveTranscription, updateTranscriptionText, getTranscription, getTranscriptionByFilename, getAudioBlobUrl, saveFileForTranscription } from '../services/api';
 import { getLastTranscription, updateLastTranscription } from '../services/userService';
 import { parseUrlParams, parseTimestamp } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
@@ -285,6 +285,10 @@ function TranscribeScreen() {
     
     socket.on('connect', () => {
       logger.log('✓ Connected to server:', socket.id, 'URL:', backendUrl);
+    });
+
+    socket.on('connect_error', (err) => {
+      logger.error('✗ Socket connect_error:', err.message);
     });
     
     socket.on('disconnect', () => {
@@ -733,6 +737,21 @@ function TranscribeScreen() {
       setLiveTitle('Lokale Transkription (WSL2 Python)');
       
       try {
+        // Wenn die MP3-Datei per Drag & Drop geladen wurde (hat originalFile),
+        // muss sie zuerst zum Server in LOCAL_AUDIO_DIR hochgeladen werden,
+        // da WSL2 nur lokale Dateien verarbeiten kann.
+        if (audioFile.originalFile) {
+          logger.log('→ [TranscribeScreen] MP3 wird für WSL2 zum Server hochgeladen:', audioFile.name);
+          setLiveOutputs([{
+            step: 'upload',
+            message: `MP3 wird vorbereitet: ${audioFile.name}...`,
+            timestamp: new Date().toLocaleTimeString(),
+            type: 'info'
+          }]);
+          await saveFileForTranscription(audioFile.originalFile);
+          logger.log('✅ [TranscribeScreen] MP3 erfolgreich zum Server hochgeladen');
+        }
+
         await transcribeLocal(audioFile.name, socketId);
       } catch (err) {
         logger.error('✗ Transkription fehlgeschlagen:', err);
@@ -1024,6 +1043,7 @@ function TranscribeScreen() {
             isProcessing={isProcessing}
             hasAudio={!!audioFile}
             hasTranscription={!!transcription}
+            hasSummary={!!(transcription && transcription.includes('Gesamtzusammenfassung:'))}
             isEditMode={isEditMode}
             showEditButton={showEditButton}
             onToggleEdit={() => setIsEditMode(!isEditMode)}

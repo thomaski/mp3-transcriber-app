@@ -12,6 +12,7 @@ function ControlPanel({
   isProcessing,
   hasAudio,
   hasTranscription,
+  hasSummary,  // True wenn Transkription bereits eine "Gesamtzusammenfassung:" enthält
   isEditMode,
   showEditButton,
   onToggleEdit,
@@ -31,39 +32,57 @@ function ControlPanel({
           {/* Admin Buttons - NUR für Admins sichtbar */}
           {isAdmin && (
             <>
-              {/* Transcribe Button (lokal) */}
-              <button
-                onClick={onTranscribeLocal}
-                disabled={isProcessing}
-                className={`
-                  flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all
-                  ${isProcessing
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
-                  }
-                `}
-                title="Transkribiere MP3 mit WSL2 Python"
-              >
-                <FaMicrophone />
-                <span>Transcribe MP3</span>
-              </button>
-              
-              {/* Summarize Button (lokal) */}
-              <button
-                onClick={onSummarizeLocal}
-                disabled={isProcessing}
-                className={`
-                  flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all
-                  ${isProcessing
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg'
-                  }
-                `}
-                title="Erstelle Summary einer Transkription mit WSL2 Python"
-              >
-                <FaFileAlt />
-                <span>Summarize</span>
-              </button>
+              {/* Transcribe Button (lokal) – aktiv nur wenn MP3 geladen und noch kein Transkriptionstext */}
+              {(() => {
+                const transcribeDisabled = isProcessing || !hasAudio || hasTranscription;
+                return (
+                  <button
+                    onClick={onTranscribeLocal}
+                    disabled={transcribeDisabled}
+                    className={`
+                      flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all
+                      ${transcribeDisabled
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
+                      }
+                    `}
+                    title={
+                      !hasAudio ? 'Bitte zuerst eine MP3-Datei laden'
+                      : hasTranscription ? 'Transkription bereits vorhanden'
+                      : 'Transkribiere MP3 mit WSL2 Python'
+                    }
+                  >
+                    <FaMicrophone />
+                    <span>Transcribe MP3</span>
+                  </button>
+                );
+              })()}
+
+              {/* Summarize Button (lokal) – aktiv nur wenn Transkription vorhanden und noch keine Summary */}
+              {(() => {
+                const summarizeDisabled = isProcessing || !hasTranscription || hasSummary;
+                return (
+                  <button
+                    onClick={onSummarizeLocal}
+                    disabled={summarizeDisabled}
+                    className={`
+                      flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all
+                      ${summarizeDisabled
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg'
+                      }
+                    `}
+                    title={
+                      !hasTranscription ? 'Bitte zuerst eine Transkription laden'
+                      : hasSummary ? 'Zusammenfassung bereits vorhanden'
+                      : 'Erstelle Summary einer Transkription mit WSL2 Python'
+                    }
+                  >
+                    <FaFileAlt />
+                    <span>Summarize</span>
+                  </button>
+                );
+              })()}
               
               {/* Transkription speichern Button - NUR für Admins, NUR aktiv wenn Text geändert wurde */}
               {hasTranscription && onSmartSave && (
@@ -89,10 +108,10 @@ function ControlPanel({
                   </span>
                 </button>
               )}
-            </>
-          )}
+              </>
+            )}
         </div>
-        
+          
         {/* Right Side: Reset & Edit Buttons */}
         <div className="flex flex-wrap gap-3 items-center">
           {/* Reset Button - NUR für Admins */}
@@ -113,24 +132,24 @@ function ControlPanel({
               <span>Neue Datei laden</span>
             </button>
           )}
-          
-          {/* Edit Mode Toggle - nur sichtbar wenn showEditButton true ist */}
-          {showEditButton && (
-            <button
-              onClick={onToggleEdit}
-              disabled={isProcessing}
-              className={`
-                flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all border-2
-                ${isEditMode
-                  ? 'border-yellow-500 bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
-                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                }
-              `}
-            >
-              <FaEdit />
-              <span>{isEditMode ? 'Edit-Modus: AN' : 'Edit-Modus: AUS'}</span>
-            </button>
-          )}
+        
+        {/* Edit Mode Toggle - nur sichtbar wenn showEditButton true ist */}
+        {showEditButton && (
+          <button
+            onClick={onToggleEdit}
+            disabled={isProcessing}
+            className={`
+              flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all border-2
+              ${isEditMode
+                ? 'border-yellow-500 bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+              }
+            `}
+          >
+            <FaEdit />
+            <span>{isEditMode ? 'Edit-Modus: AN' : 'Edit-Modus: AUS'}</span>
+          </button>
+        )}
         </div>
       </div>
       

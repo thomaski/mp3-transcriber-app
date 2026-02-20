@@ -39,28 +39,12 @@ const app = express();
 const server = http.createServer(app);
 
 // Initialize Socket.io with CORS
+// Hinweis: Frontend wird vom gleichen Server ausgeliefert → origin: true ist korrekt.
+// Die frühere restriktive Whitelist blockierte Zugriffe von 192.168.178.20:5000
+// und der Cloudflare-Domain, da nur Port 3000/4000 (alte Ports) eingetragen waren.
 const io = new Server(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' 
-      ? process.env.CLIENT_URL 
-      : function(origin, callback) {
-        // Allow localhost, local IP, ngrok, and Cloudflare Tunnel domains
-        const allowedOrigins = [
-          config.FRONTEND_URL,
-          config.PROXY_URL,
-          `http://192.168.178.20:${config.FRONTEND_PORT}`,
-          config.LOCAL_IP_URL
-        ];
-        
-        // Allow any ngrok or Cloudflare Tunnel domain
-        if (!origin || allowedOrigins.includes(origin) || 
-            origin.includes('.ngrok-free.dev') || 
-            origin.includes('.trycloudflare.com')) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
-        }
-      },
+    origin: true, // Alle Origins erlauben – wie bei Express CORS (Frontend = gleicher Server)
     methods: ['GET', 'POST'],
     credentials: true
   }

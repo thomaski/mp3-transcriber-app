@@ -2,9 +2,13 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
 const { authenticateJWT } = require('../middleware/auth');
 const { queryOne } = require('../db/database-pg');
 const logger = require('../../logger');
+
+// Multer in-memory für temporäre Datei-Aufnahme
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } });
 
 // Konfiguration für lokales Verzeichnis (Default)
 const DEFAULT_AUDIO_DIR = 'D:\\Projekte_KI\\pyenv_1_transcode_durchgabe\\audio';
@@ -149,6 +153,40 @@ router.get('/info', authenticateJWT, async (req, res) => {
       error: 'Fehler beim Abrufen der Verzeichnis-Info',
       details: error.message 
     });
+  }
+});
+
+/**
+ * POST /api/local-files/save-for-transcription
+ * Speichert eine hochgeladene MP3-Datei im lokalen Audio-Verzeichnis,
+ * damit WSL2 (transcribe-local) sie verarbeiten kann.
+ * Body: multipart/form-data mit Feld "file"
+ */
+router.post('/save-for-transcription', authenticateJWT, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Keine Datei angegeben' });
+    }
+
+    // Zielverzeichnis bestimmen (wie in transcribe-local.js: DEFAULT_AUDIO_DIR)
+    const targetDir = DEFAULT_AUDIO_DIR;
+
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    // Sicherer Dateiname
+    const safeFilename = path.basename(req.file.originalname).replace(/[^a-zA-Z0-9._\-]/g, '_');
+    const targetPath = path.join(targetDir, safeFilename);
+
+    fs.writeFileSync(targetPath, req.file.buffer);
+
+    logger.log('LOCAL_FILES', `✅ Datei für Transkription gespeichert: ${safeFilename} (${(req.file.size / 1024 / 1024).toFixed(2)} MB)`);
+
+    res.json({ success: true, filename: safeFilename, path: targetPath });
+  } catch (error) {
+    logger.error('LOCAL_FILES', 'Fehler beim Speichern für Transkription:', error.message);
+    res.status(500).json({ error: `Fehler beim Speichern: ${error.message}` });
   }
 });
 
