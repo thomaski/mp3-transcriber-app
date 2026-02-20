@@ -96,6 +96,20 @@ function TranscribeScreen() {
     };
   }, [isEditMode, showEditButton]);
   
+  // Warnung wenn User versucht die Seite zu verlassen während ein Speichervorgang läuft
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isProcessing) {
+        e.preventDefault();
+        // Standardmäßige Browser-Warnung (Text wird von modernen Browsern ignoriert)
+        e.returnValue = 'Speichervorgang läuft noch. Seite wirklich verlassen?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isProcessing]);
+
   // Auto-select current user if not admin
   useEffect(() => {
     if (user && !user.isAdmin && !selectedUserId) {
@@ -465,24 +479,31 @@ function TranscribeScreen() {
   };
   
   // Handle text file drop (in TranscriptView)
-  const handleTextFileDrop = async (text) => {
+  const handleTextFileDrop = (text) => {
     logger.log('[TranscribeScreen] 📄 handleTextFileDrop:', text?.length, 'Zeichen');
     
+    // Text sofort anzeigen – NICHT auf den Save warten
     setTranscription(text);
-    setIsTranscriptionDirty(true); // Neue Datei gedroppt → noch nicht gespeichert
+    setIsTranscriptionDirty(true);
     
-    // Automatisches Speichern wenn User, MP3 und Text vorhanden sind
+    // Automatisches Speichern im Hintergrund (fire & forget)
+    // Beim ersten Speichern wird die MP3 hochgeladen (kann dauern), daher nicht awaiten.
+    // Der Text ist sofort sichtbar, die Speicherung läuft asynchron.
     if (selectedUserId && audioFile && text && text.trim()) {
       const hasSummary = text.includes('Gesamtzusammenfassung:');
-      logger.log('[TranscribeScreen] 🚀 AUTO-SAVE gestartet, hasSummary:', hasSummary);
+      logger.log('[TranscribeScreen] 🚀 AUTO-SAVE im Hintergrund gestartet, hasSummary:', hasSummary);
       
-      const saveResult = await saveTranscriptionWithMp3(text, hasSummary);
-      
-      if (saveResult) {
-        logger.log('[TranscribeScreen] ✅ AUTO-SAVE erfolgreich!');
-      } else {
-        logger.error('[TranscribeScreen] ❌ AUTO-SAVE fehlgeschlagen!');
-      }
+      saveTranscriptionWithMp3(text, hasSummary)
+        .then(result => {
+          if (result) {
+            logger.log('[TranscribeScreen] ✅ AUTO-SAVE erfolgreich!');
+          } else {
+            logger.error('[TranscribeScreen] ❌ AUTO-SAVE fehlgeschlagen!');
+          }
+        })
+        .catch(err => {
+          logger.error('[TranscribeScreen] ❌ AUTO-SAVE Fehler:', err.message);
+        });
     } else {
       logger.warn('[TranscribeScreen] ⚠️ AUTO-SAVE übersprungen - Bedingungen nicht erfüllt');
     }
@@ -534,11 +555,15 @@ function TranscribeScreen() {
       return null;
     }
     
+    // Speicher-Indikator anzeigen – blockiert UI damit User nicht während des Uploads navigiert
+    setIsProcessing(true);
+
     try {
       let saveResult;
 
       if (savedTranscriptionId) {
-        // UPDATE: Transkription existiert bereits → nur Text senden, kein MP3-Upload nötig
+        // UPDATE: Transkription existiert bereits → nur Text senden, kein MP3-Upload nötig (schnell)
+        setProgress({ step: 'saving', message: 'Transkription wird aktualisiert...', progress: 70 });
         logger.log('→ [TranscribeScreen] PUT (Text only) für ID:', savedTranscriptionId, '| hasSummary:', hasSummary);
         saveResult = await updateTranscriptionText(savedTranscriptionId, transcriptionText, hasSummary);
         // PUT gibt transcription-Objekt zurück, saveResult.id aus dem Objekt holen
@@ -546,7 +571,8 @@ function TranscribeScreen() {
           saveResult.transcriptionId = saveResult.transcription.id;
         }
       } else {
-        // CREATE: Erste Speicherung → MP3 + Text per POST hochladen
+        // CREATE: Erste Speicherung → MP3 + Text per POST hochladen (kann bei großen Dateien dauern)
+        setProgress({ step: 'saving', message: `MP3 wird gespeichert (${audioFile.name})...`, progress: 20 });
         logger.log('→ [TranscribeScreen] POST (MP3 + Text) für User:', effectiveUserId, '| MP3:', audioFile.name);
         let mp3File = null;
         if (audioFile.originalFile) {
@@ -590,6 +616,10 @@ function TranscribeScreen() {
       logger.error('❌ [TranscribeScreen] Fehler beim Speichern:', error.message, error.response?.data);
       setError(`Fehler beim Speichern: ${error.response?.data?.error || error.message}`);
       return null;
+    } finally {
+      // Indikator immer zurücksetzen – egal ob Erfolg oder Fehler
+      setIsProcessing(false);
+      setProgress({ step: '', message: '', progress: 0 });
     }
   };
   

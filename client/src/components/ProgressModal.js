@@ -21,6 +21,7 @@ function ProgressModal({ step, message, progress }) {
       formatting: 'Formatierung',
       split: 'Vorbereitung',
       summarize: 'Zusammenfassung',
+      saving: 'Speichern',
       complete: 'Abgeschlossen'
     };
     return labels[stepName] || stepName;
