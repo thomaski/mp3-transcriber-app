@@ -69,9 +69,19 @@ function FileSelectionModal({ isOpen, onClose, fileType, onSelect }) {
     onClose();
   };
 
-  const handleSelect = () => {
+  const handleSelect = async () => {
     if (selectedFile) {
       onSelect(selectedFile);
+
+      // Verzeichnis für Admin speichern (wie bei Doppelklick)
+      if (user?.isAdmin && user?.userId && currentDirectory) {
+        try {
+          await updateUploadDirectory(user.userId, currentDirectory);
+        } catch (err) {
+          logger.error('[FileSelectionModal] Fehler beim Speichern des Verzeichnisses:', err.message);
+        }
+      }
+
       onClose();
     }
   };
