@@ -16,11 +16,13 @@ function UserSelectorModal({ isOpen, onClose, onSelectUser, currentUser }) {
   const [lastNameFilter, setLastNameFilter] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null); // Einfachklick-Auswahl
 
-  // Fetch all users when modal opens
+  // Fetch all users when modal opens; Auswahl zurücksetzen beim Öffnen
   useEffect(() => {
     if (isOpen) {
       fetchAllUsers();
+      setSelectedUser(null);
     }
   }, [isOpen]);
 
@@ -76,9 +78,19 @@ function UserSelectorModal({ isOpen, onClose, onSelectUser, currentUser }) {
     setFilteredUsers(filtered);
   };
 
+  const handleUserClick = (user) => {
+    setSelectedUser(user);
+  };
+
   const handleUserDoubleClick = (user) => {
-    const displayName = `${user.first_name} ${user.last_name}`.trim() || user.username;
-    onSelectUser(user.id, displayName);
+    confirmSelection(user);
+  };
+
+  const confirmSelection = (user) => {
+    const u = user || selectedUser;
+    if (!u) return;
+    const displayName = `${u.first_name} ${u.last_name}`.trim() || u.username;
+    onSelectUser(u.id, displayName);
     onClose();
   };
 
@@ -189,9 +201,14 @@ function UserSelectorModal({ isOpen, onClose, onSelectUser, currentUser }) {
               {filteredUsers.map((user) => (
                 <button
                   key={user.id}
+                  onClick={() => handleUserClick(user)}
                   onDoubleClick={() => handleUserDoubleClick(user)}
-                  className="w-full flex items-center space-x-4 px-4 py-3 rounded-lg border border-gray-200 hover:border-primary-500 hover:bg-primary-50 transition text-left"
-                  title="Doppelklick zum Auswählen"
+                  className={`w-full flex items-center space-x-4 px-4 py-3 rounded-lg border transition text-left ${
+                    selectedUser?.id === user.id
+                      ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-300'
+                      : 'border-gray-200 hover:border-primary-500 hover:bg-primary-50'
+                  }`}
+                  title="Klick zum Markieren, Doppelklick zum Auswählen"
                 >
                   <div className="flex-shrink-0">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
@@ -232,14 +249,27 @@ function UserSelectorModal({ isOpen, onClose, onSelectUser, currentUser }) {
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-600">
-              💡 <strong>Tipp:</strong> Doppelklick auf einen Benutzer zum Auswählen
+              💡 <strong>Tipp:</strong> Klick zum Markieren • Doppelklick zum Auswählen
             </p>
-            <button
-              onClick={onClose}
-              className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
-            >
-              Abbrechen
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={onClose}
+                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={() => confirmSelection(null)}
+                disabled={!selectedUser}
+                className={`px-6 py-2 rounded-lg font-medium transition ${
+                  selectedUser
+                    ? 'bg-primary-600 text-white hover:bg-primary-700 cursor-pointer'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Speichern
+              </button>
+            </div>
           </div>
         </div>
       </div>
