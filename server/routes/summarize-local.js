@@ -60,7 +60,7 @@ router.post('/', async (req, res) => {
       fs.writeFileSync(tempFile, transcription, 'utf8');
       txtPath = tempFile;
       
-      sendProgress('init', `Temporäre Datei erstellt: ${tempFilename}`, 5);
+      // Nur ins Server-Log, nicht in die UI-Ausgabe (Temp-Name soll nicht sichtbar sein)
       logger.debug('SUMMARIZE_LOCAL', `✓ Temporäre Datei erstellt: ${tempFile}`);
       
     } 

@@ -48,7 +48,10 @@ router.post('/', async (req, res) => {
       logger.debug('TRANSCRIBE_LOCAL', `${step}: ${message} (${progress}%)`);
     };
 
-    sendProgress('init', `Starte Transkription für: ${filename}`, 0);
+    // Anzeigename für UI-Meldungen: _temp Suffix entfernen (z.B. "newsletter_temp.mp3" → "newsletter.mp3")
+    const displayFilename = filename.replace(/_temp(\.[^.]+)$/, '$1');
+
+    sendProgress('init', `Starte Transkription für: ${displayFilename}`, 0);
 
     // WSL-Befehl zusammenbauen
     // Format: wsl bash -c "cd /mnt/d/... && source ~/venv/bin/activate && python script.py filename"
