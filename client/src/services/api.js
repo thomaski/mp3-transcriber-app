@@ -278,6 +278,26 @@ export const getTranscriptionByFilename = async (filename) => {
   }
 };
 
+/**
+ * Update transcription text only (kein MP3-Upload) – verwendet PUT /:id
+ * Wird verwendet wenn die Transkription bereits existiert (savedTranscriptionId bekannt).
+ * Spart den kompletten MP3-Netzwerk-Transfer beim Speichern von Textänderungen.
+ */
+export const updateTranscriptionText = async (transcriptionId, transcriptionText, hasSummary) => {
+  logger.log('[api.js] updateTranscriptionText:', transcriptionId, '| Länge:', transcriptionText?.length);
+  try {
+    const response = await apiClient.put(`/transcriptions/${transcriptionId}`, {
+      transcription_text: transcriptionText,
+      has_summary: hasSummary
+    });
+    logger.log('[api.js] ✅ updateTranscriptionText response:', response.data?.transcription?.id);
+    return response.data;
+  } catch (error) {
+    logger.error('[api.js] ❌ updateTranscriptionText error:', error.response?.data || error.message);
+    throw new Error(error.response?.data?.error || 'Fehler beim Aktualisieren der Transkription');
+  }
+};
+
 // Get transcription by ID
 export const getTranscription = async (transcriptionId) => {
   logger.log('[api.js] getTranscription called:', transcriptionId);

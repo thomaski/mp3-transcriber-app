@@ -15,7 +15,7 @@ import ProgressModal from './ProgressModal';
 import FileSelectionModal from './FileSelectionModal';
 import LiveOutputModal from './LiveOutputModal';
 import UserSelectorModal from './UserSelectorModal';
-import { loadLocalFile, transcribeLocal, summarizeLocal, saveTranscription, getTranscription, getTranscriptionByFilename, getAudioBlobUrl } from '../services/api';
+import { loadLocalFile, transcribeLocal, summarizeLocal, saveTranscription, updateTranscriptionText, getTranscription, getTranscriptionByFilename, getAudioBlobUrl } from '../services/api';
 import { getLastTranscription, updateLastTranscription } from '../services/userService';
 import { parseUrlParams, parseTimestamp } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
@@ -510,7 +510,9 @@ function TranscribeScreen() {
     setIsTranscriptionDirty(true);
   };
   
-  // Helper function to save transcription with MP3 data
+  // Helper function to save transcription
+  // Optimierung: Wenn savedTranscriptionId bekannt → nur Text via PUT (kein MP3-Upload!)
+  //              Nur beim ERSTEN Speichern wird die MP3 per POST hochgeladen.
   // overrideUserId: direkt übergeben wenn State noch nicht aktualisiert ist (React async state)
   const saveTranscriptionWithMp3 = async (transcriptionText, hasSummary = false, overrideUserId = null) => {
     const effectiveUserId = overrideUserId || selectedUserId;
@@ -533,32 +535,41 @@ function TranscribeScreen() {
     }
     
     try {
-      logger.log('→ [TranscribeScreen] Speichere für User:', effectiveUserId, '| MP3:', audioFile.name, '| hasSummary:', hasSummary);
-      
-      let mp3File = null;
-      if (audioFile.originalFile) {
-        mp3File = audioFile.originalFile;
+      let saveResult;
+
+      if (savedTranscriptionId) {
+        // UPDATE: Transkription existiert bereits → nur Text senden, kein MP3-Upload nötig
+        logger.log('→ [TranscribeScreen] PUT (Text only) für ID:', savedTranscriptionId, '| hasSummary:', hasSummary);
+        saveResult = await updateTranscriptionText(savedTranscriptionId, transcriptionText, hasSummary);
+        // PUT gibt transcription-Objekt zurück, saveResult.id aus dem Objekt holen
+        if (saveResult.success && saveResult.transcription) {
+          saveResult.transcriptionId = saveResult.transcription.id;
+        }
       } else {
-        logger.warn('⚠️ No originalFile found, saving without MP3 file');
+        // CREATE: Erste Speicherung → MP3 + Text per POST hochladen
+        logger.log('→ [TranscribeScreen] POST (MP3 + Text) für User:', effectiveUserId, '| MP3:', audioFile.name);
+        let mp3File = null;
+        if (audioFile.originalFile) {
+          mp3File = audioFile.originalFile;
+        } else {
+          logger.warn('⚠️ No originalFile found, saving without MP3 file');
+        }
+        saveResult = await saveTranscription({
+          target_user_id: effectiveUserId,
+          mp3_filename: audioFile.name,
+          mp3_file: mp3File,
+          transcription_text: transcriptionText,
+          has_summary: hasSummary
+        });
       }
       
-      const saveData = {
-        target_user_id: effectiveUserId,
-        mp3_filename: audioFile.name,
-        mp3_file: mp3File,
-        transcription_text: transcriptionText,
-        has_summary: hasSummary
-      };
-      
-      const saveResult = await saveTranscription(saveData);
-      
       if (saveResult.success) {
-        const savedId = saveResult.transcriptionId || saveResult.id;
+        const savedId = saveResult.transcriptionId || saveResult.id || savedTranscriptionId;
         setSavedTranscriptionId(savedId);
         setSaveSuccess(true);
         setIsTranscriptionDirty(false); // Nach erfolgreichem Speichern: kein ungespeicherter Inhalt
         
-        logger.log('✅ [TranscribeScreen] Gespeichert! ID:', savedId, '| Action:', saveResult.action);
+        logger.log('✅ [TranscribeScreen] Gespeichert! ID:', savedId, '| Action:', saveResult.action || 'update');
 
         // last_transcription_id für Admin aktualisieren
         if (user?.isAdmin && user?.userId && savedId) {
