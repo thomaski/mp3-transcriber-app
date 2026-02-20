@@ -19,6 +19,43 @@ Alle wichtigen Änderungen an diesem Projekt werden in dieser Datei dokumentiert
 
 ---
 
+### 🧹 **Code-Bereinigung & Cursor Rules** (2026-02-19)
+
+#### **Neue Cursor-Rules erstellt** (`.cursor/rules/`)
+
+| Datei | Inhalt |
+|-------|--------|
+| `arbeitsweise.mdc` | Strukturierte Problemlösung, Test-Guidelines, Vorgehen nach Änderungen |
+| `code-quality.mdc` | Coding Standards, Naming Conventions, DRY-Prinzip |
+| `security.mdc` | Keine Hardcoded Secrets, Input-Validierung, Auth Best Practices |
+| `error-handling.mdc` | Error Handling, Logging-Strategie, Log-Levels |
+| `git-conventions.mdc` | Commit Message Format, Commit-Typen, Best Practices |
+| `testing-strategy.mdc` | Test-Ebenen (Frontend/Backend/Integration), Test-Checkliste |
+| `performance.mdc` | Optimierungsprozess, Performance Best Practices |
+| `documentation.mdc` | JSDoc, Inline-Kommentare, README-Standards |
+| `test-credentials.mdc` | ⚠️ Lokal, nicht in Git – Test-Zugangsdaten und Backend-Server-Info |
+
+#### **Sicherheits-Fixes**
+
+- **Hardcoded JWT-Secret entfernt** (`server/middleware/auth.js`): Server bricht beim Start ab, wenn `JWT_SECRET` nicht in `.env` gesetzt ist
+- **Passwörter nicht mehr geloggt** (`LoginScreen.js`, `publicAccessService.js`): Password-Logging vollständig entfernt
+- **Path-Traversal-Schutz** (`server/routes/files.js`): Whitelist-basierte Verzeichnisprüfung für alle Datei-Endpoints
+- **PostgreSQL-Passwort-Warnung** (`database-pg.js`): Warnung wenn `POSTGRES_PASSWORD` nicht gesetzt
+- **`.gitignore` erweitert**: `test-credentials.mdc` wird nicht ins Repository eingecheckt
+
+#### **Frontend-Logger** (`client/src/utils/logger.js`)
+
+- Logs werden **nur im Development-Mode** ausgegeben
+- `logger.error()` wird immer geloggt (auch in Production)
+- Alle `console.log/warn/error` in Frontend-Dateien durch `logger.*` ersetzt (20+ Dateien)
+
+#### **Backend: Zentralen Logger verwendet**
+
+Alle Backend-Dateien auf den zentralen `logger.js` umgestellt (`server/index.js`, `auth.js`, alle Routes, `database-pg.js`).  
+Ausgenommen (korrekt so): CLI-Tools wie `run-migration.js`, `seed-pg.js`, `migrate-sqlite-to-pg.js`.
+
+---
+
 ## [1.0.0] - 2026-02-19
 
 ### 🎨 **UI/UX Verbesserungen & Vereinfachungen**
@@ -266,6 +303,64 @@ CLOUDFLARE_TUNNEL_NAME=mp3-transcriber
 #### **Start-Scripts berücksichtigen jetzt die Variable**
 - `start-cloudflare.ps1` - Prüft `.env` vor dem Start
 - `start-server-autostart.ps1` - Startet Tunnel nur wenn aktiviert
+
+---
+
+### 🔧 **Cloudflare Tunnel - Permanenter Setup** (Subdomain: `mp3-transcriber.m4itexpertsgmbh.de`)
+
+#### **Schritt 1: Login**
+```powershell
+cloudflared tunnel login
+```
+Browser öffnet sich → Domain auswählen → Berechtigung wird lokal gespeichert.
+
+#### **Schritt 2: Named Tunnel erstellen**
+```powershell
+cloudflared tunnel create mp3-transcriber
+```
+**⚠️ Tunnel-ID aus der Ausgabe notieren!** (Datei: `C:\Users\tom\.cloudflared\<TUNNEL-ID>.json`)
+
+#### **Schritt 3: Config-Datei erstellen**
+
+**Datei:** `C:\Users\tom\.cloudflared\config.yml`
+```yaml
+tunnel: mp3-transcriber
+credentials-file: C:\Users\tom\.cloudflared\IHRE-TUNNEL-ID.json
+
+ingress:
+  - hostname: mp3-transcriber.m4itexpertsgmbh.de
+    service: http://localhost:5000
+  - service: http_status:404
+```
+
+#### **Schritt 4: DNS Route erstellen**
+```powershell
+cloudflared tunnel route dns mp3-transcriber mp3-transcriber.m4itexpertsgmbh.de
+```
+Cloudflare erstellt automatisch einen CNAME-Eintrag. **Keine manuelle IONOS-Konfiguration nötig!**
+
+#### **Schritt 5: Tunnel testen**
+```powershell
+cloudflared tunnel run mp3-transcriber
+# Dann im Browser: https://mp3-transcriber.m4itexpertsgmbh.de
+```
+
+#### **Schritt 6: Als Windows-Dienst installieren (optional)**
+```powershell
+cloudflared service install
+Start-Service cloudflared
+Get-Service cloudflared   # Status prüfen
+```
+
+#### **Troubleshooting**
+
+| Problem | Lösung |
+|---------|--------|
+| "Domain not found" | Domain `m4itexpertsgmbh.de` bei Cloudflare hinzufügen (dash.cloudflare.com → "Add a Site"), dann Cloudflare Nameserver bei IONOS eintragen: `aron.ns.cloudflare.com`, `maya.ns.cloudflare.com` |
+| Tunnel startet nicht | Port 5000 prüfen: `Get-NetTCPConnection -LocalPort 5000` |
+| "Connection refused" | App muss auf Port 5000 laufen: `npm run server` |
+
+**Permanente URL:** `https://mp3-transcriber.m4itexpertsgmbh.de` — ändert sich nie, weltweit erreichbar, HTTPS.
 
 ---
 
