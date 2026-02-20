@@ -142,14 +142,14 @@ function LoginScreen() {
 
         {/* Demo Credentials - only in development */}
         {showDemoCredentials && (
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-600 mb-3 font-medium">Demo-Zugangsdaten:</p>
-            <div className="bg-gray-50 px-3 py-2 rounded text-xs text-gray-600">
-              <span className="font-mono">user=test</span>
-              <span className="mx-2">|</span>
-              <span className="font-mono">pwd=test</span>
-            </div>
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <p className="text-sm text-gray-600 mb-3 font-medium">Demo-Zugangsdaten:</p>
+          <div className="bg-gray-50 px-3 py-2 rounded text-xs text-gray-600">
+            <span className="font-mono">user=test</span>
+            <span className="mx-2">|</span>
+            <span className="font-mono">pwd=test</span>
           </div>
+        </div>
         )}
       </div>
     </div>

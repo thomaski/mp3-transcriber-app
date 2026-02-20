@@ -65,21 +65,21 @@ function Dashboard() {
 
           {/* Transcribe MP3 (nur für Admins) */}
           {isAdmin && (
-            <div 
-              onClick={() => navigate('/transcribe')}
-              className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition"
-            >
-              <div className="text-4xl mb-3">🎵</div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">
-                MP3 Transkribieren
-              </h2>
-              <p className="text-gray-600 text-sm">
-                MP3-Dateien hochladen und transkribieren
-              </p>
-              <div className="mt-4 text-blue-600 font-semibold">
-                → Zur Transkription
-              </div>
+          <div 
+            onClick={() => navigate('/transcribe')}
+            className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition"
+          >
+            <div className="text-4xl mb-3">🎵</div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">
+              MP3 Transkribieren
+            </h2>
+            <p className="text-gray-600 text-sm">
+              MP3-Dateien hochladen und transkribieren
+            </p>
+            <div className="mt-4 text-blue-600 font-semibold">
+              → Zur Transkription
             </div>
+          </div>
           )}
 
           {/* Meine Transkriptionen */}
