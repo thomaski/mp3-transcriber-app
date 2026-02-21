@@ -1,13 +1,37 @@
 import React, { useState } from 'react';
 import { FaDownload, FaTimes, FaFilePdf, FaFileAlt } from 'react-icons/fa';
 
+// Metadaten-Zeilen die für normale User im Export ausgeblendet werden (identisch mit TranscriptView.js)
+// Enthält auch Trennzeilen (═══) und Abschnitts-Titel die für User irrelevant sind
+const HIDDEN_FOR_USERS_PREFIXES = [
+  'Datum:', 'Start:', 'Ende:', 'Dauer:', 'Ratio:', 'Umbruch:', 'Modell:', 'Typ:',
+  '═',                               // Trennzeilen (═══════...)
+  'MP3-Transkription',               // Abschnitts-Titel
+  'Zusammenfassung des Transkripts', // Abschnitts-Titel
+];
+
+/**
+ * Filtert Metadaten-Zeilen aus dem Transkriptions-Text für normale User heraus.
+ * Admins erhalten den vollständigen Text.
+ */
+function filterTranscriptionForUser(text, isAdmin) {
+  if (isAdmin) return text;
+  return text
+    .split('\n')
+    .filter(line => !HIDDEN_FOR_USERS_PREFIXES.some(prefix => line.trim().startsWith(prefix)))
+    .join('\n');
+}
+
 /**
  * ExportModal – Dialog zum Exportieren einer Transkription als TXT oder PDF
  */
-const ExportModal = ({ isOpen, onClose, transcription, filename }) => {
+const ExportModal = ({ isOpen, onClose, transcription, filename, isAdmin }) => {
   const [format, setFormat] = useState('txt');
 
   if (!isOpen) return null;
+
+  // Transkription ggf. für normale User filtern
+  const exportText = filterTranscriptionForUser(transcription || '', isAdmin);
 
   // Basisname ohne Endung ableiten
   const baseName = filename
@@ -16,7 +40,7 @@ const ExportModal = ({ isOpen, onClose, transcription, filename }) => {
 
   // --- TXT-Export ---
   const exportAsTxt = () => {
-    const blob = new Blob([transcription], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([exportText], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -31,7 +55,7 @@ const ExportModal = ({ isOpen, onClose, transcription, filename }) => {
   // --- PDF-Export (via Druckdialog) ---
   const exportAsPdf = () => {
     // Formatiere den Transkriptionstext als HTML mit Zeilenumbrüchen
-    const htmlContent = transcription
+    const htmlContent = exportText
       .split('\n')
       .map(line => {
         const escaped = line

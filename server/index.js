@@ -32,7 +32,7 @@ const transcribeLocalRouter = require('./routes/transcribe-local');
 const summarizeLocalRouter = require('./routes/summarize-local');
 
 // Import middleware
-const { apiLimiter } = require('./middleware/rateLimiter');
+const { apiLimiter, processingLimiter } = require('./middleware/rateLimiter');
 
 // Initialize Express
 const app = express();
@@ -97,9 +97,9 @@ app.use('/api/users', apiLimiter, usersRouter); // User management (admin-only)
 app.use('/api/transcriptions', apiLimiter, transcriptionsRouter); // Transcription management
 app.use('/api/upload', apiLimiter, uploadRouter);
 app.use('/api/files', apiLimiter, fileRouter);
-app.use('/api/local-files', apiLimiter, localFilesRouter);
-app.use('/api/transcribe-local', apiLimiter, transcribeLocalRouter);
-app.use('/api/summarize-local', apiLimiter, summarizeLocalRouter);
+app.use('/api/local-files', processingLimiter, localFilesRouter);
+app.use('/api/transcribe-local', processingLimiter, transcribeLocalRouter);
+app.use('/api/summarize-local', processingLimiter, summarizeLocalRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

@@ -3,23 +3,34 @@ const router = express.Router();
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
 const logger = require('../../logger');
 
-// Konfiguration
+// Konfiguration (lokal)
 const LOCAL_AUDIO_DIR = 'D:\\Projekte_KI\\pyenv_1_transcode_durchgabe\\audio';
 const WSL_AUDIO_DIR = '/mnt/d/Projekte_KI/pyenv_1_transcode_durchgabe/audio';
 const PYTHON_SCRIPT = '/home/tom/summarize.py';
 const VENV_ACTIVATE = '~/pyenv_1_transcode_durchgabe/bin/activate';
 
+// Cloud-Mode: wenn LOCAL_TRANSCRIBE_SERVICE_URL gesetzt ist, wird HTTP-Proxy verwendet
+const LOCAL_SERVICE_URL = process.env.LOCAL_TRANSCRIBE_SERVICE_URL;
+const LOCAL_SERVICE_API_KEY = process.env.LOCAL_SERVICE_API_KEY || '';
+
 /**
  * POST /api/summarize-local
- * Erstellt Summary einer lokalen TXT-Datei mit WSL2 Python
+ * Erstellt Summary einer lokalen TXT-Datei.
+ *
+ * Modi:
+ *  - LOCAL_MODE:  Direkter WSL2-Aufruf via spawn() (Standard bei lokalem Betrieb)
+ *  - CLOUD_MODE:  HTTP-Proxy zum lokalen FastAPI-Service (bei Railway-Deployment,
+ *                 wenn LOCAL_TRANSCRIBE_SERVICE_URL gesetzt ist)
+ *
  * Body: { filename: "test.txt", socketId: "xxx" }
  *   ODER: { transcription: "...", socketId: "xxx" } (für direkte Transkription)
  */
 router.post('/', async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     const { filename, transcription, socketId, mp3Filename } = req.body;
 
@@ -27,14 +38,117 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Keine Socket-ID angegeben' });
     }
 
-    // Socket.io Instanz holen
     const io = req.app.get('io');
 
-    // Fortschritt senden
     const sendProgress = (step, message, progress = 0) => {
       io.to(socketId).emit('summarize:progress', { step, message, progress });
       logger.debug('SUMMARIZE_LOCAL', `${step}: ${message} (${progress}%)`);
     };
+
+    // =========================================================================
+    // CLOUD-MODE: HTTP-Proxy zum lokalen FastAPI-Service
+    // =========================================================================
+    if (LOCAL_SERVICE_URL) {
+      logger.log('SUMMARIZE_LOCAL', `Cloud-Mode: Proxy-Request an ${LOCAL_SERVICE_URL}/summarize`);
+      sendProgress('init', 'Verbinde mit lokalem KI-Service...', 5);
+
+      try {
+        const serviceResponse = await axios.post(
+          `${LOCAL_SERVICE_URL}/summarize`,
+          { filename, transcription, mp3Filename },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(LOCAL_SERVICE_API_KEY && { 'x-api-key': LOCAL_SERVICE_API_KEY })
+            },
+            responseType: 'stream',
+            timeout: 600000 // 10 Minuten Timeout
+          }
+        );
+
+        let finalResult = null;
+        let hasError = false;
+        let sseBuffer = '';
+
+        serviceResponse.data.on('data', (chunk) => {
+          sseBuffer += chunk.toString('utf8');
+
+          const parts = sseBuffer.split('\n\n');
+          sseBuffer = parts.pop();
+
+          for (const part of parts) {
+            const line = part.trim();
+            if (!line.startsWith('data: ')) continue;
+
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (data.type === 'progress' || data.type === 'warning') {
+                sendProgress(data.step || 'processing', data.message, data.progress || 0);
+              } else if (data.type === 'error') {
+                hasError = true;
+                sendProgress('error', data.message, 0);
+              } else if (data.type === 'complete') {
+                finalResult = data;
+                sendProgress('complete', data.message, 100);
+              }
+            } catch (parseErr) {
+              logger.warn('SUMMARIZE_LOCAL', `SSE Parse-Fehler: ${parseErr.message}`);
+            }
+          }
+        });
+
+        serviceResponse.data.on('end', () => {
+          if (hasError) {
+            return res.status(500).json({ error: 'Summarization fehlgeschlagen' });
+          }
+          if (!finalResult) {
+            return res.status(500).json({ error: 'Kein Ergebnis vom lokalen Service erhalten' });
+          }
+
+          // Ergebnis via Socket senden (identisch zum Local-Mode)
+          io.to(socketId).emit('summarize:result', {
+            transcription: finalResult.transcription,
+            filename: finalResult.filename
+          });
+
+          res.json({
+            success: true,
+            filename: finalResult.filename,
+            transcription: finalResult.transcription,
+            duration: finalResult.duration,
+            mode: finalResult.mode || 'cloud-proxy',
+            usedTemporaryFile: !!(transcription && transcription.trim())
+          });
+        });
+
+        serviceResponse.data.on('error', (err) => {
+          logger.error('SUMMARIZE_LOCAL', 'Stream-Fehler vom lokalen Service:', err.message);
+          sendProgress('error', `Verbindungsfehler zum lokalen Service: ${err.message}`, 0);
+          if (!res.headersSent) {
+            res.status(500).json({
+              error: 'Verbindungsfehler zum lokalen KI-Service',
+              details: err.message
+            });
+          }
+        });
+
+      } catch (serviceErr) {
+        logger.error('SUMMARIZE_LOCAL', 'Lokaler Service nicht erreichbar:', serviceErr.message);
+        sendProgress('error', `Lokaler KI-Service nicht erreichbar: ${serviceErr.message}`, 0);
+        return res.status(503).json({
+          error: 'Lokaler KI-Service nicht erreichbar',
+          details: serviceErr.message,
+          hint: 'Stelle sicher, dass der lokale Service läuft und über LOCAL_TRANSCRIBE_SERVICE_URL erreichbar ist.'
+        });
+      }
+
+      return; // Cloud-Mode vollständig behandelt
+    }
+
+    // =========================================================================
+    // LOCAL-MODE: Direkter WSL2-Aufruf (Standard bei lokalem Betrieb)
+    // =========================================================================
 
     let txtPath;
     let tempFile = null;
@@ -42,10 +156,7 @@ router.post('/', async (req, res) => {
     // Fall 1: Direkte Transkription verwenden (temporäre Datei erstellen)
     if (transcription && transcription.trim()) {
       sendProgress('init', 'Verwende aktuelle Transkription...', 0);
-      
-      // Temp-Dateiname: basierend auf MP3-Dateinamen (ohne Endung) + "_temp.txt"
-      // z.B. "newsletter_2013-02.mp3" → "newsletter_2013-02_temp.txt"
-      // Python erzeugt daraus dann "newsletter_2013-02_temp_s.txt" (die Summary)
+
       let tempFilename;
       if (mp3Filename) {
         const mp3Base = path.basename(mp3Filename, path.extname(mp3Filename))
@@ -55,24 +166,22 @@ router.post('/', async (req, res) => {
         tempFilename = `temp_${Date.now()}_transcription.txt`;
       }
       tempFile = path.join(LOCAL_AUDIO_DIR, tempFilename);
-      
-      // Transkription in temporäre Datei schreiben
+
       fs.writeFileSync(tempFile, transcription, 'utf8');
       txtPath = tempFile;
-      
-      // Nur ins Server-Log, nicht in die UI-Ausgabe (Temp-Name soll nicht sichtbar sein)
+
       logger.debug('SUMMARIZE_LOCAL', `✓ Temporäre Datei erstellt: ${tempFile}`);
-      
-    } 
+
+    }
     // Fall 2: Dateiname angegeben (existierende Datei verwenden)
     else if (filename) {
       sendProgress('init', `Starte Summarization für: ${filename}`, 0);
-      
+
       txtPath = path.join(LOCAL_AUDIO_DIR, filename);
       if (!fs.existsSync(txtPath)) {
         return res.status(404).json({ error: `TXT-Datei nicht gefunden: ${filename}` });
       }
-    } 
+    }
     // Fall 3: Weder filename noch transcription
     else {
       return res.status(400).json({ error: 'Kein Dateiname oder Transkription angegeben' });
@@ -91,59 +200,50 @@ router.post('/', async (req, res) => {
       sendProgress('config', 'Erkannt: Durchgabe-Modus', 5);
     }
 
-    // WSL-Befehl zusammenbauen
     const wslCommand = `cd ${WSL_AUDIO_DIR} && source ${VENV_ACTIVATE} && python ${PYTHON_SCRIPT} ${promptFlag} ${actualFilename}`;
-    
+
     sendProgress('wsl', 'Starte WSL2 und Python-Environment...', 10);
     logger.debug('SUMMARIZE_LOCAL', `Executing WSL command: ${wslCommand}`);
 
-    // WSL-Prozess starten mit spawn für Live-Output
-    const wslProcess = spawn('wsl', ['bash', '-c', wslCommand]);
+    const wslProcess = spawn('wsl', ['bash', '-c', wslCommand], { windowsHide: true });
 
     let outputBuffer = '';
     let errorBuffer = '';
 
-    // stdout: Live-Output streamen
     wslProcess.stdout.on('data', (data) => {
       const output = data.toString('utf8');
       outputBuffer += output;
-      
-      // Jede Zeile einzeln senden
+
       const lines = output.split('\n');
       lines.forEach(line => {
         if (line.trim()) {
           const cleanLine = stripAnsiCodes(line);
-          
-          // Fortschritt basierend auf Output schätzen
+
           let progress = 20;
           if (cleanLine.includes('lade summarizer')) progress = 30;
           if (cleanLine.includes('lade tokenizer')) progress = 40;
           if (cleanLine.includes('teile transkription in Blöcke')) progress = 50;
           if (cleanLine.includes('generiere Überschrift')) progress = 60;
-          if (cleanLine.includes('summary=')) progress = 70; // Einzelne Überschriften
+          if (cleanLine.includes('summary=')) progress = 70;
           if (cleanLine.includes('Speichern der Summary')) progress = 90;
           if (cleanLine.includes('erfolgreich gespeichert')) progress = 95;
-          
+
           sendProgress('processing', cleanLine, progress);
         }
       });
     });
 
-    // stderr: Fehler sammeln
     wslProcess.stderr.on('data', (data) => {
       const error = data.toString('utf8');
       errorBuffer += error;
       logger.error('SUMMARIZE_LOCAL', `stderr: ${error}`);
-      
-      // Auch stderr senden (kann Warnings enthalten)
       sendProgress('warning', stripAnsiCodes(error), 0);
     });
 
-    // Prozess beendet
     wslProcess.on('close', async (code) => {
       const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-      
-      // Temporäre Input-Datei löschen (falls erstellt)
+
+      // Temporäre Input-Datei löschen
       if (tempFile && fs.existsSync(tempFile)) {
         try {
           fs.unlinkSync(tempFile);
@@ -152,11 +252,10 @@ router.post('/', async (req, res) => {
           logger.log('SUMMARIZE_LOCAL', `⚠ Fehler beim Löschen der temporären Datei: ${err.message}`);
         }
       }
-      
+
       if (code !== 0) {
         logger.error('SUMMARIZE_LOCAL', `WSL-Prozess beendet mit Code ${code}`);
         sendProgress('error', `Summarization fehlgeschlagen (Exit-Code: ${code})`, 0);
-        
         return res.status(500).json({
           error: 'Summarization fehlgeschlagen',
           exitCode: code,
@@ -167,22 +266,20 @@ router.post('/', async (req, res) => {
 
       sendProgress('loading', 'Lade Summary-Datei...', 98);
 
-      // Ergebnis-Datei laden (mit _s.txt Suffix)
       const baseName = path.basename(actualFilename, '.txt');
       const summaryPath = path.join(LOCAL_AUDIO_DIR, `${baseName}_s.txt`);
 
       if (!fs.existsSync(summaryPath)) {
         sendProgress('error', 'Summary-Datei wurde nicht erstellt', 0);
-        return res.status(500).json({ 
+        return res.status(500).json({
           error: 'Summary-Datei nicht gefunden',
-          expectedPath: summaryPath 
+          expectedPath: summaryPath
         });
       }
 
-      // Datei lesen
       const summary = fs.readFileSync(summaryPath, 'utf8');
 
-      // Temporäre Output-Datei auch löschen (falls erstellt von temp input)
+      // Temporäre Output-Datei löschen
       if (tempFile) {
         try {
           fs.unlinkSync(summaryPath);
@@ -194,7 +291,6 @@ router.post('/', async (req, res) => {
 
       sendProgress('complete', `Summarization abgeschlossen in ${duration}s`, 100);
 
-      // Sende Summary auch via Socket für direktes Update im Frontend
       io.to(socketId).emit('summarize:result', {
         transcription: summary,
         filename: `${baseName}_s.txt`
@@ -212,20 +308,14 @@ router.post('/', async (req, res) => {
       });
     });
 
-    // Fehlerbehandlung
     wslProcess.on('error', (error) => {
       logger.error('SUMMARIZE_LOCAL', 'WSL-Prozess Fehler:', error);
       sendProgress('error', `WSL-Fehler: ${error.message}`, 0);
-      
-      // Temporäre Datei aufräumen bei Fehler
+
       if (tempFile && fs.existsSync(tempFile)) {
-        try {
-          fs.unlinkSync(tempFile);
-        } catch (err) {
-          logger.log('SUMMARIZE_LOCAL', `⚠ Fehler beim Löschen der temporären Datei nach WSL-Fehler: ${err.message}`);
-        }
+        try { fs.unlinkSync(tempFile); } catch (err) { /* ignorieren */ }
       }
-      
+
       res.status(500).json({
         error: 'Fehler beim Starten von WSL',
         details: error.message,
@@ -235,9 +325,9 @@ router.post('/', async (req, res) => {
 
   } catch (error) {
     logger.error('SUMMARIZE_LOCAL', 'Unerwarteter Fehler:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Interner Server-Fehler',
-      details: error.message 
+      details: error.message
     });
   }
 });

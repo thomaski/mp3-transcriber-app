@@ -20,15 +20,31 @@ const loginLimiter = rateLimit({
 });
 
 /**
- * Rate limiter for API requests
- * Max 100 requests per 15 minutes per IP
+ * Rate limiter for standard API requests
+ * Max 500 requests per 15 minutes per IP
+ * (erhöht, da normaler App-Betrieb schnell 100 Requests überschreitet)
  */
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Max 100 requests per window
+  max: 500,
   message: {
     success: false,
     error: 'Zu viele Anfragen. Bitte versuchen Sie es später erneut.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Rate limiter für KI-Verarbeitungs-Endpunkte (Transcription, Summarize, File-Upload)
+ * Großzügigeres Limit da diese Operationen legitim länger laufen und mehr Requests erzeugen
+ */
+const processingLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200,
+  message: {
+    success: false,
+    error: 'Zu viele Verarbeitungs-Anfragen. Bitte versuchen Sie es in wenigen Minuten erneut.'
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -52,5 +68,6 @@ const accessTokenLimiter = rateLimit({
 module.exports = {
   loginLimiter,
   apiLimiter,
+  processingLimiter,
   accessTokenLimiter
 };

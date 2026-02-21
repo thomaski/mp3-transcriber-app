@@ -64,6 +64,9 @@ function TranscribeScreen() {
   // Refs
   const audioRef = useRef(null);
   const socketRef = useRef(null);
+  // Refs für aktuelle State-Werte in Socket-Handlern (stale closure fix)
+  const audioUrlRef = useRef(null);
+  const audioFileRef = useRef(null);
   
   // Global keyboard shortcuts
   useEffect(() => {
@@ -122,6 +125,10 @@ function TranscribeScreen() {
       setSelectedUserName(displayName);
     }
   }, [user, selectedUserId]);
+
+  // Refs mit aktuellem State synchronhalten (für stale-closure-sichere Nutzung in Socket-Handlern)
+  useEffect(() => { audioUrlRef.current = audioUrl; }, [audioUrl]);
+  useEffect(() => { audioFileRef.current = audioFile; }, [audioFile]);
 
   // Edit-Modus automatisch aktivieren wenn Admin eine Transkription lädt
   useEffect(() => {
@@ -359,11 +366,21 @@ function TranscribeScreen() {
       
       // MP3 im Player laden
       if (data.mp3Filename) {
-        const backendUrl = process.env.REACT_APP_BACKEND_URL || window.location.origin;
-        const mp3StreamUrl = `${backendUrl}/api/files/stream?path=${encodeURIComponent(`D:\\Projekte_KI\\pyenv_1_transcode_durchgabe\\audio\\${data.mp3Filename}`)}`;
-        setAudioUrl(mp3StreamUrl);
-        setAudioFile({ name: data.mp3Filename });
-        logger.log(`✓ MP3 im Player geladen: ${data.mp3Filename}`);
+        const currentUrl = audioUrlRef.current;
+        if (currentUrl && currentUrl.startsWith('blob:')) {
+          // Blob-URL vom Drag&Drop ist noch gültig – nur Anzeigename aktualisieren
+          // NICHT die URL überschreiben: Die temp-MP3 wurde auf dem Server gelöscht,
+          // aber die Blob-URL zeigt noch auf die Originaldatei im Browser-Speicher.
+          setAudioFile(prev => prev ? { ...prev, name: data.mp3Filename } : { name: data.mp3Filename });
+          logger.log(`✓ Blob-URL beibehalten, Name aktualisiert: ${data.mp3Filename}`);
+        } else {
+          // Keine Blob-URL vorhanden (z.B. Datei aus Server-Verzeichnis ausgewählt) → Stream-URL setzen
+          const backendUrl = process.env.REACT_APP_BACKEND_URL || window.location.origin;
+          const mp3StreamUrl = `${backendUrl}/api/files/stream?path=${encodeURIComponent(`D:\\Projekte_KI\\pyenv_1_transcode_durchgabe\\audio\\${data.mp3Filename}`)}`;
+          setAudioUrl(mp3StreamUrl);
+          setAudioFile({ name: data.mp3Filename });
+          logger.log(`✓ Stream-URL gesetzt: ${data.mp3Filename}`);
+        }
       }
       
       // Speichere Transkription automatisch
@@ -1072,10 +1089,12 @@ function TranscribeScreen() {
           <div className="mb-4 flex justify-end">
             <button
               onClick={() => setShowExportModal(true)}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-300 shadow-sm hover:shadow transition-all duration-150"
               title="Transkription als TXT oder PDF exportieren"
             >
-              <span>⬇</span>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+              </svg>
               <span>Export Transkription</span>
             </button>
           </div>
@@ -1087,6 +1106,8 @@ function TranscribeScreen() {
             <TranscriptView
               transcription={transcription}
               isEditMode={isEditMode}
+              isAdmin={user?.isAdmin}
+              audioUrl={audioUrl}
               onTimestampClick={handleTimestampClick}
               onTextChange={handleTextChange}
               audioRef={audioRef}
@@ -1145,6 +1166,7 @@ function TranscribeScreen() {
         onClose={() => setShowExportModal(false)}
         transcription={transcription}
         filename={audioFile?.name}
+        isAdmin={user?.isAdmin}
       />
 
       {/* User Selector Modal */}

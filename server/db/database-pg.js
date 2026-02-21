@@ -11,24 +11,39 @@ const fs = require('fs');
 const path = require('path');
 const logger = require('../../logger');
 
-// SECURITY: PostgreSQL Credentials MÜSSEN in .env gesetzt werden
-if (!process.env.POSTGRES_PASSWORD) {
-  logger.log('DATABASE', '⚠️ WARNING: POSTGRES_PASSWORD nicht in .env gesetzt. Verwende Fallback (nur für Development!)');
-}
+// PostgreSQL connection configuration.
+// Unterstützt zwei Modi:
+//   1. DATABASE_URL (automatisch von Railway bereitgestellt wenn PostgreSQL Add-on aktiv)
+//   2. Einzelne POSTGRES_* Variablen (für lokale Entwicklung)
+let poolConfig;
 
-// PostgreSQL connection configuration
-const poolConfig = {
-  user: process.env.POSTGRES_USER || 'postgres',
-  host: process.env.POSTGRES_HOST || 'localhost',
-  database: process.env.POSTGRES_DB || 'mp3_transcriber',
-  password: process.env.POSTGRES_PASSWORD || 'postgres', // Fallback nur für Development
-  port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
-  
-  // Connection pool settings
-  max: 20,                      // Maximum number of clients in pool
-  idleTimeoutMillis: 30000,     // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000 // Return error after 2 seconds if unable to connect
-};
+if (process.env.DATABASE_URL) {
+  // Railway-Mode: DATABASE_URL hat Vorrang
+  logger.log('DATABASE', '✅ Verwende DATABASE_URL (Railway-Modus)');
+  poolConfig = {
+    connectionString: process.env.DATABASE_URL,
+    // SSL ist auf Railway erforderlich; lokal deaktiviert
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000
+  };
+} else {
+  // Lokaler Modus: individuelle POSTGRES_* Variablen
+  if (!process.env.POSTGRES_PASSWORD) {
+    logger.log('DATABASE', '⚠️ WARNING: POSTGRES_PASSWORD nicht in .env gesetzt. Verwende Fallback (nur für Development!)');
+  }
+  poolConfig = {
+    user: process.env.POSTGRES_USER || 'postgres',
+    host: process.env.POSTGRES_HOST || 'localhost',
+    database: process.env.POSTGRES_DB || 'mp3_transcriber',
+    password: process.env.POSTGRES_PASSWORD || 'postgres', // Fallback nur für Development
+    port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000
+  };
+}
 
 // Create connection pool
 const pool = new Pool(poolConfig);

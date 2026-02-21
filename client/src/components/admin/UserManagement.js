@@ -9,7 +9,7 @@
  * - ✅ Fix: Inline-Edit springt nicht mehr zu falschem Feld
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -34,6 +34,8 @@ function UserManagement() {
   const [transcriptions, setTranscriptions] = useState([]);
   const [transcriptionsLoading, setTranscriptionsLoading] = useState(false);
   const [selectedTranscriptionId, setSelectedTranscriptionId] = useState(null);
+  // Merkt sich die pending Transkription-ID beim automatischen User-Wechsel
+  const pendingTranscriptionIdRef = useRef(null);
 
   // Sorting state
   const [sortBy, setSortBy] = useState('first_name'); // first_name, last_name, username, email
@@ -41,6 +43,7 @@ function UserManagement() {
 
   // New user form state
   const [showNewUserForm, setShowNewUserForm] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false); // Double-Submit-Schutz
   const [newUser, setNewUser] = useState({
     username: '',
     password: '',
@@ -64,11 +67,12 @@ function UserManagement() {
   // Load transcriptions when user is selected – oder alle wenn kein User selektiert
   useEffect(() => {
     if (selectedUserId) {
+      // loadTranscriptions setzt selectedTranscriptionId (inkl. pending-ID-Handling)
       loadTranscriptions(selectedUserId);
     } else {
       loadAllTranscriptionsView();
+      setSelectedTranscriptionId(null);
     }
-    setSelectedTranscriptionId(null);
   }, [selectedUserId]);
 
   async function loadUsers() {
@@ -98,9 +102,18 @@ function UserManagement() {
           return nameA.localeCompare(nameB);
         });
         setTranscriptions(sortedTranscriptions);
+        
+        // Pending-ID anwenden (beim automatischen User-Wechsel via Transkriptions-Klick)
+        if (pendingTranscriptionIdRef.current) {
+          setSelectedTranscriptionId(pendingTranscriptionIdRef.current);
+          pendingTranscriptionIdRef.current = null;
+        } else {
+          setSelectedTranscriptionId(null);
+        }
       }
     } catch (error) {
       logger.error('[UserManagement] Transkriptionen laden fehlgeschlagen:', error.message);
+      pendingTranscriptionIdRef.current = null;
     } finally {
       setTranscriptionsLoading(false);
     }
@@ -135,8 +148,25 @@ function UserManagement() {
   }
 
   // Handle transcription row click (select transcription)
-  function handleTranscriptionRowClick(transcriptionId) {
-    setSelectedTranscriptionId(transcriptionId === selectedTranscriptionId ? null : transcriptionId);
+  // Wenn kein User selektiert (Alle-Ansicht) und die Transkription einem User gehört,
+  // wird automatisch der zugehörige User selektiert und die Transkription markiert.
+  function handleTranscriptionRowClick(trans) {
+    const transcriptionId = trans.id;
+    
+    // Deselektieren bei erneutem Klick
+    if (transcriptionId === selectedTranscriptionId) {
+      setSelectedTranscriptionId(null);
+      return;
+    }
+    
+    // In der Alle-Ansicht: zugehörigen User automatisch selektieren
+    if (!selectedUserId && trans.user_id) {
+      pendingTranscriptionIdRef.current = transcriptionId;
+      setSelectedUserId(trans.user_id);
+      // selectedTranscriptionId wird in loadTranscriptions gesetzt (nach Laden)
+    } else {
+      setSelectedTranscriptionId(transcriptionId);
+    }
   }
 
   // Handle open transcription
@@ -290,6 +320,8 @@ function UserManagement() {
   // Handle create user
   async function handleCreateUser(e) {
     e.preventDefault();
+    if (isCreatingUser) return; // Double-Submit-Schutz
+    setIsCreatingUser(true);
     logger.log('[UserManagement] Neuen Benutzer erstellen:', { username: newUser.username });
 
     try {
@@ -307,6 +339,8 @@ function UserManagement() {
     } catch (error) {
       logger.error('[UserManagement] ❌ Erstellen fehlgeschlagen:', error.response?.data || error.message);
       setError(error.response?.data?.error || error.message || 'Fehler beim Erstellen des Benutzers.');
+    } finally {
+      setIsCreatingUser(false);
     }
   }
 
@@ -511,9 +545,10 @@ function UserManagement() {
                 </label>
                 <button
                   type="submit"
-                  className="mt-3 w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                  disabled={isCreatingUser}
+                  className={`mt-3 w-full px-3 py-2 text-white rounded transition ${isCreatingUser ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
                 >
-                  Benutzer erstellen
+                  {isCreatingUser ? 'Wird erstellt...' : 'Benutzer erstellen'}
                 </button>
               </form>
             )}
@@ -814,7 +849,7 @@ function UserManagement() {
                     {transcriptions.map((trans) => (
                       <tr
                         key={trans.id}
-                        onClick={() => handleTranscriptionRowClick(trans.id)}
+                        onClick={() => handleTranscriptionRowClick(trans)}
                         className={`border-b border-gray-200 cursor-pointer transition ${
                           selectedTranscriptionId === trans.id ? 'bg-blue-50' : 'hover:bg-gray-50'
                         }`}

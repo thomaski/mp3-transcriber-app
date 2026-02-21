@@ -8,7 +8,16 @@ import React, { useRef, useEffect, useState } from 'react';
 import { FaArrowUp } from 'react-icons/fa';
 import logger from '../utils/logger';
 
-function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextChange, audioRef }) {
+// Metadaten-Zeilen die für normale User ausgeblendet werden (nur Admins sehen alle Details)
+// Enthält auch Trennzeilen (═══) und Abschnitts-Titel die für User irrelevant sind
+const HIDDEN_FOR_USERS_PREFIXES = [
+  'Datum:', 'Start:', 'Ende:', 'Dauer:', 'Ratio:', 'Umbruch:', 'Modell:', 'Typ:',
+  '═',                               // Trennzeilen (═══════...)
+  'MP3-Transkription',               // Abschnitts-Titel
+  'Zusammenfassung des Transkripts', // Abschnitts-Titel
+];
+
+function TranscriptView({ transcription, isEditMode, isAdmin, audioUrl, onTimestampClick, onTextChange, audioRef }) {
   const headerRefs = useRef({});
   const topRef = useRef(null);
   const containerRef = useRef(null);
@@ -53,14 +62,19 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
   // Track current timestamp based on audio playback
   useEffect(() => {
     const audio = audioRef?.current;
+
     if (!audio || !transcription) {
       return;
     }
+
+    // lastScrolledIndex zurücksetzen wenn neue Transkription oder neues Audio geladen wird
+    lastScrolledIndex.current = null;
     
     const updateCurrentTimestamp = () => {
       const currentTime = audio.currentTime;
       
-      let lines = transcription.split('\n');
+      // WICHTIG: Gleiche Normalisierung wie in renderTranscription damit Indizes übereinstimmen
+      let lines = transcription.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
       const lineCounts = new Map();
       const skipIndices = new Set();
       
@@ -75,6 +89,14 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
       });
       
       lines = lines.filter((line, index) => !skipIndices.has(index));
+
+      // Gleicher User-Filter wie in renderTranscription – damit Indizes für alle Usertypen übereinstimmen
+      if (!isAdmin) {
+        lines = lines.filter(line => {
+          const trimmed = line.trim();
+          return !HIDDEN_FOR_USERS_PREFIXES.some(prefix => trimmed.startsWith(prefix));
+        });
+      }
       
       let closestTimestamp = null;
       let closestTime = -1;
@@ -106,7 +128,6 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
         setTimeout(() => {
           const elementKey = `${closestTimestamp}-${closestLineIndex}`;
           const element = timestampRefs.current[elementKey];
-          
           if (element) {
             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
@@ -116,16 +137,28 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     
     updateCurrentTimestamp();
     
+    // Wenn Audio endet: View sanft zum Anfang scrollen
+    // KEIN Reset von lastScrolledIndex – sonst Race Condition mit updateCurrentTimestamp
+    const handleAudioEnd = () => {
+      setTimeout(() => {
+        if (topRef.current) {
+          topRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 300);
+    };
+    
     audio.addEventListener('timeupdate', updateCurrentTimestamp);
     audio.addEventListener('seeked', updateCurrentTimestamp);
     audio.addEventListener('play', updateCurrentTimestamp);
+    audio.addEventListener('ended', handleAudioEnd);
     
     return () => {
       audio.removeEventListener('timeupdate', updateCurrentTimestamp);
       audio.removeEventListener('seeked', updateCurrentTimestamp);
       audio.removeEventListener('play', updateCurrentTimestamp);
+      audio.removeEventListener('ended', handleAudioEnd);
     };
-  }, [audioRef, transcription]);
+  }, [audioRef, transcription, isAdmin, audioUrl]);
   
   // Scroll to header in transcription
   // Verwendet data-header-key Attribute statt Refs, da Refs bei häufigen Re-Renders (timeupdate) kurz null werden können
@@ -163,7 +196,8 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
   };
   
   // Handle line click in edit mode
-  const handleLineClick = (index, currentText, timestamp) => {
+  // continuations: Array von { text, index } – alle Folgezeilen bis zum nächsten Timestamp/Header
+  const handleLineClick = (index, currentText, timestamp, continuations = []) => {
     if (!isEditMode) return;
     
     // Save current edit before switching
@@ -181,18 +215,28 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     
     // Store current text and timestamp if not already stored
     if (!editedTexts[index]) {
-      setEditedTexts(prev => ({ ...prev, [index]: { text: currentText, timestamp } }));
+      // Kombinierten Text aufbauen: Hauptzeile + Continuation-Zeilen (abschließende Leerzeilen entfernen)
+      const contTexts = continuations.map(c => c.text);
+      while (contTexts.length > 0 && !contTexts[contTexts.length - 1].trim()) {
+        contTexts.pop();
+      }
+      const combinedText = contTexts.length > 0
+        ? [currentText, ...contTexts].join('\n')
+        : currentText;
+      
+      setEditedTexts(prev => ({ ...prev, [index]: { text: combinedText, timestamp } }));
       // Originaltext merken um am Ende prüfen zu können ob tatsächlich etwas geändert wurde
-      setOriginalLineTexts(prev => ({ ...prev, [index]: currentText }));
+      setOriginalLineTexts(prev => ({ ...prev, [index]: combinedText }));
     }
     
-    // Focus the input after a short delay to ensure it's rendered
+    // Focus und Auto-Resize nach kurzer Verzögerung (DOM muss gerendert sein)
     setTimeout(() => {
       const input = editInputRefs.current[index];
       if (input) {
         input.focus();
+        autoResizeTextarea(input);
       }
-    }, 10);
+    }, 50);
   };
   
   // Handle header click in edit mode
@@ -228,12 +272,29 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     }, 10);
   };
   
+  // Textarea automatisch auf Inhaltshöhe skalieren (kein Scrollbar, keine feste Zeilenanzahl)
+  const autoResizeTextarea = (el) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/cd58e5fa-c5ab-4769-86c6-273c6f726f5b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TranscriptView.js:autoResizeTextarea',message:'called',data:{elFound:!!el,currentHeight:el?.style?.height,offsetHeight:el?.offsetHeight,scrollHeight:el?.scrollHeight},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+    if (!el) return;
+    el.style.height = '0px'; // Auf 0 setzen damit scrollHeight den vollen Inhalt misst
+    const newHeight = el.scrollHeight;
+    el.style.height = newHeight + 'px';
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/cd58e5fa-c5ab-4769-86c6-273c6f726f5b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TranscriptView.js:autoResizeTextarea',message:'after resize',data:{scrollHeight:newHeight,appliedHeight:el.style.height},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
+  };
+
   // Handle text change in edit input
   const handleEditTextChange = (index, newText) => {
     setEditedTexts(prev => ({
       ...prev,
       [index]: { ...prev[index], text: newText }
     }));
+    // Textarea nach Textänderung neu skalieren
+    const el = editInputRefs.current[index];
+    if (el) autoResizeTextarea(el);
   };
   
   // Handle header text change
@@ -242,6 +303,7 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
   };
   
   // Save current edit and update transcription
+  // Speichert die Hauptzeile UND alle Continuation-Zeilen (da die Textarea alle enthält)
   const saveCurrentEdit = () => {
     if (editingLineIndex === null) return;
     
@@ -259,35 +321,55 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
       return;
     }
     
-    // Find and update the line with the matching timestamp in the original transcription
-    const lines = transcription.split('\n');
-    const fullTimestamp = `[${timestamp}]`;
+    // Editierten Text in Hauptzeile + Continuation-Zeilen aufteilen
+    const editedLines = editedText.split('\n');
+    const newMainText = editedLines[0];
+    const newContinuations = editedLines.slice(1);
     
-    // Find the FIRST line with this timestamp (after the header)
+    const fullTimestamp = `[${timestamp}]`;
+    const rawLines = transcription.replace(/\r\n/g, '\n').split('\n');
+    
+    // Timestamp-Zeile in der Original-Transkription finden
     let foundIndex = -1;
     let headerPassed = false;
     
-    for (let i = 0; i < lines.length; i++) {
-      // Check if we've passed the header section
-      if (lines[i].includes('Gesamtzusammenfassung:') || 
-          lines[i].match(/^={3,}/)) {
+    for (let i = 0; i < rawLines.length; i++) {
+      if (rawLines[i].includes('Gesamtzusammenfassung:') || rawLines[i].match(/^={3,}/)) {
         headerPassed = true;
       }
-      
-      // Look for the timestamp after the header
-      if (headerPassed && lines[i].startsWith(fullTimestamp)) {
+      if (headerPassed && rawLines[i].startsWith(fullTimestamp)) {
         foundIndex = i;
         break;
       }
     }
     
-    if (foundIndex !== -1) {
-      lines[foundIndex] = `${fullTimestamp} ${editedText}`;
-      onTextChange(lines.join('\n'));
-      logger.log(`✓ Text geändert und gespeichert für ${fullTimestamp}`);
-    } else {
+    if (foundIndex === -1) {
       logger.warn(`⚠ Timestamp ${fullTimestamp} nicht gefunden in Originaltext`);
+      setEditingLineIndex(null);
+      return;
     }
+    
+    // Anzahl der bestehenden Continuation-Zeilen zählen (bis zum nächsten Timestamp/Header/Separator)
+    let existingContCount = 0;
+    let k = foundIndex + 1;
+    while (k < rawLines.length) {
+      const nextLine = rawLines[k];
+      if (nextLine.match(/^\[(\d{2}:\d{2}:\d{2})\]/) ||
+          nextLine.match(/^-{10,}/) ||
+          nextLine.startsWith('═')) {
+        break;
+      }
+      existingContCount++;
+      k++;
+    }
+    
+    // Timestamp-Zeile aktualisieren und Continuation-Zeilen ersetzen
+    const newRawLines = [...rawLines];
+    newRawLines[foundIndex] = `${fullTimestamp} ${newMainText}`;
+    newRawLines.splice(foundIndex + 1, existingContCount, ...newContinuations);
+    
+    onTextChange(newRawLines.join('\n'));
+    logger.log(`✓ Block gespeichert: ${fullTimestamp} (${newContinuations.length} Folgezeilen)`);
     
     setEditingLineIndex(null);
   };
@@ -345,9 +427,9 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     saveCurrentHeaderEdit();
   };
   
-  // Handle key press (Enter to save, Escape to cancel)
+  // Handle key press (Ctrl+Enter = speichern, Escape = abbrechen, Enter = neue Zeile)
   const handleKeyDown = (e, index) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       saveCurrentEdit();
     } else if (e.key === 'Escape') {
@@ -357,6 +439,7 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
       setEditedTexts(newTexts);
       setEditingLineIndex(null);
     }
+    // Enter ohne Modifier: normaler Zeilenumbruch im Textarea
   };
   
   // Handle key press for headers
@@ -396,19 +479,36 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
     });
     
     lines = lines.filter((line, index) => !skipIndices.has(index));
+
+    // Für normale User (keine Admins) Detail-Metadaten-Zeilen ausblenden
+    if (!isAdmin) {
+      lines = lines.filter(line => {
+        const trimmed = line.trim();
+        return !HIDDEN_FOR_USERS_PREFIXES.some(prefix => trimmed.startsWith(prefix));
+      });
+    }
     
     let inSummarySection = false;
     
+    // Grouping-Ansatz: Timestamp-Zeilen werden mit ihren Fortsetzungszeilen
+    // in EINEM flex-Container gerendert → garantiert exakte Ausrichtung ohne Pixel-Rechnung
+    const elements = [];
+    let i = 0;
     
-    return lines.map((line, index) => {
+    while (i < lines.length) {
+      const line = lines[i];
+      const index = i;
+      
       // Detect "Gesamtzusammenfassung:" section
       if (line.trim() === 'Gesamtzusammenfassung:') {
         inSummarySection = true;
-        return (
+        elements.push(
           <div key={index} ref={topRef} className="mb-2 text-gray-700 font-semibold">
             {line}
           </div>
         );
+        i++;
+        continue;
       }
       
       // Check if we're leaving the summary section
@@ -418,7 +518,7 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
       
       // Render clickable summary lines
       if (inSummarySection && line.trim() && !line.startsWith('═')) {
-        return (
+        elements.push(
           <div 
             key={index} 
             role="button"
@@ -430,6 +530,8 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
             {line}
           </div>
         );
+        i++;
+        continue;
       }
       
       // Check for separator with header
@@ -440,7 +542,7 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
         const isEditingHeader = isEditMode && editingHeaderKey === headerText;
         const displayHeaderText = editedHeaders[headerText] !== undefined ? editedHeaders[headerText] : headerText;
         
-        return (
+        elements.push(
           <div 
             key={index} 
             ref={(el) => headerRefs.current[headerText] = el}
@@ -473,6 +575,8 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
             </div>
           </div>
         );
+        i++;
+        continue;
       }
       
       // Check if line contains timestamp
@@ -486,14 +590,34 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
         const isEditing = isEditMode && editingLineIndex === index;
         const displayText = editedTexts[index]?.text !== undefined ? editedTexts[index].text : text;
         
-        return (
+        // Fortsetzungszeilen: ALLE Zeilen bis zum nächsten Timestamp/Überschrift/Separator sammeln.
+        // Leerzeilen NICHT als Abbruch – sie sind visuelle Trenner innerhalb desselben Blocks.
+        const continuations = [];
+        let j = i + 1;
+        while (j < lines.length) {
+          const nextLine = lines[j];
+          if (nextLine.match(/^\[(\d{2}:\d{2}:\d{2})\]/) ||
+              nextLine.match(/^-{10,}\s+.+$/) ||
+              nextLine.startsWith('═')) {
+            break;
+          }
+          continuations.push({ text: nextLine, index: j });
+          j++;
+        }
+        // Abschließende Leerzeilen aus dem Block entfernen (gehören visuell zum nächsten Element)
+        while (continuations.length > 0 && !continuations[continuations.length - 1].text.trim()) {
+          continuations.pop();
+          j--;
+        }
+        
+        elements.push(
           <div 
             key={index} 
             ref={(el) => timestampRefs.current[`${fullTimestamp}-${index}`] = el}
             className={`flex items-start mb-2 group transition-all duration-300 rounded-lg ${
               isCurrentTimestamp ? 'bg-blue-50 border-l-4 border-blue-400 -ml-1' : ''
             } ${isEditMode ? 'cursor-pointer hover:bg-gray-50' : ''}`}
-            onClick={() => handleLineClick(index, text, timestamp)}
+            onClick={() => handleLineClick(index, text, timestamp, continuations)}
           >
             <button
               onClick={(e) => {
@@ -511,43 +635,70 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
             </button>
             
             {isEditing ? (
-              <input
-                ref={(el) => editInputRefs.current[index] = el}
-                type="text"
+              // Edit-Modus: Textarea enthält Hauptzeile + alle Continuation-Zeilen (via \n getrennt)
+              // Strg+Enter = Speichern, Enter = neue Zeile, Escape = Abbrechen
+              <textarea
+                ref={(el) => {
+                  editInputRefs.current[index] = el;
+                  if (el) autoResizeTextarea(el);
+                }}
                 value={displayText}
-                onChange={(e) => handleEditTextChange(index, e.target.value)}
+                rows={1}
+                onChange={(e) => {
+                  handleEditTextChange(index, e.target.value);
+                  autoResizeTextarea(e.target);
+                }}
                 onBlur={handleBlur}
                 onKeyDown={(e) => handleKeyDown(e, index)}
-                className="flex-1 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="flex-1 w-full px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white leading-relaxed resize-none overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
+                title="Strg+Enter zum Speichern, Escape zum Abbrechen"
               />
             ) : (
-              <span className={`leading-relaxed ${
-                isCurrentTimestamp ? 'text-gray-900 font-medium' : 'text-gray-800'
-              } ${isEditMode ? 'hover:text-blue-600' : ''}`}>
-                {displayText}
-              </span>
+              // Read-only: Hauptzeile + Continuation-Zeilen getrennt anzeigen
+              <div className="flex-1 min-w-0">
+                <span className={`leading-relaxed ${
+                  isCurrentTimestamp ? 'text-gray-900 font-medium' : 'text-gray-800'
+                } ${isEditMode ? 'hover:text-blue-600' : ''}`}>
+                  {text}
+                </span>
+                {/* Fortsetzungszeilen im selben flex-1 Container → exakt gleiche Einrückung.
+                    Leerzeilen werden als visueller Abstandhalter gerendert. */}
+                {continuations.map(({ text: contText, index: contIndex }) => (
+                  <div key={contIndex} className="text-gray-700 leading-relaxed">
+                    {contText || <br />}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         );
+        
+        i = j; // Verarbeitete Fortsetzungszeilen überspringen
+        continue;
       }
       
       // Header or separator lines
       if (line.startsWith('═')) {
-        return (
+        elements.push(
           <div key={index} className="text-gray-400 my-2 font-mono text-sm">
             {line}
           </div>
         );
+        i++;
+        continue;
       }
       
-      // Normal text
-      return (
+      // Normal text (eigenständige Zeilen ohne Timestamp-Kontext)
+      elements.push(
         <div key={index} className="mb-1 text-gray-700">
           {line || <br />}
         </div>
       );
-    });
+      i++;
+    }
+    
+    return elements;
   };
   
   return (
@@ -595,7 +746,7 @@ function TranscriptView({ transcription, isEditMode, onTimestampClick, onTextCha
             {isEditMode && (
               <>
                 <br />
-                • Klicke auf eine Zeile zum Bearbeiten. Drücke <kbd className="px-1 py-0.5 bg-gray-200 rounded">Enter</kbd> zum Speichern oder <kbd className="px-1 py-0.5 bg-gray-200 rounded">Esc</kbd> zum Abbrechen.
+                • Klicke auf eine Zeile zum Bearbeiten. Das Textfeld zeigt alle Zeilen des Timestamps. Drücke <kbd className="px-1 py-0.5 bg-gray-200 rounded">Strg+Enter</kbd> zum Speichern, <kbd className="px-1 py-0.5 bg-gray-200 rounded">Enter</kbd> für neue Zeile oder <kbd className="px-1 py-0.5 bg-gray-200 rounded">Esc</kbd> zum Abbrechen.
               </>
             )}
           </p>

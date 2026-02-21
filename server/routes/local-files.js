@@ -3,6 +3,8 @@ const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const axios = require('axios');
+const FormData = require('form-data');
 const { authenticateJWT } = require('../middleware/auth');
 const { queryOne } = require('../db/database-pg');
 const logger = require('../../logger');
@@ -13,6 +15,21 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200
 // Konfiguration für lokales Verzeichnis (Default)
 const DEFAULT_AUDIO_DIR = 'D:\\Projekte_KI\\pyenv_1_transcode_durchgabe\\audio';
 
+// Cloud-Mode: wenn LOCAL_TRANSCRIBE_SERVICE_URL gesetzt ist, werden Datei-Operationen
+// an den lokalen FastAPI-Service weitergeleitet statt direkt aufs Dateisystem zuzugreifen.
+const LOCAL_SERVICE_URL = process.env.LOCAL_TRANSCRIBE_SERVICE_URL;
+const LOCAL_SERVICE_API_KEY = process.env.LOCAL_SERVICE_API_KEY || '';
+
+/**
+ * Erstellt Standard-Headers für Anfragen an den lokalen Service
+ */
+function getServiceHeaders(extraHeaders = {}) {
+  return {
+    ...(LOCAL_SERVICE_API_KEY && { 'x-api-key': LOCAL_SERVICE_API_KEY }),
+    ...extraHeaders
+  };
+}
+
 /**
  * GET /api/local-files/list
  * Liste lokale MP3 oder TXT Dateien aus dem Audio-Verzeichnis
@@ -22,7 +39,34 @@ const DEFAULT_AUDIO_DIR = 'D:\\Projekte_KI\\pyenv_1_transcode_durchgabe\\audio';
 router.get('/list', authenticateJWT, async (req, res) => {
   try {
     const fileType = req.query.type || 'mp3'; // 'mp3' oder 'txt'
-    
+
+    // -----------------------------------------------------------------------
+    // CLOUD-MODE: Weiterleitung an lokalen Service
+    // -----------------------------------------------------------------------
+    if (LOCAL_SERVICE_URL) {
+      try {
+        const serviceRes = await axios.get(
+          `${LOCAL_SERVICE_URL}/files/list`,
+          {
+            params: { type: fileType },
+            headers: getServiceHeaders(),
+            timeout: 15000
+          }
+        );
+        return res.json(serviceRes.data);
+      } catch (serviceErr) {
+        logger.error('LOCAL_FILES', 'Cloud-Mode Fehler bei /files/list:', serviceErr.message);
+        return res.status(503).json({
+          error: 'Lokaler KI-Service nicht erreichbar',
+          details: serviceErr.message
+        });
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // LOCAL-MODE: Direkt vom Dateisystem lesen
+    // -----------------------------------------------------------------------
+
     // Load user's last upload directory (if exists)
     let audioDir = DEFAULT_AUDIO_DIR;
     if (req.user && req.user.userId) {
@@ -43,7 +87,7 @@ router.get('/list', authenticateJWT, async (req, res) => {
 
     // Prüfen ob Verzeichnis existiert
     if (!fs.existsSync(audioDir)) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: `Verzeichnis nicht gefunden: ${audioDir}`,
         hint: 'Bitte stelle sicher, dass das Verzeichnis korrekt ist oder ändere es in den Einstellungen.'
       });
@@ -58,8 +102,8 @@ router.get('/list', authenticateJWT, async (req, res) => {
       filteredFiles = allFiles.filter(f => f.toLowerCase().endsWith('.mp3'));
     } else if (fileType === 'txt') {
       // Nur .txt, NICHT _s.txt
-      filteredFiles = allFiles.filter(f => 
-        f.toLowerCase().endsWith('.txt') && 
+      filteredFiles = allFiles.filter(f =>
+        f.toLowerCase().endsWith('.txt') &&
         !f.toLowerCase().endsWith('_s.txt')
       );
     } else {
@@ -70,7 +114,7 @@ router.get('/list', authenticateJWT, async (req, res) => {
     const filesWithDetails = filteredFiles.map(filename => {
       const fullPath = path.join(audioDir, filename);
       const stats = fs.statSync(fullPath);
-      
+
       return {
         filename,
         path: fullPath,
@@ -93,9 +137,9 @@ router.get('/list', authenticateJWT, async (req, res) => {
 
   } catch (error) {
     logger.error('LOCAL_FILES', 'Fehler beim Auflisten der lokalen Dateien:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Fehler beim Auflisten der Dateien',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -106,6 +150,29 @@ router.get('/list', authenticateJWT, async (req, res) => {
  */
 router.get('/info', authenticateJWT, async (req, res) => {
   try {
+    // -----------------------------------------------------------------------
+    // CLOUD-MODE: Weiterleitung an lokalen Service
+    // -----------------------------------------------------------------------
+    if (LOCAL_SERVICE_URL) {
+      try {
+        const serviceRes = await axios.get(
+          `${LOCAL_SERVICE_URL}/files/info`,
+          { headers: getServiceHeaders(), timeout: 10000 }
+        );
+        return res.json(serviceRes.data);
+      } catch (serviceErr) {
+        logger.error('LOCAL_FILES', 'Cloud-Mode Fehler bei /files/info:', serviceErr.message);
+        return res.status(503).json({
+          error: 'Lokaler KI-Service nicht erreichbar',
+          details: serviceErr.message
+        });
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // LOCAL-MODE: Direkt vom Dateisystem lesen
+    // -----------------------------------------------------------------------
+
     // Load user's last upload directory (if exists)
     let audioDir = DEFAULT_AUDIO_DIR;
     if (req.user && req.user.userId) {
@@ -121,9 +188,9 @@ router.get('/info', authenticateJWT, async (req, res) => {
         logger.error('LOCAL_FILES', 'Error loading user directory:', dbError.message);
       }
     }
-    
+
     const exists = fs.existsSync(audioDir);
-    
+
     if (!exists) {
       return res.json({
         directory: audioDir,
@@ -149,9 +216,9 @@ router.get('/info', authenticateJWT, async (req, res) => {
 
   } catch (error) {
     logger.error('LOCAL_FILES', 'Fehler beim Abrufen der Verzeichnis-Info:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Fehler beim Abrufen der Verzeichnis-Info',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -168,7 +235,44 @@ router.post('/save-for-transcription', authenticateJWT, upload.single('file'), a
       return res.status(400).json({ error: 'Keine Datei angegeben' });
     }
 
-    // Zielverzeichnis bestimmen (wie in transcribe-local.js: DEFAULT_AUDIO_DIR)
+    // -----------------------------------------------------------------------
+    // CLOUD-MODE: Datei an lokalen Service senden
+    // -----------------------------------------------------------------------
+    if (LOCAL_SERVICE_URL) {
+      try {
+        const formData = new FormData();
+        formData.append('file', req.file.buffer, {
+          filename: req.file.originalname,
+          contentType: req.file.mimetype
+        });
+
+        const serviceRes = await axios.post(
+          `${LOCAL_SERVICE_URL}/files/save`,
+          formData,
+          {
+            headers: {
+              ...formData.getHeaders(),
+              ...getServiceHeaders()
+            },
+            timeout: 120000 // 2 Minuten für großen Upload
+          }
+        );
+
+        logger.log('LOCAL_FILES', `✅ Cloud-Mode: Datei an lokalen Service gespeichert: ${serviceRes.data.filename}`);
+        return res.json(serviceRes.data);
+      } catch (serviceErr) {
+        logger.error('LOCAL_FILES', 'Cloud-Mode Fehler bei /files/save:', serviceErr.message);
+        return res.status(503).json({
+          error: 'Lokaler KI-Service nicht erreichbar',
+          details: serviceErr.message
+        });
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // LOCAL-MODE: Direkt ins Dateisystem schreiben
+    // -----------------------------------------------------------------------
+
     const targetDir = DEFAULT_AUDIO_DIR;
 
     if (!fs.existsSync(targetDir)) {
