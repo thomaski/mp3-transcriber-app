@@ -163,20 +163,27 @@ Set-Alias -Name quick-push -Value Quick-GitPush
 function Upload-CommitCreateTagAndRelease {
     Set-Location "D:\Projekte\git\mp3-transcriber-app"
     
-    Write-Host "`n🚀 Upload + Commit + Tag + GitHub Release`n" -ForegroundColor Cyan
+    Write-Host "`n🚀 Upload + Commit + Tag + GitHub Release" -ForegroundColor Cyan
     Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
     
     # ── Schritt 1: Version abfragen ──────────────────────────────────────────
-    $version = Read-Host "`n📌 Version eingeben (z.B. 1.0.0 oder v1.0.0)"
-    if ([string]::IsNullOrWhiteSpace($version)) {
+    $versionRaw = Read-Host "`n📌 Version eingeben (z.B. 1.0.0 oder v1.0.0)"
+    if ([string]::IsNullOrWhiteSpace($versionRaw)) {
         Write-Host "❌ Abgebrochen: Keine Version angegeben.`n" -ForegroundColor Red
         return
     }
-    # Normalisieren: "v" voranstellen falls nicht vorhanden
-    if (-not $version.StartsWith("v")) {
-        $version = "v$version"
-    }
-    Write-Host "✅ Version: $version" -ForegroundColor Green
+    # Normalisieren
+    $versionRaw = $versionRaw.Trim()
+    $versionTag = if ($versionRaw.StartsWith("v")) { $versionRaw } else { "v$versionRaw" }
+    $versionNum = $versionTag.TrimStart("v")   # z.B. "1.0.0"
+    
+    # Tag-Name: MP3-Transcriber-v1.0.0
+    $tagName     = "MP3-Transcriber-$versionTag"
+    # Release-Titel: 🎙️ MP3 Transcriber App – Release v1.0.0
+    $releaseTitle = "MP3 Transcriber App - Release $versionTag"
+    
+    Write-Host "  🏷️  Tag-Name    : $tagName" -ForegroundColor Green
+    Write-Host "  📦 Release-Titel: $releaseTitle" -ForegroundColor Green
     
     # ── Schritt 2: README.md prüfen und ggf. aktualisieren ───────────────────
     Write-Host "`n────────────────────────────────────────────────────────────────" -ForegroundColor DarkCyan
@@ -185,33 +192,135 @@ function Upload-CommitCreateTagAndRelease {
     
     $readmeExists = Test-Path "README.md"
     if ($readmeExists) {
-        $readmeContent = Get-Content "README.md" -Raw
-        $readmeLines = (Get-Content "README.md").Count
+        $readmeContent = Get-Content "README.md" -Raw -Encoding UTF8
+        $readmeLines   = (Get-Content "README.md" -Encoding UTF8).Count
         Write-Host "  ✅ README.md gefunden ($readmeLines Zeilen)" -ForegroundColor Green
         
-        # Nach Version in README suchen
-        if ($readmeContent -match [Regex]::Escape($version)) {
-            Write-Host "  ✅ Version '$version' ist in README.md eingetragen." -ForegroundColor Green
-            $updateReadme = Read-Host "`n  🔄 README.md trotzdem aktualisieren? (j/n)"
+        if ($readmeContent -match [Regex]::Escape($versionNum)) {
+            Write-Host "  ✅ Version '$versionNum' ist in README.md eingetragen." -ForegroundColor Green
+            $updateReadme = Read-Host "  🔄 README.md trotzdem vor dem Release bearbeiten? (j/n)"
         } else {
-            Write-Host "  ⚠️  Version '$version' wurde NICHT in README.md gefunden!" -ForegroundColor Yellow
+            Write-Host "  ⚠️  Version '$versionNum' wurde NICHT in README.md gefunden!" -ForegroundColor Yellow
             Write-Host "     Empfehlung: README.md vor dem Release aktualisieren." -ForegroundColor Yellow
-            $updateReadme = Read-Host "`n  🔄 README.md jetzt aktualisieren? (j/n)"
+            $updateReadme = Read-Host "  🔄 README.md jetzt aktualisieren? (j/n)"
         }
         
-        if ($updateReadme -eq "j" -or $updateReadme -eq "J" -or $updateReadme -eq "y" -or $updateReadme -eq "Y") {
-            Write-Host "`n  📝 Öffne README.md zur Bearbeitung..." -ForegroundColor Cyan
+        if ($updateReadme -in @("j","J","y","Y")) {
+            Write-Host "  📝 Öffne README.md zur Bearbeitung..." -ForegroundColor Cyan
             notepad.exe "README.md"
             Read-Host "  ⏸  Drücke Enter wenn du mit der Bearbeitung fertig bist"
-            $readmeContent = Get-Content "README.md" -Raw
-            Write-Host "  ✅ README.md gelesen." -ForegroundColor Green
+            $readmeContent = Get-Content "README.md" -Raw -Encoding UTF8
+            Write-Host "  ✅ README.md aktualisiert und eingelesen." -ForegroundColor Green
         }
     } else {
-        Write-Host "  ⚠️  README.md nicht gefunden! Release wird ohne Dokumentation erstellt." -ForegroundColor Yellow
-        $readmeContent = "Release $version"
+        Write-Host "  ⚠️  README.md nicht gefunden! Release wird mit minimaler Dokumentation erstellt." -ForegroundColor Yellow
+        $readmeContent = $null
     }
     
-    # ── Schritt 3: Git Status anzeigen und Commit durchführen ─────────────────
+    # ── Schritt 3: Release-Dokumentation aus README.md generieren ───────────────
+    # Liest README.md und extrahiert daraus dynamisch alle vorhandenen Abschnitte.
+    # KEIN hartcodierter Text – alles kommt aus README.md.
+    Write-Host "`n────────────────────────────────────────────────────────────────" -ForegroundColor DarkCyan
+    Write-Host "  📝 Generiere Release-Dokumentation aus README.md" -ForegroundColor White
+    Write-Host "────────────────────────────────────────────────────────────────" -ForegroundColor DarkCyan
+    
+    $releaseDate = Get-Date -Format "yyyy-MM-dd"
+    $repoUrlRaw  = git remote get-url origin 2>&1
+    $repoPath    = if ($repoUrlRaw -match 'github\.com[:/](.+?)(?:\.git)?$') { $Matches[1] } else { "" }
+    $repoHttpUrl = if ($repoPath) { "https://github.com/$repoPath" } else { "" }
+    
+    # Hilfsfunktion: extrahiert einen ## Abschnitt vollständig aus Markdown-Text
+    function Get-MarkdownSection {
+        param([string]$content, [string]$heading)
+        if (-not $content) { return "" }
+        $escaped = [Regex]::Escape($heading)
+        $m = [Regex]::Match($content, "(?ms)^##\s+$escaped\s*`n(.*?)(?=^##\s|\z)")
+        if ($m.Success) { return $m.Groups[1].Value.Trim() }
+        return ""
+    }
+    
+    # Alle ## Überschriften aus README.md auslesen (dynamisch, keine Annahmen)
+    $docParts = [System.Collections.Generic.List[string]]::new()
+    
+    if ($readmeContent) {
+        # Ersten Absatz (Kurzbeschreibung) extrahieren – Text zwischen # Titel und erstem ##
+        $introMatch = [Regex]::Match($readmeContent, "(?ms)^#[^#].*?`n(.*?)(?=^##\s|\z)")
+        $introText  = if ($introMatch.Success) { $introMatch.Groups[1].Value.Trim() } else { "" }
+        
+        # Alle ## Abschnitt-Überschriften in der Reihenfolge ihres Vorkommens ermitteln
+        $sectionMatches = [Regex]::Matches($readmeContent, "(?m)^##\s+(.+)$")
+        $sectionHeadings = $sectionMatches | ForEach-Object { $_.Groups[1].Value.Trim() }
+        
+        # Release-Header (nur dynamische Werte)
+        $docParts.Add("# $releaseTitle")
+        $docParts.Add("")
+        $docParts.Add("**Version:** $versionTag  ")
+        $docParts.Add("**Datum:** $releaseDate  ")
+        if ($repoHttpUrl) { $docParts.Add("**Repository:** $repoHttpUrl  ") }
+        $docParts.Add("")
+        $docParts.Add("---")
+        $docParts.Add("")
+        
+        # Kurzbeschreibung aus README-Intro
+        if ($introText) {
+            $docParts.Add($introText)
+            $docParts.Add("")
+            $docParts.Add("---")
+            $docParts.Add("")
+        }
+        
+        # Changelog-Eintrag für diese Version voranstellen (falls CHANGELOG.md vorhanden)
+        if (Test-Path "CHANGELOG.md") {
+            $clContent   = Get-Content "CHANGELOG.md" -Raw -Encoding UTF8
+            $clPattern   = "(?ms)^##\s+.*?$([Regex]::Escape($versionNum)).*?`n(.*?)(?=^##\s|\z)"
+            $clAlt       = "(?ms)^##\s+.*?$([Regex]::Escape($versionTag)).*?`n(.*?)(?=^##\s|\z)"
+            $clMatch     = [Regex]::Match($clContent, $clPattern)
+            if (-not $clMatch.Success) { $clMatch = [Regex]::Match($clContent, $clAlt) }
+            if ($clMatch.Success) {
+                $clText = $clMatch.Groups[1].Value.Trim()
+                if ($clText) {
+                    $docParts.Add("## Änderungen in $versionTag")
+                    $docParts.Add("")
+                    $docParts.Add($clText)
+                    $docParts.Add("")
+                    $docParts.Add("---")
+                    $docParts.Add("")
+                }
+            }
+        }
+        
+        # Alle ## Abschnitte aus README.md in ihrer originalen Reihenfolge übernehmen
+        # (Inhaltsverzeichnis-Abschnitt überspringen)
+        foreach ($heading in $sectionHeadings) {
+            if ($heading -match "Inhaltsverzeichnis|Table of Contents") { continue }
+            $sectionText = Get-MarkdownSection $readmeContent $heading
+            if ($sectionText) {
+                $docParts.Add("## $heading")
+                $docParts.Add("")
+                $docParts.Add($sectionText)
+                $docParts.Add("")
+                $docParts.Add("---")
+                $docParts.Add("")
+            }
+        }
+    } else {
+        # Kein README → minimaler Fallback-Header
+        $docParts.Add("# $releaseTitle")
+        $docParts.Add("")
+        $docParts.Add("**Version:** $versionTag  ")
+        $docParts.Add("**Datum:** $releaseDate  ")
+        if ($repoHttpUrl) { $docParts.Add("**Repository:** $repoHttpUrl") }
+    }
+    
+    $docText = $docParts -join "`n"
+    
+    # In temporäre Datei schreiben (UTF-8 ohne BOM)
+    $tempDocFile = [System.IO.Path]::GetTempFileName() -replace "\.tmp$", ".md"
+    [System.IO.File]::WriteAllText($tempDocFile, $docText, [System.Text.UTF8Encoding]::new($false))
+    $docLineCount = $docParts.Count
+    Write-Host "  ✅ Release-Dokumentation generiert ($docLineCount Abschnitte → $tempDocFile)" -ForegroundColor Green
+    
+    # ── Schritt 4: Git Status anzeigen und Commit durchführen ─────────────────
     Write-Host "`n────────────────────────────────────────────────────────────────" -ForegroundColor DarkCyan
     Write-Host "  📤 Upload & Commit" -ForegroundColor White
     Write-Host "────────────────────────────────────────────────────────────────" -ForegroundColor DarkCyan
@@ -222,13 +331,11 @@ function Upload-CommitCreateTagAndRelease {
         $changesRaw | ForEach-Object { Write-Host "     $_" }
         Write-Host ""
         
-        # Commit Message abfragen
-        $defaultMsg = "feat: Release $version"
-        Write-Host "  💾 Commit-Message (Enter für: '$defaultMsg'):" -ForegroundColor Yellow
+        $defaultMsg = "feat: Release $versionTag - MP3 Transcriber App"
+        Write-Host "  💾 Commit-Message (Enter für Standard):" -ForegroundColor Yellow
+        Write-Host "     Standard: '$defaultMsg'" -ForegroundColor DarkGray
         $commitMsg = Read-Host "  >"
-        if ([string]::IsNullOrWhiteSpace($commitMsg)) {
-            $commitMsg = $defaultMsg
-        }
+        if ([string]::IsNullOrWhiteSpace($commitMsg)) { $commitMsg = $defaultMsg }
         
         Write-Host "`n  ➕ Stage alle Änderungen..." -ForegroundColor Blue
         git add .
@@ -237,6 +344,7 @@ function Upload-CommitCreateTagAndRelease {
         git commit -m $commitMsg
         if ($LASTEXITCODE -ne 0) {
             Write-Host "  ❌ Commit fehlgeschlagen! Abbruch.`n" -ForegroundColor Red
+            Remove-Item $tempDocFile -ErrorAction SilentlyContinue
             return
         }
         
@@ -244,97 +352,91 @@ function Upload-CommitCreateTagAndRelease {
         git push
         if ($LASTEXITCODE -ne 0) {
             Write-Host "  ❌ Push fehlgeschlagen! Abbruch.`n" -ForegroundColor Red
+            Remove-Item $tempDocFile -ErrorAction SilentlyContinue
             return
         }
         Write-Host "  ✅ Alle Änderungen erfolgreich gepusht!" -ForegroundColor Green
     } else {
         Write-Host "  ℹ️  Keine lokalen Änderungen. Prüfe auf ausstehende Commits..." -ForegroundColor Cyan
-        git push
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "  ⚠️  Push nicht möglich oder bereits aktuell." -ForegroundColor Yellow
-        } else {
-            Write-Host "  ✅ Push erfolgreich (ausstehende Commits übertragen)." -ForegroundColor Green
-        }
+        git push 2>&1 | Out-Null
+        Write-Host "  ✅ Push abgeschlossen." -ForegroundColor Green
     }
     
-    # ── Schritt 4: Bestehendes Tag löschen falls vorhanden ───────────────────
+    # ── Schritt 5: Bestehendes Tag löschen falls vorhanden ───────────────────
     Write-Host "`n────────────────────────────────────────────────────────────────" -ForegroundColor DarkCyan
-    Write-Host "  🏷️  Tag '$version' erstellen" -ForegroundColor White
+    Write-Host "  🏷️  Tag '$tagName' erstellen" -ForegroundColor White
     Write-Host "────────────────────────────────────────────────────────────────" -ForegroundColor DarkCyan
     
-    $existingLocalTag = git tag -l $version
+    # Lokales Tag löschen
+    $existingLocalTag = git tag -l $tagName
     if ($existingLocalTag) {
-        Write-Host "`n  ⚠️  Lokales Tag '$version' existiert bereits → wird gelöscht..." -ForegroundColor Yellow
-        git tag -d $version
+        Write-Host "  ⚠️  Lokales Tag '$tagName' existiert → wird gelöscht..." -ForegroundColor Yellow
+        git tag -d $tagName | Out-Null
     }
-    
-    # Remote Tag löschen falls vorhanden
-    $existingRemoteTag = git ls-remote --tags origin "refs/tags/$version" 2>&1
-    if ($existingRemoteTag -and $LASTEXITCODE -eq 0 -and $existingRemoteTag -ne "") {
-        Write-Host "  ⚠️  Remote Tag '$version' existiert bereits → wird gelöscht..." -ForegroundColor Yellow
-        git push origin ":refs/tags/$version"
+    # Remote Tag löschen
+    $existingRemoteTag = git ls-remote --tags origin "refs/tags/$tagName" 2>&1
+    if ($existingRemoteTag -and "$existingRemoteTag".Trim() -ne "") {
+        Write-Host "  ⚠️  Remote Tag '$tagName' existiert → wird gelöscht..." -ForegroundColor Yellow
+        git push origin ":refs/tags/$tagName" 2>&1 | Out-Null
         Write-Host "  ✅ Remote Tag gelöscht." -ForegroundColor Green
     }
     
-    # Neues Tag erstellen
-    Write-Host "`n  🏷️  Erstelle Tag '$version'..." -ForegroundColor Blue
-    git tag -a $version -m "Release $version - MP3 Transcriber App"
-    
-    Write-Host "  📤 Pushe Tag zu GitHub..." -ForegroundColor Blue
-    git push origin $version
+    # Neues annotiertes Tag mit vollständiger Dokumentation erstellen
+    Write-Host "  🏷️  Erstelle Tag '$tagName' mit vollständiger Dokumentation..." -ForegroundColor Blue
+    git tag -a $tagName -F $tempDocFile
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "  ❌ Tag-Push fehlgeschlagen!`n" -ForegroundColor Red
+        Write-Host "  ❌ Tag-Erstellung fehlgeschlagen!`n" -ForegroundColor Red
+        Remove-Item $tempDocFile -ErrorAction SilentlyContinue
         return
     }
-    Write-Host "  ✅ Tag '$version' erstellt und gepusht!" -ForegroundColor Green
     
-    # ── Schritt 5: GitHub Release erstellen ──────────────────────────────────
+    Write-Host "  📤 Pushe Tag zu GitHub..." -ForegroundColor Blue
+    git push origin $tagName
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  ❌ Tag-Push fehlgeschlagen!`n" -ForegroundColor Red
+        Remove-Item $tempDocFile -ErrorAction SilentlyContinue
+        return
+    }
+    Write-Host "  ✅ Tag '$tagName' erstellt und gepusht!" -ForegroundColor Green
+    
+    # ── Schritt 6: GitHub Release erstellen ──────────────────────────────────
     Write-Host "`n────────────────────────────────────────────────────────────────" -ForegroundColor DarkCyan
-    Write-Host "  📦 GitHub Release '$version' erstellen" -ForegroundColor White
+    Write-Host "  📦 GitHub Release erstellen" -ForegroundColor White
     Write-Host "────────────────────────────────────────────────────────────────" -ForegroundColor DarkCyan
     
     $ghAvailable = Get-Command gh -ErrorAction SilentlyContinue
     if (-not $ghAvailable) {
-        Write-Host "`n  ⚠️  GitHub CLI (gh) nicht gefunden. Installation: https://cli.github.com" -ForegroundColor Yellow
-        Write-Host "     Tag '$version' wurde erstellt. Release bitte manuell auf GitHub anlegen." -ForegroundColor Yellow
-        Write-Host ""
+        Write-Host "  ⚠️  GitHub CLI (gh) nicht gefunden. Installation: https://cli.github.com" -ForegroundColor Yellow
+        Write-Host "     Tag '$tagName' wurde erstellt. Release bitte manuell auf GitHub anlegen:" -ForegroundColor Yellow
+        Write-Host "     $repoHttpUrl/releases/new?tag=$tagName" -ForegroundColor Cyan
     } else {
         # Prüfe ob Release bereits existiert und lösche es ggf.
-        $releaseCheck = gh release view $version 2>&1
+        $releaseCheck = gh release view $tagName 2>&1
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "`n  ⚠️  GitHub Release '$version' existiert bereits → wird gelöscht..." -ForegroundColor Yellow
-            gh release delete $version --yes 2>&1 | Out-Null
+            Write-Host "  ⚠️  GitHub Release '$tagName' existiert bereits → wird gelöscht..." -ForegroundColor Yellow
+            gh release delete $tagName --yes 2>&1 | Out-Null
             Write-Host "  ✅ Altes Release gelöscht." -ForegroundColor Green
         }
         
-        $releaseTitle = "MP3 Transcriber App $version"
-        Write-Host "`n  📦 Erstelle GitHub Release: '$releaseTitle'..." -ForegroundColor Blue
-        
-        if ($readmeExists) {
-            gh release create $version `
-                --title $releaseTitle `
-                --notes-file "README.md" `
-                --tag $version
-        } else {
-            gh release create $version `
-                --title $releaseTitle `
-                --notes "Release $version der MP3 Transcriber App" `
-                --tag $version
-        }
+        Write-Host "  📦 Erstelle GitHub Release '$releaseTitle'..." -ForegroundColor Blue
+        gh release create $tagName `
+            --title $releaseTitle `
+            --notes-file $tempDocFile `
+            --tag $tagName
         
         if ($LASTEXITCODE -eq 0) {
-            # Repo-URL für den Link ermitteln
-            $repoUrl = git remote get-url origin 2>&1
-            $repoPath = if ($repoUrl -match 'github\.com[:/](.+?)(?:\.git)?$') { $Matches[1] } else { "..." }
-            Write-Host "`n  ✅ GitHub Release '$version' erfolgreich erstellt!" -ForegroundColor Green
-            Write-Host "  🔗 https://github.com/$repoPath/releases/tag/$version" -ForegroundColor Cyan
+            Write-Host "  ✅ GitHub Release erfolgreich erstellt!" -ForegroundColor Green
+            Write-Host "  🔗 $repoHttpUrl/releases/tag/$tagName" -ForegroundColor Cyan
         } else {
-            Write-Host "`n  ❌ Release-Erstellung fehlgeschlagen!" -ForegroundColor Red
+            Write-Host "  ❌ Release-Erstellung fehlgeschlagen!" -ForegroundColor Red
         }
     }
     
+    # Temp-Datei aufräumen
+    Remove-Item $tempDocFile -ErrorAction SilentlyContinue
+    
     Write-Host "`n════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-    Write-Host "  🎉 Fertig! Release $version wurde abgeschlossen." -ForegroundColor Green
+    Write-Host "  🎉 Fertig! Release '$releaseTitle' wurde abgeschlossen." -ForegroundColor Green
     Write-Host "════════════════════════════════════════════════════════════════`n" -ForegroundColor Cyan
 }
 Set-Alias -Name release -Value Upload-CommitCreateTagAndRelease
@@ -565,45 +667,10 @@ function Show-TranscriberCommands {
             }
             default {
                 Write-Host ""
-                Write-Host "❌ Ungültige Auswahl: $choice" -ForegroundColor Red
-                Write-Host "   Bitte wähle eine Zahl zwischen 0 und 9." -ForegroundColor Yellow
+                Write-Host "  Ungueltige Auswahl: $choice - bitte 0-9 eingeben." -ForegroundColor Red
                 Write-Host ""
-                Start-Sleep -Seconds 2
-                # Loop wiederholt sich automatisch
-                # Zeige Menü erneut
-                Write-Host "`n════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-                Write-Host "  📋 MP3 Transcriber App - Verfügbare Commands" -ForegroundColor White
-                Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-                Write-Host ""
-                Write-Host "  [1] 🔧 rebuild-gui" -ForegroundColor Blue -NoNewline
-                Write-Host "       CLEAN Rebuild: Frontend + Deploy"
-                Write-Host "  [2] 🔧 rebuild-all" -ForegroundColor Blue -NoNewline
-                Write-Host "       CLEAN Rebuild: Dependencies + GUI + Deploy"
-                Write-Host "  [3] 🚀 start-server" -ForegroundColor Green -NoNewline
-                Write-Host "      Startet Backend (Development) auf Port 5000"
-                Write-Host "  [4] 🚀 start-prod" -ForegroundColor Green -NoNewline
-                Write-Host "        Startet Backend (Production) auf Port 5000"
-                Write-Host "  [5] 🛑 stop-server" -ForegroundColor Red -NoNewline
-                Write-Host "       Stoppt alle Node.js Prozesse"
-                Write-Host "  [6] 🛑 force-stop" -ForegroundColor Red -NoNewline
-                Write-Host "        Stoppt alle Node.js Prozesse (Force)"
-                Write-Host "  [7] 📊 view-db" -ForegroundColor Magenta -NoNewline
-                Write-Host "          Zeigt PostgreSQL Datenbank-Inhalt"
-                Write-Host "  [8] 📦 install-deps" -ForegroundColor Yellow -NoNewline
-                Write-Host "      Installiert alle Dependencies"
-                Write-Host "  [9] 📂 transcriber" -ForegroundColor Cyan -NoNewline
-                Write-Host "        Wechselt zum Projekt-Verzeichnis"
-                Write-Host ""
-                Write-Host "  🌐 Git/GitHub Befehle:" -ForegroundColor White
-                Write-Host "     • qpush [message]" -ForegroundColor DarkCyan -NoNewline
-                Write-Host "    - Quick-Push (add + commit + push)"
-                Write-Host "     • release" -ForegroundColor DarkCyan -NoNewline
-                Write-Host "             - Upload + Commit + Tag + GitHub Release"
-                Write-Host ""
-                Write-Host "  [0] ❌ Exit" -ForegroundColor White -NoNewline
-                Write-Host "             Zurück zum Prompt"
-                Write-Host ""
-                Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+                Start-Sleep -Seconds 1
+                # while-Schleife laeuft weiter und zeigt den naechsten Prompt
             }
         }
     }
