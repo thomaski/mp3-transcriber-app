@@ -421,8 +421,7 @@ function Upload-CommitCreateTagAndRelease {
         Write-Host "  📦 Erstelle GitHub Release '$releaseTitle'..." -ForegroundColor Blue
         gh release create $tagName `
             --title $releaseTitle `
-            --notes-file $tempDocFile `
-            --tag $tagName
+            --notes-file $tempDocFile
         
         if ($LASTEXITCODE -eq 0) {
             Write-Host "  ✅ GitHub Release erfolgreich erstellt!" -ForegroundColor Green
